@@ -34,7 +34,7 @@ export function ReasoningSummary({ detail }: Props) {
   }
 
   return (
-    <p className="text-body text-ink leading-relaxed">
+    <p className="text-body-sm leading-relaxed text-foreground">
       {sentenceParts.join(", ")}.
     </p>
   );

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { Sidebar } from "@/components/dashboard/Sidebar";
+import { AppShell } from "@/components/common/AppShell";
 import { getMe } from "@/lib/data";
 import { ApiError } from "@/lib/api";
 
@@ -19,10 +19,13 @@ export default async function DashboardLayout({
     throw error;
   }
 
+  if (me.role !== "teacher") {
+    redirect("/student");
+  }
+
   return (
-    <div className="min-h-screen flex bg-paper text-ink">
-      <Sidebar displayName={me.display_name ?? ""} email={me.email} />
-      <main className="flex-1 px-12 py-8">{children}</main>
-    </div>
+    <AppShell role="teacher" displayName={me.display_name ?? ""} email={me.email}>
+      {children}
+    </AppShell>
   );
 }

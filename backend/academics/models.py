@@ -19,6 +19,12 @@ class AiBand(models.TextChoices):
     HIGH = "high", "High"
 
 
+class Confidence(models.TextChoices):
+    LOW = "low", "Low"
+    MEDIUM = "medium", "Medium"
+    HIGH = "high", "High"
+
+
 class EventType(models.TextChoices):
     STARTED = "started", "Started"
     REVISION = "revision", "Revision"
@@ -56,6 +62,31 @@ class Class(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ClassMembership(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    class_ref = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+        db_column="class_id",
+    )
+    student_profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="class_memberships",
+    )
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "class_memberships"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["class_ref", "student_profile"],
+                name="membership_unique_per_class",
+            ),
+        ]
 
 
 class Assignment(models.Model):
@@ -117,6 +148,12 @@ class Submission(models.Model):
         choices=SubmissionStatus.choices,
         default=SubmissionStatus.SUBMITTED,
     )
+    grade = models.SmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    teacher_feedback = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -159,7 +196,15 @@ class AnalysisResult(models.Model):
     bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],
     )
-    signals = models.JSONField(default=dict, blank=True)
+    confidence = models.CharField(
+        max_length=8,
+        choices=Confidence.choices,
+        blank=True,
+        default="",
+    )
+    # Daftar string bahasa Indonesia (maks 4) yang mendeskripsikan sinyal.
+    signals = models.JSONField(default=list, blank=True)
+    summary = models.TextField(blank=True, default="")
     recommendation = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 

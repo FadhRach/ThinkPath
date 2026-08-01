@@ -1,8 +1,19 @@
 export type Role = "teacher" | "student";
 export type EducationLevel = "SD" | "SMP" | "SMA-SMK";
 export type AiBand = "low" | "mid" | "high";
+export type Confidence = "low" | "medium" | "high" | "";
 export type SubmissionStatus = "draft" | "submitted" | "reviewed";
 export type EventType = "started" | "revision" | "paste" | "submitted";
+
+export interface AnalysisView {
+  ai_score: number;
+  ai_band: AiBand;
+  bloom_level: number;
+  confidence: Confidence;
+  signals: string[];
+  summary: string;
+  recommendation: string;
+}
 
 export interface Profile {
   id: string;
@@ -11,6 +22,56 @@ export interface Profile {
   role: Role;
   education_level: EducationLevel | "" | null;
   created_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  profile: Profile;
+}
+
+export interface ClassPublic {
+  id: string;
+  name: string;
+  subject: string;
+  education_level: EducationLevel;
+}
+
+export interface StudentAssignment {
+  id: string;
+  title: string;
+  instructions: string;
+  deadline: string | null;
+  expected_bloom_level: number;
+  education_level: EducationLevel;
+}
+
+export interface StudentSubmissionStatus {
+  id: string;
+  status: SubmissionStatus;
+  submitted_at: string | null;
+  grade: number | null;
+  teacher_feedback: string;
+  text_answer: string;
+  revision_count: number;
+}
+
+export interface StudentClassWithAssignments extends ClassPublic {
+  teacher_name: string;
+  joined_at: string;
+  assignments: Array<
+    StudentAssignment & { submission: StudentSubmissionStatus | null }
+  >;
+}
+
+export interface StudentAssignmentDetail {
+  class: ClassPublic;
+  assignment: StudentAssignment;
+  submission: StudentSubmissionStatus | null;
+}
+
+export interface JoinClassResult {
+  class: ClassPublic;
+  created: boolean;
 }
 
 export interface ClassSummary {
@@ -50,6 +111,7 @@ export interface SubmissionRow {
   duration_seconds: number | null;
   revision_count: number;
   status: SubmissionStatus;
+  grade: number | null;
   analysis: { ai_band: AiBand; bloom_level: number } | null;
 }
 
@@ -74,12 +136,8 @@ export interface SubmissionDetail {
   duration_seconds: number | null;
   revision_count: number;
   status: SubmissionStatus;
+  grade: number | null;
+  teacher_feedback: string;
   reasoning_events: ReasoningEventView[];
-  analysis: {
-    ai_score: number;
-    ai_band: AiBand;
-    bloom_level: number;
-    signals: Record<string, number>;
-    recommendation: string;
-  } | null;
+  analysis: AnalysisView | null;
 }

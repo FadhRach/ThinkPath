@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ThinkPath Frontend
 
-## Getting Started
+Next.js 14 (App Router) + TypeScript (strict) + Tailwind CSS + shadcn/ui. Semua
+data diambil dari backend Django — frontend tidak pernah mengakses database
+langsung. Tutorial end-to-end (backend + database) ada di [README root](../README.md).
 
-First, run the development server:
+## Stack & keputusan penting
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Hal | Pilihan | Catatan |
+|-----|---------|---------|
+| Framework | Next.js 14 App Router | Server Components untuk fetch data |
+| Styling | Tailwind CSS **v3.4** | tetap v3, JANGAN upgrade ke v4 |
+| Komponen | shadcn/ui (jalur `shadcn@2`) | tambah komponen: `npx shadcn@2 add <nama>`, **bukan** `@latest` (Nova preset = Tailwind v4) |
+| Ikon | `lucide-react` **0.468.x** | dipin; 1.x menargetkan React 19 dan merusak build |
+| Chart | Recharts | `GradeBarChart`, `BloomTrendChart` |
+| Font | Plus Jakarta Sans | via `next/font`, variabel `--font-sans` |
+
+Palette teal (`#0ABAB5 / #56DFCF / #ADEED9 / #FFEDF3`) dan seluruh design token
+hidup sebagai variabel HSL di `app/globals.css` `:root`, dipetakan di
+`tailwind.config.ts`. Ganti tema/warna cukup di dua file itu.
+
+> Catatan: `components/ui/button.tsx` sengaja diberi `"use client"`. Versi baru
+> `@radix-ui/react-slot` memanggil `createContext` di top-level modul; tanpa
+> directive itu setiap halaman yang memakai Button gagal saat build RSC.
+
+## Struktur
+
+```
+frontend/
+├── app/
+│   ├── page.tsx                 # landing
+│   ├── login, register/         # auth (split-screen + role selector)
+│   ├── dashboard/               # GURU
+│   │   ├── page.tsx             # daftar kelas (kartu)
+│   │   ├── classes/[classId]/   # detail kelas: tugas + tabel submission
+│   │   └── submission/[id]/     # detail submission + penilaian
+│   └── student/                 # SISWA
+│       ├── page.tsx             # beranda: ringkasan + kelas
+│       └── submit/[assignmentId]/  # kerjakan / revisi jawaban
+├── components/
+│   ├── common/                  # kit reusable: AppShell, TopNav, StatCard, BloomStepper, ...
+│   ├── ui/                      # primitives shadcn
+│   ├── dashboard/, student/, submission/   # fitur per-peran
+├── lib/
+│   ├── api.ts / api-browser.ts  # fetch server / client (Bearer token dari cookie)
+│   ├── data.ts                  # getter data (server), getMe dibungkus React cache()
+│   ├── mutations.ts             # aksi tulis (client)
+│   └── types.ts                 # tipe bersama
+└── middleware.ts                # guard rute /dashboard & /student (cek token)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Menjalankan lokal
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.local.example .env.local    # NEXT_PUBLIC_BACKEND_URL=http://localhost:7860
+npm install
+npm run dev                         # http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Pastikan backend Django jalan di port 7860 dulu. Login pakai akun demo
+(`guru@thinkpath.local` / `siswa01@thinkpath.local`, password `thinkpath123`).
 
-## Learn More
+## Skrip
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run dev      # dev server
+npm run build    # production build
+npm run lint     # ESLint
+npx tsc --noEmit # type check (strict, tanpa any)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Var | Keterangan |
+|-----|------------|
+| `NEXT_PUBLIC_BACKEND_URL` | URL backend Django. Publik (dikirim ke browser) — aman, hanya URL. |
 
-## Deploy on Vercel
+Tidak ada secret di frontend. Analisis AI (Groq) hanya dipanggil server-side di
+backend, tidak pernah dari browser.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy: Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Import folder `frontend/` sebagai project Vercel (Next.js terdeteksi otomatis).
+2. Set env `NEXT_PUBLIC_BACKEND_URL=https://<nama-space>.hf.space`.
+3. Deploy. Pastikan backend HF sudah mengizinkan origin Vercel di
+   `CORS_ALLOWED_ORIGINS`.

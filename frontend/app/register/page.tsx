@@ -1,28 +1,23 @@
 import Link from "next/link";
 
-import { AuthCard } from "@/components/auth/AuthCard";
-import { AuthDivider } from "@/components/auth/AuthDivider";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { EmailPasswordForm } from "@/components/auth/EmailPasswordForm";
-import { GoogleButton } from "@/components/auth/GoogleButton";
 
 export default function RegisterPage() {
   return (
-    <AuthCard
-      eyebrow="ThinkPath"
-      title="Buat akun guru"
-      caption="Mulai pantau pola berpikir siswa dengan bukti yang bisa ditinjau."
+    <AuthLayout
+      title="Buat akun ThinkPath"
+      caption="Daftar sebagai guru untuk mengelola kelas, atau sebagai siswa untuk mengumpulkan tugas."
       footer={
         <>
           Sudah punya akun?{" "}
-          <Link href="/login" className="text-accent">
+          <Link href="/login" className="font-semibold text-primary">
             Masuk
           </Link>
         </>
       }
     >
       <EmailPasswordForm mode="register" />
-      <AuthDivider label="atau" />
-      <GoogleButton />
-    </AuthCard>
+    </AuthLayout>
   );
 }

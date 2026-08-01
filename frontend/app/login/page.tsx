@@ -1,28 +1,23 @@
 import Link from "next/link";
 
-import { AuthCard } from "@/components/auth/AuthCard";
-import { AuthDivider } from "@/components/auth/AuthDivider";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { EmailPasswordForm } from "@/components/auth/EmailPasswordForm";
-import { GoogleButton } from "@/components/auth/GoogleButton";
 
 export default function LoginPage() {
   return (
-    <AuthCard
-      eyebrow="ThinkPath"
-      title="Masuk ke dashboard"
-      caption="Pakai akun guru kamu untuk meninjau bukti integritas siswa."
+    <AuthLayout
+      title="Selamat datang kembali"
+      caption="Masuk untuk melanjutkan ke dashboard kamu."
       footer={
         <>
           Belum punya akun?{" "}
-          <Link href="/register" className="text-accent">
+          <Link href="/register" className="font-semibold text-primary">
             Daftar di sini
           </Link>
         </>
       }
     >
       <EmailPasswordForm mode="login" />
-      <AuthDivider label="atau" />
-      <GoogleButton />
-    </AuthCard>
+    </AuthLayout>
   );
 }

@@ -61,6 +61,7 @@ class AssignmentListSerializer(serializers.ModelSerializer):
 class AssignmentCreateSerializer(serializers.ModelSerializer):
     expected_bloom_level = serializers.IntegerField(min_value=1, max_value=6)
     education_level = serializers.ChoiceField(choices=EducationLevel.choices)
+    deadline = serializers.DateTimeField(required=True)
 
     class Meta:
         model = Assignment
@@ -71,6 +72,58 @@ class AssignmentCreateSerializer(serializers.ModelSerializer):
             "expected_bloom_level",
             "education_level",
         ]
+
+
+# --- Akses siswa (join + daftar kelas) ---------------------------------------
+
+
+class JoinClassSerializer(serializers.Serializer):
+    join_code = serializers.CharField(max_length=16)
+
+    def validate_join_code(self, value: str) -> str:
+        return value.strip().upper()
+
+
+class ClassPublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Class
+        fields = ["id", "name", "subject", "education_level"]
+
+
+class StudentAssignmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Assignment
+        fields = [
+            "id",
+            "title",
+            "instructions",
+            "deadline",
+            "expected_bloom_level",
+            "education_level",
+        ]
+
+
+class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
+    # Sengaja tanpa ai_score/signals: siswa tidak melihat hasil analisis AI,
+    # hanya jawabannya sendiri, status, nilai, dan umpan balik guru.
+    class Meta:
+        model = Submission
+        fields = [
+            "id",
+            "status",
+            "submitted_at",
+            "grade",
+            "teacher_feedback",
+            "text_answer",
+            "revision_count",
+        ]
+
+
+class SubmissionGradeSerializer(serializers.Serializer):
+    grade = serializers.IntegerField(min_value=0, max_value=100)
+    teacher_feedback = serializers.CharField(
+        required=False, allow_blank=True, default=""
+    )
 
 
 # --- Submissions -----------------------------------------------------------
@@ -100,6 +153,7 @@ class SubmissionListSerializer(serializers.ModelSerializer):
             "duration_seconds",
             "revision_count",
             "status",
+            "grade",
             "analysis",
         ]
 
@@ -114,6 +168,11 @@ class SubmissionListSerializer(serializers.ModelSerializer):
         return {"ai_band": analysis.ai_band, "bloom_level": analysis.bloom_level}
 
 
+class SubmissionCreateSerializer(serializers.Serializer):
+    text_answer = serializers.CharField(min_length=50)
+    started_at = serializers.DateTimeField(required=False)
+
+
 class ReasoningEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReasoningEvent
@@ -123,7 +182,15 @@ class ReasoningEventSerializer(serializers.ModelSerializer):
 class AnalysisFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnalysisResult
-        fields = ["ai_score", "ai_band", "bloom_level", "signals", "recommendation"]
+        fields = [
+            "ai_score",
+            "ai_band",
+            "bloom_level",
+            "confidence",
+            "signals",
+            "summary",
+            "recommendation",
+        ]
 
 
 class AssignmentMiniSerializer(serializers.ModelSerializer):
@@ -150,6 +217,8 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "duration_seconds",
             "revision_count",
             "status",
+            "grade",
+            "teacher_feedback",
             "reasoning_events",
             "analysis",
         ]

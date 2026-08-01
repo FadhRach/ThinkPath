@@ -1,10 +1,17 @@
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import ProfilePatchSerializer, ProfileSerializer
-from .services import get_or_create_profile
+from .authentication import create_access_token
+from .serializers import (
+    LoginSerializer,
+    ProfilePatchSerializer,
+    ProfileSerializer,
+    RegisterSerializer,
+)
+from .services import authenticate_credentials, get_profile_by_sub, register_profile
 
 
 class HealthView(APIView):
@@ -17,15 +24,59 @@ class HealthView(APIView):
         return Response({"status": "ok"})
 
 
+def _auth_response(profile) -> dict:
+    return {
+        "token": create_access_token(profile),
+        "profile": ProfileSerializer(profile).data,
+    }
+
+
+class RegisterView(APIView):
+    """POST daftar akun baru (guru atau siswa), langsung mengembalikan token."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = register_profile(**serializer.validated_data)
+        return Response(_auth_response(profile), status=status.HTTP_201_CREATED)
+
+
+class LoginView(APIView):
+    """POST login email + password, mengembalikan token dan profil."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = authenticate_credentials(**serializer.validated_data)
+        if profile is None:
+            return Response(
+                {"detail": "Email atau kata sandi salah."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return Response(_auth_response(profile))
+
+
 class MeView(APIView):
-    """GET = upsert profil dari klaim JWT, PATCH = update field yang diizinkan."""
+    """GET profil dari token aktif, PATCH update field yang diizinkan."""
+
+    def _get_profile(self, request):
+        profile = get_profile_by_sub(request.user.sub)
+        if profile is None:
+            raise AuthenticationFailed("Akun tidak ditemukan.")
+        return profile
 
     def get(self, request):
-        profile = get_or_create_profile(request.user)
+        profile = self._get_profile(request)
         return Response(ProfileSerializer(profile).data)
 
     def patch(self, request):
-        profile = get_or_create_profile(request.user)
+        profile = self._get_profile(request)
         serializer = ProfilePatchSerializer(profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         updated = serializer.save()

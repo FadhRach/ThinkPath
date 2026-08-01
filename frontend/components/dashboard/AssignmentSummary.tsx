@@ -1,4 +1,8 @@
+import { SubjectTag } from "@/components/common/SubjectTag";
+import { Card } from "@/components/ui/card";
+import { bloomCode } from "@/lib/bloom";
 import type { AssignmentSummary as AssignmentSummaryType } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface Props {
   assignment: AssignmentSummaryType;
@@ -11,47 +15,55 @@ interface MetricProps {
 }
 
 function Metric({ label, value, tone = "neutral" }: MetricProps) {
-  const toneClass =
-    tone === "high"
-      ? "text-signal-high"
-      : tone === "warn"
-      ? "text-signal-mid"
-      : "text-ink";
   return (
-    <div>
-      <p className="caption-eyebrow">{label}</p>
-      <p className={`font-display text-display-2 ${toneClass}`}>{value}</p>
+    <div className="text-center">
+      <p
+        className={cn(
+          "text-display-2 font-extrabold",
+          tone === "high" && "text-danger",
+          tone === "warn" && "text-warning",
+          tone === "neutral" && "text-foreground",
+        )}
+      >
+        {value}
+      </p>
+      <p className="text-body-sm text-muted-foreground">{label}</p>
     </div>
   );
 }
 
 export function AssignmentSummary({ assignment }: Props) {
   return (
-    <section className="bg-paper-elevated border border-border rounded-card p-6">
-      <div className="flex items-start justify-between gap-6">
-        <div>
-          <p className="caption-eyebrow">{assignment.education_level} · Bloom L{assignment.expected_bloom_level}</p>
-          <h2 className="font-display text-display-2 mt-1">{assignment.title}</h2>
+    <Card className="p-6 shadow-soft">
+      <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
+        <div className="min-w-0">
+          <SubjectTag
+            subject={assignment.education_level}
+            meta={`Target ${bloomCode(assignment.expected_bloom_level)}`}
+          />
+          <h2 className="mt-1 text-display-2 font-extrabold tracking-tight text-foreground">
+            {assignment.title}
+          </h2>
           {assignment.instructions ? (
-            <p className="text-body text-ink-muted mt-2 max-w-2xl">
+            <p className="mt-2 max-w-2xl text-body text-muted-foreground">
               {assignment.instructions}
             </p>
           ) : null}
         </div>
-        <div className="grid grid-cols-3 gap-6 shrink-0">
+        <div className="grid shrink-0 grid-cols-3 gap-6">
           <Metric label="Dianalisis" value={assignment.submission_count} />
           <Metric
-            label="Perlu ditinjau"
+            label="Indikasi AI"
             value={assignment.high_band_count}
             tone={assignment.high_band_count > 0 ? "high" : "neutral"}
           />
           <Metric
-            label="Belum direview"
+            label="Perlu review"
             value={assignment.needs_review_count}
             tone={assignment.needs_review_count > 0 ? "warn" : "neutral"}
           />
         </div>
       </div>
-    </section>
+    </Card>
   );
 }

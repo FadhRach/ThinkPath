@@ -10,16 +10,20 @@ import uuid
 from datetime import timedelta
 from typing import Sequence
 
+from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from academics.analysis import band_to_bloom, band_to_recommendation
 from academics.join_codes import generate_unique_join_code
 from academics.models import (
     AiBand,
     AnalysisResult,
     Assignment,
     Class,
+    ClassMembership,
+    Confidence,
     EventType,
     ReasoningEvent,
     Submission,
@@ -29,8 +33,9 @@ from core.models import EducationLevel, Profile, Role
 
 
 SEED_NAMESPACE = uuid.UUID("8c5ff61a-94e0-4f3a-9d4e-4ad27d2e8d3c")
-TEACHER_EMAIL = "teacher.demo@thinkpath.local"
+TEACHER_EMAIL = "guru@thinkpath.local"
 TEACHER_NAME = "Bu Ningsih"
+SEED_PASSWORD = "thinkpath123"
 
 
 def _stable_uuid(label: str) -> uuid.UUID:
@@ -42,6 +47,7 @@ def _ensure_teacher() -> Profile:
         id=_stable_uuid("teacher:demo"),
         defaults={
             "email": TEACHER_EMAIL,
+            "password": make_password(SEED_PASSWORD),
             "display_name": TEACHER_NAME,
             "role": Role.TEACHER,
             "education_level": "",
@@ -58,6 +64,7 @@ def _ensure_students(count: int) -> list[Profile]:
             id=_stable_uuid(label),
             defaults={
                 "email": f"siswa{i:02d}@thinkpath.local",
+                "password": make_password(SEED_PASSWORD),
                 "display_name": f"Siswa {i:02d}",
                 "role": Role.STUDENT,
             },
@@ -119,28 +126,41 @@ _PROFILES = (
 )
 
 
-def _band_to_bloom(band: str, expected: int) -> int:
+def _build_signals(band: str) -> list[str]:
     if band == AiBand.LOW:
-        return min(6, expected)
+        return [
+            "Variasi panjang kalimat wajar",
+            "Ada penanda sudut pandang pribadi",
+            "Kesalahan kecil yang wajar untuk siswa",
+        ]
     if band == AiBand.MID:
-        return max(1, expected - 1)
-    return max(1, expected - 2)
+        return [
+            "Transisi antar paragraf cukup formal untuk jenjang ini",
+            "Sedikit contoh dari pengalaman pribadi",
+            "Struktur kalimat cenderung seragam",
+        ]
+    return [
+        "Kalimat sangat terprediksi dan seragam",
+        "Banyak frasa khas AI generatif",
+        "Tidak ada contoh dari pengalaman pribadi",
+        "Tidak ada kesalahan kecil yang wajar untuk siswa",
+    ]
 
 
-def _build_signals(band: str) -> dict:
+def _build_confidence(band: str) -> str:
     if band == AiBand.LOW:
-        return {"perplexity": 38.6, "burstiness": 0.62, "style_deviation": 0.09}
+        return Confidence.MEDIUM
     if band == AiBand.MID:
-        return {"perplexity": 24.1, "burstiness": 0.38, "style_deviation": 0.22}
-    return {"perplexity": 14.2, "burstiness": 0.18, "style_deviation": 0.41}
+        return Confidence.MEDIUM
+    return Confidence.HIGH
 
 
-def _build_recommendation(band: str) -> str:
+def _build_summary(band: str) -> str:
     if band == AiBand.LOW:
-        return "Tidak ada indikasi yang perlu ditindaklanjuti. Lanjutkan penilaian seperti biasa."
+        return "Tulisan menunjukkan pola pengerjaan yang wajar untuk siswa. Tidak ada indikasi kuat penggunaan AI generatif."
     if band == AiBand.MID:
-        return "Beberapa sinyal bercampur. Disarankan tanya jawab singkat 5-10 menit untuk verifikasi."
-    return "Disarankan diskusi 10-15 menit dengan siswa untuk memverifikasi pemahaman."
+        return "Beberapa sinyal bercampur antara tulisan siswa dan pola khas AI. Tinjau bersama konteks proses pengerjaan."
+    return "Tulisan memuat pola kuat yang khas AI generatif. Disarankan verifikasi langsung dengan siswa."
 
 
 def _build_reasoning_events(
@@ -221,6 +241,9 @@ def _seed_submissions_for_assignment(
             label = f"submission:{assignment.id}:{profile_name}:{index}"
             submission_id = _stable_uuid(label)
 
+            # Sebagian profil "natural" sudah dinilai guru agar UI
+            # memperlihatkan status Dinilai + umpan balik.
+            is_graded = profile_name == "natural" and index < 2
             submission, _ = Submission.objects.update_or_create(
                 id=submission_id,
                 defaults={
@@ -231,7 +254,17 @@ def _seed_submissions_for_assignment(
                     "submitted_at": submitted_at,
                     "duration_seconds": duration_seconds,
                     "revision_count": revision_count,
-                    "status": SubmissionStatus.SUBMITTED,
+                    "status": (
+                        SubmissionStatus.REVIEWED
+                        if is_graded
+                        else SubmissionStatus.SUBMITTED
+                    ),
+                    "grade": rng.randint(78, 95) if is_graded else None,
+                    "teacher_feedback": (
+                        "Penjelasanmu runtut dan memakai contoh sendiri. Pertahankan."
+                        if is_graded
+                        else ""
+                    ),
                 },
             )
 
@@ -252,9 +285,11 @@ def _seed_submissions_for_assignment(
                 defaults={
                     "ai_score": ai_score,
                     "ai_band": band,
-                    "bloom_level": _band_to_bloom(band, assignment.expected_bloom_level),
+                    "bloom_level": band_to_bloom(band, assignment.expected_bloom_level),
+                    "confidence": _build_confidence(band),
                     "signals": _build_signals(band),
-                    "recommendation": _build_recommendation(band),
+                    "summary": _build_summary(band),
+                    "recommendation": band_to_recommendation(band),
                 },
             )
             created += 1
@@ -312,6 +347,13 @@ class Command(BaseCommand):
             teacher = _ensure_teacher()
             students = _ensure_students(8)
 
+            def _ensure_memberships(target_class: Class) -> None:
+                for student in students:
+                    ClassMembership.objects.get_or_create(
+                        class_ref=target_class,
+                        student_profile=student,
+                    )
+
             class_smp = _ensure_class(
                 owner=teacher,
                 label="ipa-7a",
@@ -326,6 +368,8 @@ class Command(BaseCommand):
                 subject="Sejarah",
                 level=EducationLevel.SMA_SMK,
             )
+            _ensure_memberships(class_smp)
+            _ensure_memberships(class_sma)
 
             assignments = [
                 _ensure_assignment(
@@ -370,5 +414,12 @@ class Command(BaseCommand):
                 teacher_id=teacher.id,
                 assignments=len(assignments),
                 submissions=total_submissions,
+            )
+        )
+        self.stdout.write(
+            "Akun demo (password semua: {password}): guru={teacher_email}, "
+            "siswa=siswa01@thinkpath.local s.d. siswa08@thinkpath.local".format(
+                password=SEED_PASSWORD,
+                teacher_email=TEACHER_EMAIL,
             )
         )

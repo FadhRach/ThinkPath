@@ -1,14 +1,15 @@
-"""Custom DRF authentication untuk Supabase JWT.
+"""Custom DRF authentication untuk JWT yang diterbitkan backend sendiri.
 
 Alur:
-1. Ambil token dari header Authorization (Bearer <jwt>).
-2. Decode pakai SUPABASE_JWT_SECRET (HS256, audience "authenticated").
-3. Bungkus klaim ke dataclass SupabaseUser (bukan django.contrib.auth.User
-   karena kita tidak ingin tabel auth_user ikut mengelola identitas).
+1. Login sukses -> backend menerbitkan JWT HS256 (ditandatangani SECRET_KEY).
+2. Setiap request membawa header Authorization: Bearer <jwt>.
+3. Klaim dibungkus dataclass AuthenticatedUser (bukan django.contrib.auth.User
+   karena identitas dikelola tabel profiles, bukan auth_user).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
@@ -16,10 +17,14 @@ from django.conf import settings
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
+from .models import Profile
+
+JWT_ALGORITHM = "HS256"
+
 
 @dataclass(frozen=True)
-class SupabaseUser:
-    """Representasi minimal user yang sudah terverifikasi via Supabase JWT."""
+class AuthenticatedUser:
+    """Representasi minimal user yang tokennya sudah terverifikasi."""
 
     sub: str
     email: str
@@ -30,6 +35,18 @@ class SupabaseUser:
         return True
 
 
+def create_access_token(profile: Profile) -> str:
+    now = datetime.now(timezone.utc)
+    claims = {
+        "sub": str(profile.id),
+        "email": profile.email,
+        "role": profile.role,
+        "iat": now,
+        "exp": now + timedelta(days=settings.AUTH_TOKEN_LIFETIME_DAYS),
+    }
+    return jwt.encode(claims, settings.SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
 def _extract_bearer_token(request) -> Optional[str]:
     header = request.META.get("HTTP_AUTHORIZATION", "")
     if not header.lower().startswith("bearer "):
@@ -37,35 +54,27 @@ def _extract_bearer_token(request) -> Optional[str]:
     return header.split(" ", 1)[1].strip() or None
 
 
-def _decode_supabase_jwt(token: str) -> dict:
-    secret = settings.SUPABASE_JWT_SECRET
-    if not secret:
-        raise AuthenticationFailed("SUPABASE_JWT_SECRET belum diset di server.")
+def _decode_token(token: str) -> dict:
     try:
-        return jwt.decode(
-            token,
-            secret,
-            algorithms=[settings.SUPABASE_JWT_ALGORITHM],
-            audience=settings.SUPABASE_JWT_AUDIENCE,
-        )
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[JWT_ALGORITHM])
     except jwt.ExpiredSignatureError as exc:
         raise AuthenticationFailed("Token kedaluwarsa.") from exc
     except jwt.InvalidTokenError as exc:
         raise AuthenticationFailed("Token tidak valid.") from exc
 
 
-class SupabaseJWTAuthentication(BaseAuthentication):
+class TokenAuthentication(BaseAuthentication):
     def authenticate(self, request):
         token = _extract_bearer_token(request)
         if not token:
             return None
 
-        claims = _decode_supabase_jwt(token)
+        claims = _decode_token(token)
         sub = claims.get("sub")
         if not sub:
             raise AuthenticationFailed("Klaim sub tidak ditemukan di token.")
 
-        user = SupabaseUser(
+        user = AuthenticatedUser(
             sub=str(sub),
             email=str(claims.get("email") or ""),
             role=claims.get("role"),

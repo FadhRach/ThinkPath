@@ -1,29 +1,55 @@
-"""Endpoint CRUD untuk kelas, tugas, dan submission.
+"""Endpoint CRUD untuk kelas, tugas, membership, dan submission.
 
-Permission ditegakkan via helpers di core.permissions agar logika kepemilikan
-tidak terduplikasi. List endpoints difilter ke pemilik (`user.sub`).
+Kepemilikan objek diverifikasi sekali di helper `_require_*` (satu query
+`select_related`, cek pemilik di memori) supaya tidak ada fetch ganda antara
+permission dan view. List endpoints difilter ke pemilik (`user.sub`).
 """
 from __future__ import annotations
 
 from uuid import UUID
 
+from django.db import transaction
 from django.db.models import Count, Q
+from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import (
+    AuthenticationFailed,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.permissions import IsAssignmentOwner, IsClassOwner, IsSubmissionOwner
-from core.services import get_or_create_profile
+from core.permissions import IsStudent, IsTeacher
+from core.services import get_profile_by_sub
 
 from .join_codes import generate_unique_join_code
-from .models import AiBand, Assignment, Class, Submission, SubmissionStatus
+from .llm import run_analysis
+from .models import (
+    AiBand,
+    AnalysisResult,
+    Assignment,
+    Class,
+    ClassMembership,
+    EventType,
+    ReasoningEvent,
+    Submission,
+    SubmissionStatus,
+)
 from .serializers import (
+    AnalysisFullSerializer,
     AssignmentCreateSerializer,
     AssignmentListSerializer,
     ClassCreateSerializer,
     ClassListSerializer,
+    ClassPublicSerializer,
+    JoinClassSerializer,
+    StudentAssignmentSerializer,
+    StudentSubmissionStatusSerializer,
+    SubmissionCreateSerializer,
     SubmissionDetailSerializer,
+    SubmissionGradeSerializer,
     SubmissionListSerializer,
 )
 
@@ -32,8 +58,78 @@ def _owner_uuid(request) -> UUID:
     return UUID(request.user.sub)
 
 
+def _get_request_profile(request):
+    profile = get_profile_by_sub(request.user.sub)
+    if profile is None:
+        raise AuthenticationFailed("Akun tidak ditemukan.")
+    return profile
+
+
+def _parse_uuid_or_404(value: str) -> UUID:
+    try:
+        return UUID(str(value))
+    except (ValueError, TypeError) as exc:
+        raise NotFound() from exc
+
+
+def _require_owned_class(request, class_id: str) -> Class:
+    """Kelas milik guru pemanggil. 404 bila tidak ada atau bukan miliknya."""
+    target = Class.objects.filter(pk=_parse_uuid_or_404(class_id)).first()
+    if target is None or target.owner_id != _owner_uuid(request):
+        raise NotFound()
+    return target
+
+
+def _require_owned_assignment(request, assignment_id: str) -> Assignment:
+    """Tugas di kelas milik guru pemanggil (class_ref ikut di-load)."""
+    assignment = (
+        Assignment.objects.select_related("class_ref")
+        .filter(pk=_parse_uuid_or_404(assignment_id))
+        .first()
+    )
+    if assignment is None or assignment.class_ref.owner_id != _owner_uuid(request):
+        raise NotFound()
+    return assignment
+
+
+def _require_member_assignment(request, assignment_id: str) -> Assignment:
+    """Tugas di kelas yang diikuti siswa pemanggil."""
+    assignment = (
+        Assignment.objects.select_related("class_ref")
+        .filter(pk=_parse_uuid_or_404(assignment_id))
+        .first()
+    )
+    if assignment is None:
+        raise NotFound()
+    is_member = ClassMembership.objects.filter(
+        class_ref_id=assignment.class_ref_id,
+        student_profile_id=_owner_uuid(request),
+    ).exists()
+    if not is_member:
+        raise PermissionDenied("Kamu bukan anggota kelas ini.")
+    return assignment
+
+
+def _assignment_annotations():
+    return {
+        "submission_count": Count("submissions", distinct=True),
+        "high_band_count": Count(
+            "submissions",
+            filter=Q(submissions__analysis__ai_band=AiBand.HIGH),
+            distinct=True,
+        ),
+        "needs_review_count": Count(
+            "submissions",
+            filter=Q(submissions__status=SubmissionStatus.SUBMITTED),
+            distinct=True,
+        ),
+    }
+
+
 class ClassListCreateView(APIView):
-    """GET daftar kelas user; POST buat kelas baru."""
+    """GET daftar kelas guru; POST buat kelas baru."""
+
+    permission_classes = [IsTeacher]
 
     def get(self, request):
         classes = (
@@ -44,8 +140,7 @@ class ClassListCreateView(APIView):
         return Response(ClassListSerializer(classes, many=True).data)
 
     def post(self, request):
-        # Pastikan profil pemilik ada di tabel kita (sinkronisasi ringan).
-        owner_profile = get_or_create_profile(request.user)
+        owner_profile = _get_request_profile(request)
         serializer = ClassCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_class = Class.objects.create(
@@ -65,46 +160,21 @@ class ClassListCreateView(APIView):
 
 
 class AssignmentListCreateView(APIView):
-    """GET assignment di kelas; POST buat assignment baru.
+    """GET assignment di kelas; POST buat assignment baru (guru pemilik kelas)."""
 
-    Permission `IsClassOwner` memastikan request.user pemilik kelas.
-    """
-
-    permission_classes = [IsClassOwner]
-
-    def _get_class_or_404(self, class_id: str) -> Class:
-        try:
-            class_uuid = UUID(class_id)
-        except (ValueError, TypeError) as exc:
-            raise NotFound() from exc
-        try:
-            return Class.objects.get(pk=class_uuid)
-        except Class.DoesNotExist as exc:
-            raise NotFound() from exc
+    permission_classes = [IsTeacher]
 
     def get(self, request, class_id: str):
-        target_class = self._get_class_or_404(class_id)
+        target_class = _require_owned_class(request, class_id)
         assignments = (
             Assignment.objects.filter(class_ref=target_class)
-            .annotate(
-                submission_count=Count("submissions", distinct=True),
-                high_band_count=Count(
-                    "submissions",
-                    filter=Q(submissions__analysis__ai_band=AiBand.HIGH),
-                    distinct=True,
-                ),
-                needs_review_count=Count(
-                    "submissions",
-                    filter=Q(submissions__status=SubmissionStatus.SUBMITTED),
-                    distinct=True,
-                ),
-            )
+            .annotate(**_assignment_annotations())
             .order_by("-created_at")
         )
         return Response(AssignmentListSerializer(assignments, many=True).data)
 
     def post(self, request, class_id: str):
-        target_class = self._get_class_or_404(class_id)
+        target_class = _require_owned_class(request, class_id)
         serializer = AssignmentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_assignment = Assignment.objects.create(
@@ -113,19 +183,7 @@ class AssignmentListCreateView(APIView):
         )
         annotated = (
             Assignment.objects.filter(pk=new_assignment.pk)
-            .annotate(
-                submission_count=Count("submissions", distinct=True),
-                high_band_count=Count(
-                    "submissions",
-                    filter=Q(submissions__analysis__ai_band=AiBand.HIGH),
-                    distinct=True,
-                ),
-                needs_review_count=Count(
-                    "submissions",
-                    filter=Q(submissions__status=SubmissionStatus.SUBMITTED),
-                    distinct=True,
-                ),
-            )
+            .annotate(**_assignment_annotations())
             .first()
         )
         return Response(
@@ -134,52 +192,303 @@ class AssignmentListCreateView(APIView):
         )
 
 
-class SubmissionListView(APIView):
-    """GET daftar submission untuk assignment.
+class JoinClassView(APIView):
+    """POST gabung kelas via join code (siswa). Idempotent."""
 
-    POST disediakan sebagai stub forward-compat. Tahap 1 hanya seed yang menulis.
-    """
+    permission_classes = [IsStudent]
 
-    permission_classes = [IsAssignmentOwner]
+    def post(self, request):
+        serializer = JoinClassSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        target_class = Class.objects.filter(
+            join_code=serializer.validated_data["join_code"]
+        ).first()
+        if target_class is None:
+            raise NotFound("Kode kelas tidak ditemukan.")
+
+        student_profile = _get_request_profile(request)
+        _, created = ClassMembership.objects.get_or_create(
+            class_ref=target_class,
+            student_profile=student_profile,
+        )
+        return Response(
+            {"class": ClassPublicSerializer(target_class).data, "created": created}
+        )
+
+
+def _latest_submission_map(student_id: UUID, assignment_ids: list) -> dict:
+    """Map assignment_id -> submission terbaru milik siswa."""
+    submissions = Submission.objects.filter(
+        student_profile_id=student_id,
+        assignment_id__in=assignment_ids,
+    ).order_by("assignment_id", "-created_at")
+    latest: dict = {}
+    for submission in submissions:
+        if submission.assignment_id not in latest:
+            latest[submission.assignment_id] = submission
+    return latest
+
+
+def _serialize_student_assignment(assignment: Assignment, submission) -> dict:
+    data = StudentAssignmentSerializer(assignment).data
+    data["submission"] = (
+        StudentSubmissionStatusSerializer(submission).data
+        if submission is not None
+        else None
+    )
+    return data
+
+
+class StudentClassListView(APIView):
+    """GET daftar kelas yang diikuti siswa beserta status tiap tugas."""
+
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        student_id = _owner_uuid(request)
+        memberships = (
+            ClassMembership.objects.filter(student_profile_id=student_id)
+            .select_related("class_ref__owner")
+            .order_by("-joined_at")
+        )
+        class_ids = [membership.class_ref_id for membership in memberships]
+        assignments = Assignment.objects.filter(class_ref_id__in=class_ids).order_by(
+            "-created_at"
+        )
+        latest = _latest_submission_map(
+            student_id, [assignment.id for assignment in assignments]
+        )
+
+        assignments_by_class: dict = {}
+        for assignment in assignments:
+            assignments_by_class.setdefault(assignment.class_ref_id, []).append(
+                _serialize_student_assignment(assignment, latest.get(assignment.id))
+            )
+
+        payload = []
+        for membership in memberships:
+            cls = membership.class_ref
+            owner = cls.owner
+            payload.append(
+                {
+                    "id": str(cls.id),
+                    "name": cls.name,
+                    "subject": cls.subject,
+                    "education_level": cls.education_level,
+                    "teacher_name": owner.display_name or owner.email,
+                    "joined_at": membership.joined_at,
+                    "assignments": assignments_by_class.get(cls.id, []),
+                }
+            )
+        return Response(payload)
+
+
+class StudentAssignmentDetailView(APIView):
+    """GET detail satu tugas untuk siswa anggota kelasnya."""
+
+    permission_classes = [IsStudent]
 
     def get(self, request, assignment_id: str):
-        try:
-            assignment_uuid = UUID(assignment_id)
-        except (ValueError, TypeError) as exc:
-            raise NotFound() from exc
+        assignment = _require_member_assignment(request, assignment_id)
+        latest = _latest_submission_map(_owner_uuid(request), [assignment.id])
+        return Response(
+            {
+                "class": ClassPublicSerializer(assignment.class_ref).data,
+                "assignment": StudentAssignmentSerializer(assignment).data,
+                "submission": (
+                    StudentSubmissionStatusSerializer(latest[assignment.id]).data
+                    if assignment.id in latest
+                    else None
+                ),
+            }
+        )
+
+
+class SubmissionListView(APIView):
+    """GET daftar submission (guru pemilik). POST submit/revisi jawaban (siswa)."""
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsStudent()]
+        return [IsTeacher()]
+
+    def get(self, request, assignment_id: str):
+        assignment = _require_owned_assignment(request, assignment_id)
         submissions = (
-            Submission.objects.filter(assignment_id=assignment_uuid)
+            Submission.objects.filter(assignment=assignment)
             .select_related("student_profile", "analysis")
             .order_by("-submitted_at")
         )
         return Response(SubmissionListSerializer(submissions, many=True).data)
 
     def post(self, request, assignment_id: str):
-        # Tahap 1: belum ada UI siswa. Endpoint sengaja dilarang untuk teacher.
-        return Response(
-            {"detail": "Endpoint submit belum tersedia untuk peran ini di tahap 1."},
-            status=status.HTTP_403_FORBIDDEN,
+        assignment = _require_member_assignment(request, assignment_id)
+        self._reject_if_past_deadline(assignment)
+        student_profile = _get_request_profile(request)
+
+        serializer = SubmissionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        text_answer = serializer.validated_data["text_answer"]
+
+        latest = (
+            Submission.objects.filter(
+                assignment=assignment, student_profile=student_profile
+            )
+            .order_by("-created_at")
+            .first()
         )
+        if latest is not None and latest.status == SubmissionStatus.REVIEWED:
+            raise ValidationError(
+                "Jawaban sudah dinilai guru dan tidak bisa direvisi."
+            )
+
+        if latest is not None:
+            submission = self._revise_submission(latest, assignment, text_answer)
+            detail = "Revisi jawaban berhasil disimpan."
+        else:
+            submission = self._create_submission(
+                assignment, student_profile, text_answer, serializer.validated_data
+            )
+            detail = "Jawaban berhasil dikumpulkan."
+
+        return Response(
+            {"id": str(submission.id), "detail": detail},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @staticmethod
+    def _reject_if_past_deadline(assignment: Assignment) -> None:
+        if assignment.deadline and timezone.now() > assignment.deadline:
+            raise ValidationError("Tenggat tugas sudah berakhir. Pengumpulan ditutup.")
+
+    @staticmethod
+    def _create_submission(assignment, student_profile, text_answer, validated) -> Submission:
+        submitted_at = timezone.now()
+        started_at = validated.get("started_at") or submitted_at
+        if started_at > submitted_at:
+            started_at = submitted_at
+        duration_seconds = int((submitted_at - started_at).total_seconds())
+
+        analysis = run_analysis(
+            text_answer, assignment.education_level, assignment.expected_bloom_level
+        )
+        with transaction.atomic():
+            submission = Submission.objects.create(
+                assignment=assignment,
+                student_profile=student_profile,
+                text_answer=text_answer,
+                started_at=started_at,
+                submitted_at=submitted_at,
+                duration_seconds=duration_seconds,
+                revision_count=0,
+                status=SubmissionStatus.SUBMITTED,
+            )
+            ReasoningEvent.objects.bulk_create(
+                [
+                    ReasoningEvent(
+                        submission=submission,
+                        event_type=EventType.STARTED,
+                        payload={},
+                        occurred_at=started_at,
+                    ),
+                    ReasoningEvent(
+                        submission=submission,
+                        event_type=EventType.SUBMITTED,
+                        payload={},
+                        occurred_at=submitted_at,
+                    ),
+                ]
+            )
+            AnalysisResult.objects.create(submission=submission, **analysis)
+        return submission
+
+    @staticmethod
+    def _revise_submission(submission, assignment, text_answer) -> Submission:
+        revised_at = timezone.now()
+        analysis = run_analysis(
+            text_answer, assignment.education_level, assignment.expected_bloom_level
+        )
+        with transaction.atomic():
+            submission.text_answer = text_answer
+            submission.revision_count += 1
+            submission.submitted_at = revised_at
+            submission.status = SubmissionStatus.SUBMITTED
+            submission.save(
+                update_fields=[
+                    "text_answer",
+                    "revision_count",
+                    "submitted_at",
+                    "status",
+                ]
+            )
+            ReasoningEvent.objects.create(
+                submission=submission,
+                event_type=EventType.REVISION,
+                payload={"revision_count": submission.revision_count},
+                occurred_at=revised_at,
+            )
+            AnalysisResult.objects.update_or_create(
+                submission=submission, defaults=analysis
+            )
+        return submission
+
+
+def _get_submission_or_404(submission_id: str) -> Submission:
+    submission = (
+        Submission.objects.select_related(
+            "assignment__class_ref", "student_profile", "analysis"
+        )
+        .prefetch_related("reasoning_events")
+        .filter(pk=_parse_uuid_or_404(submission_id))
+        .first()
+    )
+    if submission is None:
+        raise NotFound()
+    return submission
+
+
+def _require_owned_submission(request, submission_id: str) -> Submission:
+    """Submission di kelas milik guru pemanggil (cek pemilik di memori)."""
+    submission = _get_submission_or_404(submission_id)
+    if submission.assignment.class_ref.owner_id != _owner_uuid(request):
+        raise NotFound()
+    return submission
 
 
 class SubmissionDetailView(APIView):
-    """GET detail submission lengkap (untuk halaman laporan integritas)."""
+    """GET detail submission; PATCH nilai + umpan balik guru."""
 
-    permission_classes = [IsSubmissionOwner]
+    permission_classes = [IsTeacher]
 
     def get(self, request, submission_id: str):
-        try:
-            submission_uuid = UUID(submission_id)
-        except (ValueError, TypeError) as exc:
-            raise NotFound() from exc
-        submission = (
-            Submission.objects.select_related(
-                "assignment", "student_profile", "analysis"
-            )
-            .prefetch_related("reasoning_events")
-            .filter(pk=submission_uuid)
-            .first()
-        )
-        if submission is None:
-            raise NotFound()
+        submission = _require_owned_submission(request, submission_id)
         return Response(SubmissionDetailSerializer(submission).data)
+
+    def patch(self, request, submission_id: str):
+        submission = _require_owned_submission(request, submission_id)
+        serializer = SubmissionGradeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        submission.grade = serializer.validated_data["grade"]
+        submission.teacher_feedback = serializer.validated_data["teacher_feedback"]
+        submission.status = SubmissionStatus.REVIEWED
+        submission.save(update_fields=["grade", "teacher_feedback", "status"])
+        return Response(SubmissionDetailSerializer(submission).data)
+
+
+class SubmissionReanalyzeView(APIView):
+    """POST analisis ulang satu submission (guru pemilik)."""
+
+    permission_classes = [IsTeacher]
+
+    def post(self, request, submission_id: str):
+        submission = _require_owned_submission(request, submission_id)
+        analysis = run_analysis(
+            submission.text_answer,
+            submission.assignment.education_level,
+            submission.assignment.expected_bloom_level,
+        )
+        result, _ = AnalysisResult.objects.update_or_create(
+            submission=submission,
+            defaults=analysis,
+        )
+        return Response({"analysis": AnalysisFullSerializer(result).data})

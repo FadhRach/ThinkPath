@@ -1,15 +1,26 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AiScoreRing } from "@/components/common/AiScoreRing";
+import { AvatarInitials } from "@/components/common/AvatarInitials";
+import { BloomStepper } from "@/components/common/BloomStepper";
+import { Callout } from "@/components/common/Callout";
+import { ConfidenceBadge } from "@/components/submission/ConfidenceBadge";
 import { EvidenceNotVerdictBanner } from "@/components/submission/EvidenceNotVerdictBanner";
 import { EvidenceStrip } from "@/components/submission/EvidenceStrip";
+import { GradingForm } from "@/components/submission/GradingForm";
+import { ReanalyzeButton } from "@/components/submission/ReanalyzeButton";
 import { ReasoningSummary } from "@/components/submission/ReasoningSummary";
 import { RecommendationBlock } from "@/components/submission/RecommendationBlock";
 import { SignalList } from "@/components/submission/SignalList";
+import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
+import { bloomCode, bloomLabel } from "@/lib/bloom";
 import { getSubmissionDetail } from "@/lib/data";
 import { bandsForDetail } from "@/lib/evidence";
 import { formatClockHHMM, formatDurationSeconds } from "@/lib/formatting";
+import { aiBandLabel } from "@/lib/ui";
 
 const BAND_DETAIL_COPY: Record<"low" | "mid" | "high", string> = {
   low: "Pola wajar untuk jenjang ini.",
@@ -32,96 +43,158 @@ export default async function SubmissionDetailPage({
 
   const bands = bandsForDetail(detail);
   const evidenceRows = [
-    {
-      label: "Proses",
-      band: bands.processBand,
-      detail: buildProcessSentence(detail),
-    },
-    {
-      label: "Teks",
-      band: bands.textBand,
-      detail: buildTextSentence(detail),
-    },
-    {
-      label: "Kognitif",
-      band: bands.cognitiveBand,
-      detail: buildCognitiveSentence(detail),
-    },
+    { label: "Proses", band: bands.processBand, detail: buildProcessSentence(detail) },
+    { label: "Teks", band: bands.textBand, detail: buildTextSentence(detail) },
+    { label: "Kognitif", band: bands.cognitiveBand, detail: buildCognitiveSentence(detail) },
   ];
+  const analysis = detail.analysis;
+  const isFlagged = analysis?.ai_band === "high";
 
   return (
-    <div className="max-w-6xl space-y-6">
-      <Link href="/dashboard" className="text-body-sm text-ink-muted hover:text-ink">
-        ← Kembali ke dashboard
+    <div className="space-y-6">
+      <Link
+        href="/dashboard"
+        className="inline-flex items-center gap-1.5 text-body-sm text-muted-foreground transition hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Kembali ke dashboard
       </Link>
-      <header>
-        <p className="caption-eyebrow">
-          {detail.assignment.education_level} · Bloom L{detail.assignment.expected_bloom_level}
-        </p>
-        <h1 className="font-display text-display-1 mt-1">
-          {detail.assignment.title}
-        </h1>
-        <p className="text-body text-ink-muted mt-2">
-          Pengumpulan oleh {detail.student.display_name}
-        </p>
-      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
-        <article className="bg-paper-elevated border border-border rounded-card p-6">
-          <p className="caption-eyebrow mb-3">Jawaban siswa</p>
-          <p className="text-body-lg text-ink whitespace-pre-wrap">
-            {detail.text_answer || "Belum ada teks jawaban."}
+      <Card className="flex flex-wrap items-center gap-4 p-5 shadow-soft">
+        <AvatarInitials name={detail.student.display_name} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-display-2 font-extrabold tracking-tight text-foreground">
+            {detail.student.display_name} &middot; {detail.assignment.title}
+          </h1>
+          <p className="text-body-sm text-muted-foreground">
+            {detail.assignment.education_level} &middot; Target{" "}
+            {bloomCode(detail.assignment.expected_bloom_level)} &middot; Durasi{" "}
+            {formatDurationSeconds(detail.duration_seconds)}
+            {detail.revision_count > 0 ? ` · ${detail.revision_count}x revisi` : ""}
+            {detail.grade !== null ? ` · Nilai ${detail.grade}` : ""}
           </p>
-        </article>
+        </div>
+        {isFlagged ? (
+          <span className="inline-flex items-center rounded-full bg-danger-soft px-3 py-1 text-body-sm font-semibold text-danger">
+            Flagged
+          </span>
+        ) : null}
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <div className="space-y-4">
+          <EvidenceNotVerdictBanner />
+
+          {analysis ? (
+            <Card className="space-y-4 p-5 shadow-soft">
+              <div>
+                <p className="caption-eyebrow text-primary">
+                  Level Kognitif &middot; Taksonomi Bloom
+                </p>
+                <p className="mt-1 text-body-sm text-muted-foreground">
+                  Teramati: {bloomCode(analysis.bloom_level)} {bloomLabel(analysis.bloom_level)}
+                  {" · "}Target: {bloomCode(detail.assignment.expected_bloom_level)}{" "}
+                  {bloomLabel(detail.assignment.expected_bloom_level)}
+                </p>
+              </div>
+              <BloomStepper
+                observedLevel={analysis.bloom_level}
+                targetLevel={detail.assignment.expected_bloom_level}
+              />
+            </Card>
+          ) : null}
+
+          {analysis?.summary ? (
+            <Callout variant={isFlagged ? "danger" : "info"} title="Ringkasan Analisis">
+              {analysis.summary}
+            </Callout>
+          ) : null}
+
+          <RecommendationBlock recommendation={analysis?.recommendation ?? null} />
+
+          <Card className="space-y-3 p-5 shadow-soft">
+            <p className="caption-eyebrow text-primary">Jawaban Siswa</p>
+            <p className="whitespace-pre-wrap text-body text-foreground">
+              {detail.text_answer || "Belum ada teks jawaban."}
+            </p>
+          </Card>
+
+          <GradingForm
+            submissionId={detail.id}
+            initialGrade={detail.grade}
+            initialFeedback={detail.teacher_feedback}
+          />
+        </div>
 
         <aside className="space-y-4">
-          <EvidenceNotVerdictBanner />
-          <section className="bg-paper-elevated border border-border rounded-card p-5 space-y-4">
-            <p className="caption-eyebrow">Evidence strip</p>
+          {analysis ? (
+            <Card className="flex flex-col items-center gap-3 p-5 text-center shadow-soft">
+              <AiScoreRing score={analysis.ai_score} band={analysis.ai_band} />
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <span className="text-body-sm font-semibold text-foreground">
+                  {aiBandLabel(analysis.ai_band)}
+                </span>
+                <ConfidenceBadge confidence={analysis.confidence} />
+              </div>
+            </Card>
+          ) : null}
+
+          <Card className="space-y-3 p-5 shadow-soft">
+            <p className="caption-eyebrow text-primary">Sinyal Teks</p>
+            <SignalList signals={analysis?.signals ?? null} />
+          </Card>
+
+          <Card className="space-y-3 p-5 shadow-soft">
+            <p className="caption-eyebrow text-primary">Evidence Strip</p>
             <EvidenceStrip rows={evidenceRows} />
-          </section>
-          <section className="bg-paper-elevated border border-border rounded-card p-5 space-y-3">
-            <p className="caption-eyebrow">Ringkasan proses</p>
+          </Card>
+
+          <Card className="space-y-2 p-5 shadow-soft">
+            <p className="caption-eyebrow text-primary">Ringkasan Proses</p>
             <ReasoningSummary detail={detail} />
-          </section>
-          <section className="bg-paper-elevated border border-border rounded-card p-5 space-y-3">
-            <p className="caption-eyebrow">Sinyal teks (placeholder)</p>
-            <SignalList signals={detail.analysis?.signals ?? null} />
-          </section>
-          <RecommendationBlock
-            recommendation={detail.analysis?.recommendation ?? null}
-            expectedBloomLevel={detail.assignment.expected_bloom_level}
-            observedBloomLevel={detail.analysis?.bloom_level ?? null}
-          />
+          </Card>
+
+          <ReanalyzeButton submissionId={detail.id} />
         </aside>
       </div>
     </div>
   );
 }
 
-function buildProcessSentence(detail: { reasoning_events: Array<{ event_type: string; payload: Record<string, unknown> }>; revision_count: number; duration_seconds: number | null; started_at: string; submitted_at: string | null }) {
+function buildProcessSentence(detail: {
+  reasoning_events: Array<{ event_type: string; payload: Record<string, unknown> }>;
+  revision_count: number;
+  duration_seconds: number | null;
+  started_at: string;
+  submitted_at: string | null;
+}) {
   const paste = detail.reasoning_events.find((event) => event.event_type === "paste");
-  const pasteCount = paste && typeof paste.payload?.char_count === "number" ? paste.payload.char_count : null;
+  const pasteCount =
+    paste && typeof paste.payload?.char_count === "number" ? paste.payload.char_count : null;
   const pastePart = pasteCount !== null ? `1 paste ${pasteCount} karakter` : "tanpa paste besar";
   const submitClock = detail.submitted_at ? formatClockHHMM(detail.submitted_at) : "-";
   const startClock = formatClockHHMM(detail.started_at);
   return `Mulai ${startClock}, ${detail.revision_count} revisi, ${pastePart}, submit ${submitClock} (durasi ${formatDurationSeconds(detail.duration_seconds)}).`;
 }
 
-function buildTextSentence(detail: { assignment: { education_level: string }; analysis: { ai_band: "low" | "mid" | "high"; signals: Record<string, number> } | null }) {
-  if (!detail.analysis) return "Sinyal teks belum tersedia (model belum aktif di tahap 1).";
-  const perplexity = detail.analysis.signals?.perplexity;
+function buildTextSentence(detail: {
+  assignment: { education_level: string };
+  analysis: { ai_band: "low" | "mid" | "high"; ai_score: number } | null;
+}) {
+  if (!detail.analysis) return "Sinyal teks belum tersedia. Gunakan Analisis Ulang.";
   const base = BAND_DETAIL_COPY[detail.analysis.ai_band];
-  if (typeof perplexity === "number") {
-    return `Perplexity ${perplexity}. ${base} (relatif terhadap jenjang ${detail.assignment.education_level})`;
-  }
-  return base;
+  return `Probabilitas AI ${detail.analysis.ai_score}%. ${base} (relatif terhadap jenjang ${detail.assignment.education_level})`;
 }
 
-function buildCognitiveSentence(detail: { assignment: { expected_bloom_level: number }; analysis: { bloom_level: number } | null }) {
-  if (!detail.analysis) return "Estimasi level kognitif belum tersedia (model belum aktif di tahap 1).";
+function buildCognitiveSentence(detail: {
+  assignment: { expected_bloom_level: number };
+  analysis: { bloom_level: number } | null;
+}) {
+  if (!detail.analysis) return "Estimasi level kognitif belum tersedia.";
   const gap = detail.assignment.expected_bloom_level - detail.analysis.bloom_level;
-  if (gap <= 0) return `Level ${detail.analysis.bloom_level} - memenuhi target tugas (level ${detail.assignment.expected_bloom_level}).`;
-  if (gap === 1) return `Level ${detail.analysis.bloom_level} - sedikit di bawah target (level ${detail.assignment.expected_bloom_level}).`;
+  if (gap <= 0)
+    return `Level ${detail.analysis.bloom_level} - memenuhi target tugas (level ${detail.assignment.expected_bloom_level}).`;
+  if (gap === 1)
+    return `Level ${detail.analysis.bloom_level} - sedikit di bawah target (level ${detail.assignment.expected_bloom_level}).`;
   return `Level ${detail.analysis.bloom_level} - di bawah target tugas (level ${detail.assignment.expected_bloom_level}).`;
 }

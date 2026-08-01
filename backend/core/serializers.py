@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import EducationLevel, Profile
+from .models import EducationLevel, Profile, Role
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -15,6 +15,23 @@ class ProfileSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "email", "role", "created_at"]
+
+
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=6, max_length=128)
+    display_name = serializers.CharField(max_length=120)
+    role = serializers.ChoiceField(choices=Role.choices)
+
+    def validate_email(self, value: str) -> str:
+        if Profile.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Email sudah terdaftar.")
+        return value
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(max_length=128)
 
 
 class ProfilePatchSerializer(serializers.Serializer):

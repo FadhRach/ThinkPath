@@ -1,9 +1,16 @@
 "use client";
 
+import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { RoleSelector } from "@/components/auth/RoleSelector";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { getApiErrorMessage } from "@/lib/api-shared";
+import { homePathForRole, login, register } from "@/lib/auth";
+import type { Role } from "@/lib/types";
 
 type Mode = "login" | "register";
 
@@ -11,94 +18,127 @@ interface Props {
   mode: Mode;
 }
 
-const SUBMIT_LABEL: Record<Mode, string> = {
-  login: "Masuk",
-  register: "Daftar",
+const ROLE_LABEL: Record<Role, string> = {
+  student: "Siswa",
+  teacher: "Guru",
 };
 
 export function EmailPasswordForm({ mode }: Props) {
   const router = useRouter();
+  const [displayName, setDisplayName] = useState("");
+  const [role, setRole] = useState<Role>("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setNotice(null);
     setLoading(true);
 
-    const supabase = createSupabaseBrowserClient();
-    const result =
-      mode === "login"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
-
-    if (result.error) {
-      setError(result.error.message);
-      setLoading(false);
-      return;
-    }
-
-    if (mode === "register" && !result.data.session) {
-      setNotice(
-        "Pendaftaran berhasil. Cek email kamu untuk konfirmasi sebelum masuk.",
+    try {
+      const result =
+        mode === "login"
+          ? await login(email, password)
+          : await register({
+              email,
+              password,
+              display_name: displayName.trim(),
+              role,
+            });
+      router.replace(homePathForRole(result.profile.role));
+      router.refresh();
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, "Gagal memproses. Periksa isian lalu coba lagi."),
       );
       setLoading(false);
-      return;
     }
-
-    // Setelah sesi tersedia, biarkan dashboard yang memanggil /api/me (server-side).
-    router.replace("/dashboard");
-    router.refresh();
   }
+
+  const submitLabel =
+    mode === "login"
+      ? `Masuk sebagai ${ROLE_LABEL[role]}`
+      : `Daftar sebagai ${ROLE_LABEL[role]}`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-1.5">
-        <label htmlFor="email" className="caption-eyebrow">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          required
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-card border border-border bg-paper-elevated px-3 py-2.5 text-body focus:outline-none focus:border-accent"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <label htmlFor="password" className="caption-eyebrow">
-          Kata sandi
-        </label>
-        <input
-          id="password"
-          type="password"
-          required
-          minLength={6}
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-card border border-border bg-paper-elevated px-3 py-2.5 text-body focus:outline-none focus:border-accent"
-        />
-      </div>
-      {error ? (
-        <p className="text-body-sm text-signal-high">{error}</p>
+      <RoleSelector value={role} onChange={setRole} />
+
+      {mode === "register" ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="display-name">Nama lengkap</Label>
+          <div className="relative">
+            <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="display-name"
+              type="text"
+              required
+              maxLength={120}
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
       ) : null}
-      {notice ? (
-        <p className="text-body-sm text-ink-muted">{notice}</p>
-      ) : null}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-card bg-accent px-4 py-2.5 text-paper-elevated text-body hover:opacity-95 transition disabled:opacity-60"
-      >
-        {loading ? "Memproses..." : SUBMIT_LABEL[mode]}
-      </button>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Email sekolah</Label>
+        <div className="relative">
+          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="nama@sekolah.sch.id"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Kata sandi</Label>
+          {mode === "login" ? (
+            <span className="text-body-sm font-semibold text-primary">
+              Lupa kata sandi?
+            </span>
+          ) : null}
+        </div>
+        <div className="relative">
+          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            required
+            minLength={6}
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="px-9"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {error ? <p className="text-body-sm text-danger">{error}</p> : null}
+
+      <Button type="submit" disabled={loading} className="w-full" size="lg">
+        {loading ? "Memproses..." : submitLabel}
+      </Button>
     </form>
   );
 }

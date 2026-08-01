@@ -1,27 +1,21 @@
 interface Props {
-  signals: Record<string, number> | null;
+  signals: string[] | null;
 }
 
-const SIGNAL_LABELS: Record<string, string> = {
-  perplexity: "Perplexity",
-  burstiness: "Burstiness",
-  style_deviation: "Deviasi gaya",
-};
-
 export function SignalList({ signals }: Props) {
-  if (!signals || Object.keys(signals).length === 0) {
+  if (!Array.isArray(signals) || signals.length === 0) {
     return (
-      <p className="text-body-sm text-ink-muted">
-        Sinyal teks belum tersedia untuk tugas ini.
+      <p className="text-body-sm text-muted-foreground">
+        Sinyal teks belum tersedia. Klik Analisis Ulang untuk menghitungnya.
       </p>
     );
   }
   return (
-    <ul className="grid grid-cols-3 gap-3 text-body-sm">
-      {Object.entries(signals).map(([key, value]) => (
-        <li key={key} className="border border-border rounded-card p-3 bg-paper">
-          <p className="caption-eyebrow">{SIGNAL_LABELS[key] ?? key}</p>
-          <p className="text-ink mt-1 font-display text-display-2">{value}</p>
+    <ul className="space-y-2">
+      {signals.map((signal) => (
+        <li key={signal} className="flex items-start gap-2 text-body-sm text-foreground">
+          <span className="mt-1.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+          {signal}
         </li>
       ))}
     </ul>

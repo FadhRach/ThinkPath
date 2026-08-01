@@ -1,3 +1,12 @@
+export const BLOOM_LABELS: Record<number, string> = {
+  1: "Mengingat",
+  2: "Memahami",
+  3: "Mengaplikasikan",
+  4: "Menganalisis",
+  5: "Mengevaluasi",
+  6: "Mencipta",
+};
+
 export function formatDurationSeconds(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return "-";
   if (seconds < 60) return `${seconds} dtk`;
@@ -9,13 +18,14 @@ export function formatDurationSeconds(seconds: number | null): string {
   return restMin === 0 ? `${hours} jam` : `${hours} jam ${restMin} mnt`;
 }
 
+// Tiap entri: [pembagi, unit hasil setelah dibagi]. Mulai dari detik.
 const RELATIVE_RANGES: Array<[number, Intl.RelativeTimeFormatUnit]> = [
-  [60, "second"],
   [60, "minute"],
-  [24, "hour"],
-  [7, "day"],
-  [4.345, "week"],
-  [12, "month"],
+  [60, "hour"],
+  [24, "day"],
+  [7, "week"],
+  [4.345, "month"],
+  [12, "year"],
 ];
 
 export function formatRelativeTime(iso: string | null): string {

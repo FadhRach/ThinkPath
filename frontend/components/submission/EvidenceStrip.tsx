@@ -1,10 +1,6 @@
+import { aiBandBarClass } from "@/lib/ui";
 import type { AiBand } from "@/lib/types";
-
-const BAND_COLOR: Record<AiBand, string> = {
-  low: "bg-signal-low",
-  mid: "bg-signal-mid",
-  high: "bg-signal-high",
-};
+import { cn } from "@/lib/utils";
 
 interface Row {
   label: string;
@@ -21,9 +17,16 @@ export function EvidenceStrip({ rows }: Props) {
     <ul className="space-y-3">
       {rows.map((row) => (
         <li key={row.label} className="flex items-start gap-3">
-          <span className="caption-eyebrow w-20 pt-1">{row.label}</span>
-          <span className={`mt-1 block w-3 h-3 rounded-full shrink-0 ${BAND_COLOR[row.band]}`} />
-          <span className="text-body text-ink">{row.detail}</span>
+          <span className="caption-eyebrow w-16 pt-1 text-muted-foreground">
+            {row.label}
+          </span>
+          <span
+            className={cn(
+              "mt-1.5 block h-2.5 w-2.5 shrink-0 rounded-full",
+              aiBandBarClass(row.band),
+            )}
+          />
+          <span className="text-body-sm text-foreground">{row.detail}</span>
         </li>
       ))}
     </ul>

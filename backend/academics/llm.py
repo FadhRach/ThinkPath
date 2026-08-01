@@ -1,0 +1,143 @@
+"""Analisis jawaban siswa via LLM (Groq) dengan fallback heuristik.
+
+Provider sementara: Groq (free tier, OpenAI-compatible). Kalau nanti pindah
+ke Anthropic Claude, cukup ganti implementasi _call_llm di modul ini -
+pemanggil hanya tahu run_analysis().
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+
+import requests
+
+from .analysis import analyze_text, band_to_recommendation, score_to_band
+from .models import Confidence
+
+logger = logging.getLogger(__name__)
+
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+REQUEST_TIMEOUT_SECONDS = 30
+
+SYSTEM_PROMPT = """Kamu adalah ThinkPath, sistem analisis integritas akademik untuk pendidikan K-12 Indonesia.
+
+Analisislah teks tugas siswa dan hasilkan output JSON dengan kriteria berikut:
+
+1. ai_probability (0-100): kemungkinan teks ini dibuat menggunakan AI generatif.
+   Sinyal yang menunjukkan AI: kalimat sangat terprediksi, panjang kalimat
+   seragam tanpa variasi, frasa khas LLM seperti "perlu dicatat bahwa",
+   "dalam era modern ini", "sangat penting untuk", tidak ada pengalaman
+   personal atau contoh konkret, transisi terlalu formal untuk jenjang
+   tersebut, tidak ada kesalahan kecil yang wajar untuk siswa.
+
+2. bloom_level (1-6): level kognitif Bloom's Taxonomy yang ditunjukkan teks.
+   L1 Mengingat, L2 Memahami, L3 Mengaplikasikan, L4 Menganalisis,
+   L5 Mengevaluasi, L6 Mencipta.
+
+3. confidence: seberapa yakin kamu dengan analisis ini.
+   "low" jika teks terlalu pendek atau ambigu.
+   "medium" jika ada sinyal tapi tidak kuat.
+   "high" jika sinyal jelas dan konsisten.
+
+4. signals: maksimal 4 string pendek, bahasa Indonesia, mendeskripsikan sinyal
+   konkret yang ditemukan. Contoh: "panjang kalimat seragam tanpa variasi",
+   "tidak ada contoh dari pengalaman pribadi".
+
+5. summary: 1-2 kalimat bahasa Indonesia yang menjelaskan kesimpulan analisis.
+
+Sesuaikan ekspektasi dengan jenjang:
+- SD: L1-L2 normal, L3+ mengesankan. Lebih toleran terhadap tulisan sederhana.
+- SMP: L2-L3 wajar. L1 mengkhawatirkan jika tugasnya analitis.
+- SMA-SMK: L3-L5 wajar. L1-L2 mengkhawatirkan untuk tugas analitis/esai.
+
+JANGAN menghukum tulisan simpel sebagai AI hanya karena strukturnya sederhana.
+Pelajar Indonesia sering mencampur bahasa Indonesia dan Inggris - itu wajar.
+
+Respond HANYA dalam JSON valid dengan keys: ai_probability, bloom_level,
+confidence, signals, summary. Tidak ada teks lain di luar JSON."""
+
+VALID_CONFIDENCE = {Confidence.LOW, Confidence.MEDIUM, Confidence.HIGH}
+
+
+def _build_user_message(
+    text: str, education_level: str, expected_bloom_level: int
+) -> str:
+    return (
+        f"Jenjang siswa: {education_level}\n"
+        f"Target level Bloom tugas: L{expected_bloom_level}\n\n"
+        f"Teks jawaban siswa:\n{text}"
+    )
+
+
+def _call_groq(text: str, education_level: str, expected_bloom_level: int) -> dict:
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    response = requests.post(
+        GROQ_API_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "model": os.getenv("GROQ_MODEL", DEFAULT_MODEL),
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": _build_user_message(
+                        text, education_level, expected_bloom_level
+                    ),
+                },
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2,
+        },
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    content = response.json()["choices"][0]["message"]["content"]
+    return json.loads(content)
+
+
+def _clamp(value: object, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, int(value)))  # type: ignore[arg-type]
+
+
+def _parse_llm_result(raw: dict) -> dict:
+    ai_score = _clamp(raw["ai_probability"], 0, 100)
+    bloom_level = _clamp(raw["bloom_level"], 1, 6)
+
+    confidence = str(raw.get("confidence", "")).lower()
+    if confidence not in VALID_CONFIDENCE:
+        raise ValueError(f"confidence tidak valid: {confidence}")
+
+    raw_signals = raw.get("signals", [])
+    if not isinstance(raw_signals, list):
+        raise ValueError("signals bukan list")
+    signals = [str(signal) for signal in raw_signals if str(signal).strip()][:4]
+
+    summary = str(raw.get("summary", "")).strip()
+    if not summary:
+        raise ValueError("summary kosong")
+
+    band = score_to_band(ai_score)
+    return {
+        "ai_score": ai_score,
+        "ai_band": band,
+        "bloom_level": bloom_level,
+        "confidence": confidence,
+        "signals": signals,
+        "summary": summary,
+        "recommendation": band_to_recommendation(band),
+    }
+
+
+def run_analysis(text: str, education_level: str, expected_bloom_level: int) -> dict:
+    """Entry point tunggal analisis. Selalu mengembalikan dict lengkap."""
+    if not os.getenv("GROQ_API_KEY", "").strip():
+        return analyze_text(text, expected_bloom_level)
+
+    try:
+        raw = _call_groq(text, education_level, expected_bloom_level)
+        return _parse_llm_result(raw)
+    except (requests.RequestException, json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
+        logger.warning("Analisis LLM gagal, memakai fallback heuristik: %s", exc)
+        return analyze_text(text, expected_bloom_level)
