@@ -4,6 +4,10 @@ import { AppShell } from "@/components/common/AppShell";
 import { ApiError } from "@/lib/api";
 import { getMe } from "@/lib/data";
 
+// Halaman siswa bergantung pada cookie auth per-request, jadi tidak boleh
+// di-prerender statis saat build.
+export const dynamic = "force-dynamic";
+
 export default async function StudentLayout({
   children,
 }: {
