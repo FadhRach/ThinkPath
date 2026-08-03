@@ -6,7 +6,12 @@ import { AiScoreRing } from "@/components/common/AiScoreRing";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { BloomStepper } from "@/components/common/BloomStepper";
 import { Callout } from "@/components/common/Callout";
+import {
+  AnalysisSourceBadge,
+  AnalysisSourceNote,
+} from "@/components/submission/AnalysisSourceBadge";
 import { ConfidenceBadge } from "@/components/submission/ConfidenceBadge";
+import { SignalBreakdown } from "@/components/submission/SignalBreakdown";
 import { EvidenceNotVerdictBanner } from "@/components/submission/EvidenceNotVerdictBanner";
 import { EvidenceStrip } from "@/components/submission/EvidenceStrip";
 import { GradingForm } from "@/components/submission/GradingForm";
@@ -68,8 +73,13 @@ export default async function SubmissionDetailPage({
           </h1>
           <p className="text-body-sm text-muted-foreground">
             {detail.assignment.education_level} &middot; Target{" "}
-            {bloomCode(detail.assignment.expected_bloom_level)} &middot; Durasi{" "}
-            {formatDurationSeconds(detail.duration_seconds)}
+            {bloomCode(detail.assignment.expected_bloom_level)} &middot; Mulai{" "}
+            {formatClockHHMM(detail.started_at)}
+            {detail.submitted_at
+              ? ` · Dikumpulkan ${formatClockHHMM(detail.submitted_at)}`
+              : ""}{" "}
+            &middot; Durasi {formatDurationSeconds(detail.duration_seconds)} &middot;{" "}
+            {countWords(detail.text_answer)} kata
             {detail.revision_count > 0 ? ` · ${detail.revision_count}x revisi` : ""}
             {detail.grade !== null ? ` · Nilai ${detail.grade}` : ""}
           </p>
@@ -96,11 +106,18 @@ export default async function SubmissionDetailPage({
                   {" · "}Target: {bloomCode(detail.assignment.expected_bloom_level)}{" "}
                   {bloomLabel(detail.assignment.expected_bloom_level)}
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <ConfidenceBadge confidence={analysis.bloom_confidence} />
+                </div>
               </div>
               <BloomStepper
                 observedLevel={analysis.bloom_level}
                 targetLevel={detail.assignment.expected_bloom_level}
               />
+              <p className="text-body-sm text-muted-foreground">
+                Level teramati diukur dari isi jawaban dan tidak dipengaruhi oleh target
+                tugas maupun skor AI di samping.
+              </p>
             </Card>
           ) : null}
 
@@ -135,7 +152,9 @@ export default async function SubmissionDetailPage({
                   {aiBandLabel(analysis.ai_band)}
                 </span>
                 <ConfidenceBadge confidence={analysis.confidence} />
+                <AnalysisSourceBadge source={analysis.analysis_source} />
               </div>
+              <AnalysisSourceNote source={analysis.analysis_source} />
             </Card>
           ) : null}
 
@@ -143,6 +162,13 @@ export default async function SubmissionDetailPage({
             <p className="caption-eyebrow text-primary">Sinyal Teks</p>
             <SignalList signals={analysis?.signals ?? null} />
           </Card>
+
+          {analysis?.signal_breakdown?.length ? (
+            <Card className="space-y-3 p-5 shadow-soft">
+              <p className="caption-eyebrow text-primary">Asal Skor AI</p>
+              <SignalBreakdown breakdown={analysis.signal_breakdown} />
+            </Card>
+          ) : null}
 
           <Card className="space-y-3 p-5 shadow-soft">
             <p className="caption-eyebrow text-primary">Evidence Strip</p>
@@ -159,6 +185,11 @@ export default async function SubmissionDetailPage({
       </div>
     </div>
   );
+}
+
+function countWords(text: string): number {
+  const trimmed = text.trim();
+  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
 }
 
 function buildProcessSentence(detail: {

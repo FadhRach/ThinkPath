@@ -26,6 +26,7 @@ from core.services import get_profile_by_sub
 
 from .join_codes import generate_unique_join_code
 from .llm import run_analysis
+from .process_signals import ProcessContext
 from .models import (
     AiBand,
     AnalysisResult,
@@ -108,6 +109,38 @@ def _require_member_assignment(request, assignment_id: str) -> Assignment:
     if not is_member:
         raise PermissionDenied("Kamu bukan anggota kelas ini.")
     return assignment
+
+
+def _build_process_context(
+    text: str,
+    duration_seconds: int | None,
+    revision_count: int,
+    paste_char_count: int = 0,
+) -> ProcessContext:
+    """Rakit metadata pengerjaan untuk sinyal forensik E1.
+
+    Sengaja tidak memuat jam dinding. Backend berjalan pada UTC sedangkan
+    frontend merender waktu ke zona lokal pembaca, jadi jam ditampilkan di sisi
+    frontend saja agar tidak ada dua jam berbeda di layar yang sama.
+    """
+    return ProcessContext(
+        duration_seconds=duration_seconds,
+        revision_count=revision_count,
+        word_count=len(text.split()),
+        char_count=len(text),
+        paste_char_count=paste_char_count,
+    )
+
+
+def _paste_char_count(submission: Submission) -> int:
+    total = 0
+    for event in submission.reasoning_events.all():
+        if event.event_type != EventType.PASTE:
+            continue
+        value = (event.payload or {}).get("char_count")
+        if isinstance(value, int):
+            total += value
+    return total
 
 
 def _assignment_annotations():
@@ -370,7 +403,10 @@ class SubmissionListView(APIView):
         duration_seconds = int((submitted_at - started_at).total_seconds())
 
         analysis = run_analysis(
-            text_answer, assignment.education_level, assignment.expected_bloom_level
+            text_answer,
+            assignment.education_level,
+            assignment.expected_bloom_level,
+            _build_process_context(text_answer, duration_seconds, revision_count=0),
         )
         with transaction.atomic():
             submission = Submission.objects.create(
@@ -405,8 +441,19 @@ class SubmissionListView(APIView):
     @staticmethod
     def _revise_submission(submission, assignment, text_answer) -> Submission:
         revised_at = timezone.now()
+        # revision_count masih nilai lama di titik ini; revisi yang sedang
+        # berjalan ikut dihitung supaya sinyal proses melihat angka yang sama
+        # dengan yang nanti tersimpan.
         analysis = run_analysis(
-            text_answer, assignment.education_level, assignment.expected_bloom_level
+            text_answer,
+            assignment.education_level,
+            assignment.expected_bloom_level,
+            _build_process_context(
+                text_answer,
+                submission.duration_seconds,
+                submission.revision_count + 1,
+                _paste_char_count(submission),
+            ),
         )
         with transaction.atomic():
             submission.text_answer = text_answer
@@ -486,6 +533,12 @@ class SubmissionReanalyzeView(APIView):
             submission.text_answer,
             submission.assignment.education_level,
             submission.assignment.expected_bloom_level,
+            _build_process_context(
+                submission.text_answer,
+                submission.duration_seconds,
+                submission.revision_count,
+                _paste_char_count(submission),
+            ),
         )
         result, _ = AnalysisResult.objects.update_or_create(
             submission=submission,
