@@ -1,0 +1,6 @@
+requests>=2.32,<3
+python-dotenv>=1.0.1,<2
+
+# Dibutuhkan evaluate_baseline untuk mengimpor scorer asli dari
+# backend/academics. Tidak menyentuh basis data, hanya memuat definisi model.
+Django>=5.1,<5.2

@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+.env
+
+# Keluaran data tidak masuk repo. Ukurannya besar dan bisa dibangun ulang
+# kapan saja dengan skrip yang sama.
+data/cache/
+data/gold/
