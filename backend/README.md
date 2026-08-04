@@ -2,7 +2,7 @@
 
 Django 5 + Django REST Framework. Satu-satunya API untuk semua data ThinkPath
 (profiles, classes, assignments, submissions, analisis). Frontend tidak pernah
-menyentuh database langsung — semua lewat endpoint di sini.
+menyentuh database langsung, semua lewat endpoint di sini.
 
 ## Arsitektur singkat
 
@@ -60,7 +60,7 @@ ditandai publik.
 - Setelah tenggat (`Assignment.deadline`) lewat → ditolak (`400`).
 - Setelah dinilai guru (`status=reviewed`) → ditolak (`400`).
 
-Siswa hanya melihat jawaban, status, nilai, dan umpan balik — **skor AI dan
+Siswa hanya melihat jawaban, status, nilai, dan umpan balik. **Skor AI dan
 sinyal tidak diekspos ke siswa** (`StudentSubmissionStatusSerializer`).
 
 ## Menjalankan lokal
@@ -114,5 +114,5 @@ Checklist produksi:
 3. Saat `DEBUG=False`: `DJANGO_SECRET_KEY` wajib (boot gagal keras kalau kosong),
    dan flag keamanan (SSL redirect, HSTS, secure cookie, proxy SSL header) aktif
    otomatis.
-4. HF free tier tidur setelah ~48 jam idle — pasang keep-alive (cron eksternal
+4. HF free tier tidur setelah ~48 jam idle, pasang keep-alive (cron eksternal
    ping `/health`) kalau perlu selalu hidup.
