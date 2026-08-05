@@ -1,7 +1,7 @@
 # ThinkPath Frontend
 
 Next.js 14 (App Router) + TypeScript (strict) + Tailwind CSS + shadcn/ui. Semua
-data diambil dari backend Django — frontend tidak pernah mengakses database
+data diambil dari backend Django. Frontend tidak pernah mengakses database
 langsung. Tutorial end-to-end (backend + database) ada di [README root](../README.md).
 
 ## Stack & keputusan penting
@@ -73,7 +73,7 @@ npx tsc --noEmit # type check (strict, tanpa any)
 
 | Var | Keterangan |
 |-----|------------|
-| `NEXT_PUBLIC_BACKEND_URL` | URL backend Django. Publik (dikirim ke browser) — aman, hanya URL. |
+| `NEXT_PUBLIC_BACKEND_URL` | URL backend Django. Publik (dikirim ke browser), aman, hanya URL. |
 
 Tidak ada secret di frontend. Analisis AI (Groq) hanya dipanggil server-side di
 backend, tidak pernah dari browser.
