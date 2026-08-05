@@ -16,7 +16,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Kelas Saya"
-        subtitle="Pilih kelas untuk melihat tugas dan bukti proses berpikir siswa."
+        subtitle="Pilih kelas untuk melihat tugas dan bukti proses berpikir mahasiswa."
         actions={
           <Button asChild>
             <Link href="/dashboard/classes/new">Buat kelas</Link>
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
       {classes.length === 0 ? (
         <EmptyState
           title="Belum ada kelas"
-          caption="Buat kelas pertama untuk mulai memantau pola berpikir siswa."
+          caption="Buat kelas pertama untuk mulai memantau pola berpikir mahasiswa."
           action={
             <Button asChild>
               <Link href="/dashboard/classes/new">Buat kelas</Link>

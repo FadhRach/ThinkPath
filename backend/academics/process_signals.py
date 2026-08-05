@@ -8,10 +8,10 @@ satu pun revisi.
 
 Yang TIDAK diskor di sini, dan itu disengaja:
 
-Jam pengumpulan. Mengumpulkan pukul 02.37 memang layak dilaporkan ke guru, tetapi
-sebagai pembeda ia buruk. Siswa rajin yang begadang dan siswa yang menyalin akan
-terlihat sama. Menghukum jam pengerjaan juga menghukum siswa yang hanya punya
-waktu malam hari. Jam tetap ditampilkan di layar guru, tetapi tidak menambah
+Jam pengumpulan. Mengumpulkan pukul 02.37 memang layak dilaporkan ke dosen, tetapi
+sebagai pembeda ia buruk. Mahasiswa rajin yang begadang dan mahasiswa yang menyalin akan
+terlihat sama. Menghukum jam pengerjaan juga menghukum mahasiswa yang hanya punya
+waktu malam hari. Jam tetap ditampilkan di layar dosen, tetapi tidak menambah
 skor.
 
 Jam dinding juga tidak dirakit di modul ini. Backend berjalan pada TIME_ZONE UTC
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Laju mengarang berkelanjutan untuk siswa. Di bawah batas bawah dianggap wajar,
+# Laju mengarang berkelanjutan untuk mahasiswa. Di bawah batas bawah dianggap wajar,
 # di atas batas atas praktis mustahil untuk teks yang disusun sendiri.
 PLAUSIBLE_WPM = 25.0
 IMPLAUSIBLE_WPM = 80.0

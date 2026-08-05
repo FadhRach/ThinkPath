@@ -141,7 +141,7 @@ function renderSubmissionSection({
   }
 
   const lockReason = isReviewed
-    ? "Jawaban sudah dinilai guru, jadi tidak bisa direvisi lagi."
+    ? "Jawaban sudah dinilai dosen, jadi tidak bisa direvisi lagi."
     : "Tenggat sudah berakhir, jawaban terkunci.";
 
   return (
@@ -172,13 +172,13 @@ function renderSubmissionSection({
           </p>
           {submission.teacher_feedback ? (
             <p className="text-body text-muted-foreground">
-              Umpan balik guru: {submission.teacher_feedback}
+              Umpan balik dosen: {submission.teacher_feedback}
             </p>
           ) : null}
         </div>
       ) : (
         <p className="border-t border-border pt-4 text-body text-muted-foreground">
-          Jawabanmu sudah diterima dan sedang menunggu penilaian guru.
+          Jawabanmu sudah diterima dan sedang menunggu penilaian dosen.
         </p>
       )}
     </Card>

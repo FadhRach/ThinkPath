@@ -7,7 +7,7 @@ export default function RegisterPage() {
   return (
     <AuthLayout
       title="Buat akun ThinkPath"
-      caption="Daftar sebagai guru untuk mengelola kelas, atau sebagai siswa untuk mengumpulkan tugas."
+      caption="Daftar sebagai dosen untuk mengelola kelas, atau sebagai mahasiswa untuk mengumpulkan tugas."
       footer={
         <>
           Sudah punya akun?{" "}

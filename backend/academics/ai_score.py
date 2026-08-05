@@ -4,12 +4,12 @@ PERINGATAN KEJUJURAN, WAJIB DIBACA SEBELUM MENGKLAIM ANGKA APA PUN.
 
 Modul ini adalah baseline heuristik yang dapat dijelaskan, BUKAN detektor
 tervalidasi. Bobot di bawah ditetapkan dari penalaran, bukan dari kalibrasi
-terhadap data berlabel. Sampai tim punya gold set jawaban siswa Indonesia yang
+terhadap data berlabel. Sampai tim punya gold set jawaban mahasiswa Indonesia yang
 dilabeli manusia, tidak boleh ada klaim akurasi, presisi, atau recall dari
 modul ini.
 
 Yang boleh diklaim: skor ini menghitung beberapa sinyal yang saling bebas, dan
-melaporkan kontribusi tiap sinyal supaya guru bisa menilai sendiri alasannya.
+melaporkan kontribusi tiap sinyal supaya dosen bisa menilai sendiri alasannya.
 Yang tidak boleh diklaim: bahwa skor 78 berarti 78 persen kemungkinan AI.
 
 Ada lima sinyal berbasis teks, ditambah satu sinyal forensik proses bila
@@ -21,7 +21,7 @@ Riset yang mendasari kehati hatian ini: detektor teks AI menandai tulisan
 penulis non-native jauh lebih sering daripada penulis native, dan pada korpus
 multibahasa M4GT-Bench performa untuk bahasa Indonesia berada jauh di bawah
 bahasa Inggris. Karena itu keluaran modul ini diposisikan sebagai bahan tinjau
-guru, bukan vonis.
+dosen, bukan vonis.
 """
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ TEXT_WEIGHTS = {
     "uniformity": 0.30,
     "formulaic_phrasing": 0.25,
     "impersonality": 0.20,
-    "mechanical_polish": 0.15,
+    "flat_certainty": 0.15,
     "lexical_uniformity": 0.10,
 }
 
@@ -88,7 +88,7 @@ TEXT_WEIGHTS = {
 #
 # Angkanya sengaja 0.25, lebih besar dari sinyal teks mana pun: sinyal proses
 # adalah satu satunya yang tidak bisa dihapus dengan parafrase. Tetapi tidak
-# dibuat dominan, karena ia juga kasar. Siswa yang mengetik cepat atau menyusun
+# dibuat dominan, karena ia juga kasar. Mahasiswa yang mengetik cepat atau menyusun
 # jawaban di aplikasi lain sebelum menempelkannya bukan penyontek.
 PROCESS_WEIGHT = 0.25
 
@@ -160,28 +160,39 @@ def _signal_impersonality(features: TextFeatures) -> SignalScore:
     )
 
 
-def _signal_mechanical_polish(features: TextFeatures) -> SignalScore:
-    """Kerapian mekanis. Tulisan siswa biasanya menyisakan ragam informal.
+def _signal_flat_certainty(features: TextFeatures) -> SignalScore:
+    """Ketiadaan keraguan dan kualifikasi.
 
-    Sinyal ini yang paling perlu diwaspadai: siswa yang memang rapi menulis
-    akan tampak seperti AI. Bobotnya sengaja dijaga rendah karena itu.
+    Menggantikan sinyal "kerapian mekanis" yang lama. Sinyal lama menghitung
+    ragam informal seperti "gak" dan "banget". Mahasiswa yang menulis esai
+    akademik tidak pernah memakainya, sehingga nilainya konstan 1.0 untuk
+    seluruh populasi: ia menyumbang bobot ke setiap orang tanpa membedakan
+    siapa pun, dan itu ikut menaikkan skor mahasiswa jujur.
+
+    Penggantinya mengukur apakah penulis pernah ragu, memberi syarat, atau
+    mengakui batas argumennya. Ragam informal tetap dihitung sebagai bukti
+    tambahan bila kebetulan muncul.
+
+    Hipotesis ini belum diuji terhadap data berlabel. Bobotnya dijaga rendah
+    sampai ai_experiment memberi angka.
     """
-    value = _clamp01(1.0 - (features.informal_count / 2.0))
-    if features.informal_count == 0:
-        evidence = "Tidak ada ragam informal, seluruh teks memakai ragam baku"
+    voice = features.hedging_count + features.informal_count
+    value = _clamp01(1.0 - (voice / 3.0))
+    if voice == 0:
+        evidence = "Tidak ada keraguan, kualifikasi, maupun ragam informal"
     else:
-        evidence = f"Ada {features.informal_count} ragam informal khas tulisan siswa"
+        evidence = f"Ada {voice} penanda keraguan atau kualifikasi"
     return SignalScore(
-        key="mechanical_polish",
-        label="Kerapian mekanis",
+        key="flat_certainty",
+        label="Kepastian datar",
         value=value,
-        weight=TEXT_WEIGHTS["mechanical_polish"],
+        weight=TEXT_WEIGHTS["flat_certainty"],
         evidence=evidence,
     )
 
 
 def _signal_lexical_uniformity(features: TextFeatures) -> SignalScore:
-    """Keragaman kosakata di luar rentang wajar tulisan siswa.
+    """Keragaman kosakata di luar rentang wajar tulisan mahasiswa.
 
     Nilai ekstrem di kedua arah sama sama mencurigakan, jadi jarak dari titik
     tengah wajar yang dipakai, bukan nilai mentahnya.
@@ -230,7 +241,7 @@ def score_ai_probability(
 ) -> AiScoreResult:
     """Hitung skor indikasi AI dari fitur teks dan, bila ada, metadata proses.
 
-    Tidak membaca level Bloom maupun target guru. Ini yang menjamin E1 dan E2
+    Tidak membaca level Bloom maupun target dosen. Ini yang menjamin E1 dan E2
     tetap saling bebas.
 
     Ketika metadata proses tersedia, bobot sinyal teks diciutkan proporsional
@@ -242,7 +253,7 @@ def score_ai_probability(
         _signal_uniformity(features),
         _signal_formulaic_phrasing(features),
         _signal_impersonality(features),
-        _signal_mechanical_polish(features),
+        _signal_flat_certainty(features),
         _signal_lexical_uniformity(features),
     ]
 

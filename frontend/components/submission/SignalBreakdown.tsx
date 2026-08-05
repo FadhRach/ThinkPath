@@ -14,7 +14,7 @@ interface Props {
  * blueprint (perplexity, stilometri, klasifikator IndoBERT, forensik proses)
  * yang semuanya belum ada implementasinya. Komponen ini menampilkan sinyal yang
  * benar benar dihitung backend hari ini, lengkap dengan bobotnya, supaya layar
- * guru tidak menjanjikan sesuatu yang tidak dihitung.
+ * dosen tidak menjanjikan sesuatu yang tidak dihitung.
  */
 function toneFor(value: number) {
   if (value >= 70) return { bar: "bg-danger", text: "text-danger" };
@@ -59,7 +59,7 @@ export function SignalBreakdown({ breakdown }: Props) {
       })}
       <p className="border-t border-border pt-3 text-body-sm text-muted-foreground">
         Jumlah kontribusi {total.toFixed(1)} dari 100. Bobot tiap sinyal masih berupa
-        titik awal dan belum dikalibrasi terhadap data berlabel guru, jadi angka ini
+        titik awal dan belum dikalibrasi terhadap data berlabel dosen, jadi angka ini
         bahan tinjau, bukan vonis.
       </p>
     </div>

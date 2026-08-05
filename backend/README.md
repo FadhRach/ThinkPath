@@ -22,9 +22,9 @@ menyentuh database langsung, semua lewat endpoint di sini.
 | Model | Tabel | Catatan |
 |-------|-------|---------|
 | `Profile` | `profiles` | email unik, password hash, `role` teacher/student |
-| `Class` | `classes` | milik guru (`owner`), punya `join_code` unik |
-| `ClassMembership` | `class_memberships` | siswa gabung kelas (unik per kelas) |
-| `Assignment` | `assignments` | `deadline`, `expected_bloom_level` (1-6) |
+| `Class` | `classes` | milik dosen (`owner`), punya `join_code` unik, plus `education_level`, `program_studi`, dan `semester` |
+| `ClassMembership` | `class_memberships` | mahasiswa gabung kelas (unik per kelas) |
+| `Assignment` | `assignments` | `deadline`, `expected_bloom_level` (1-6). Jenjang diwarisi dari kelas, tidak disimpan di sini |
 | `Submission` | `submissions` | `status` draft/submitted/reviewed, `revision_count`, `grade` |
 | `ReasoningEvent` | `reasoning_events` | jejak proses: started/revision/paste/submitted |
 | `AnalysisResult` | `analysis_results` | OneToOne submission: `ai_score`, `ai_band`, `bloom_level`, `signals` |
@@ -40,28 +40,28 @@ ditandai publik.
 | POST | `/api/auth/register` | publik | daftar, balikan token + profil |
 | POST | `/api/auth/login` | publik | login, balikan token + profil |
 | GET/PATCH | `/api/me` | login | profil sendiri |
-| GET/POST | `/api/classes` | guru | daftar / buat kelas |
-| GET/POST | `/api/classes/<id>/assignments` | guru pemilik | daftar / buat tugas |
-| POST | `/api/join` | siswa | gabung kelas via join code |
-| GET | `/api/student/classes` | siswa | kelas diikuti + status tiap tugas |
-| GET | `/api/student/assignments/<id>` | siswa anggota | detail tugas + submission sendiri |
-| GET/POST | `/api/assignments/<id>/submissions` | GET guru pemilik, POST siswa | daftar submission / **submit atau revisi** |
-| GET/PATCH | `/api/submissions/<id>` | guru pemilik | detail / beri nilai + umpan balik |
-| POST | `/api/submissions/<id>/reanalyze` | guru pemilik | analisis ulang |
+| GET/POST | `/api/classes` | dosen | daftar / buat kelas |
+| GET/POST | `/api/classes/<id>/assignments` | dosen pemilik | daftar / buat tugas |
+| POST | `/api/join` | mahasiswa | gabung kelas via join code |
+| GET | `/api/student/classes` | mahasiswa | kelas diikuti + status tiap tugas |
+| GET | `/api/student/assignments/<id>` | mahasiswa anggota | detail tugas + submission sendiri |
+| GET/POST | `/api/assignments/<id>/submissions` | GET dosen pemilik, POST mahasiswa | daftar submission / **submit atau revisi** |
+| GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik |
+| POST | `/api/submissions/<id>/reanalyze` | dosen pemilik | analisis ulang |
 
 ### Submit & revisi (fitur inti)
 
-`POST /api/assignments/<id>/submissions` bersifat **upsert per siswa**:
+`POST /api/assignments/<id>/submissions` bersifat **upsert per mahasiswa**:
 
 - Submission pertama → dibuat baru (`revision_count=0`).
 - Submission berikutnya sebelum tenggat & belum dinilai → **update jawaban yang
   sama**, `revision_count += 1`, tambah `ReasoningEvent(revision)`, analisis
   ulang. Tidak menumpuk baris duplikat.
 - Setelah tenggat (`Assignment.deadline`) lewat → ditolak (`400`).
-- Setelah dinilai guru (`status=reviewed`) → ditolak (`400`).
+- Setelah dinilai dosen (`status=reviewed`) → ditolak (`400`).
 
-Siswa hanya melihat jawaban, status, nilai, dan umpan balik. **Skor AI dan
-sinyal tidak diekspos ke siswa** (`StudentSubmissionStatusSerializer`).
+Mahasiswa hanya melihat jawaban, status, nilai, dan umpan balik. **Skor AI dan
+sinyal tidak diekspos ke mahasiswa** (`StudentSubmissionStatusSerializer`).
 
 ## Menjalankan lokal
 
@@ -78,8 +78,8 @@ python manage.py runserver 0.0.0.0:7860
 
 Cek: `curl http://localhost:7860/health` -> `{"status":"ok"}`.
 
-Akun demo (password `thinkpath123`): `guru@thinkpath.local`,
-`siswa01@thinkpath.local` s.d. `siswa08@thinkpath.local`.
+Akun demo (password `thinkpath123`): `dosen@thinkpath.local`,
+`mahasiswa01@thinkpath.local` s.d. `mahasiswa08@thinkpath.local`.
 
 Tanpa Supabase: kosongkan `DATABASE_URL` di `.env`, backend otomatis pakai
 SQLite lokal (`db.sqlite3`).

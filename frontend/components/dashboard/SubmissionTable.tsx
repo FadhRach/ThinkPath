@@ -58,7 +58,7 @@ export function SubmissionTable({ submissions }: { submissions: SubmissionRow[] 
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari nama siswa..."
+            placeholder="Cari nama mahasiswa..."
             className="pl-9"
           />
         </div>
@@ -85,7 +85,7 @@ export function SubmissionTable({ submissions }: { submissions: SubmissionRow[] 
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="caption-eyebrow">Siswa</TableHead>
+              <TableHead className="caption-eyebrow">Mahasiswa</TableHead>
               <TableHead className="caption-eyebrow">Skor AI</TableHead>
               <TableHead className="caption-eyebrow">Level Kognitif</TableHead>
               <TableHead className="caption-eyebrow">Nilai</TableHead>

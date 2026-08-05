@@ -12,14 +12,16 @@ export interface CreateClassInput {
   name: string;
   subject: string;
   education_level: EducationLevel;
+  program_studi: string;
+  semester: number | null;
 }
 
+/** Jenjang tidak dikirim: tugas mewarisinya dari kelas. */
 export interface CreateAssignmentInput {
   title: string;
   instructions: string;
   deadline: string;
   expected_bloom_level: number;
-  education_level: EducationLevel;
 }
 
 export function createClass(input: CreateClassInput) {

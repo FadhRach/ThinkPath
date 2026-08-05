@@ -1,4 +1,4 @@
-"""Analisis jawaban siswa via LLM (Groq) dengan fallback heuristik.
+"""Analisis jawaban mahasiswa via LLM (Groq) dengan fallback heuristik.
 
 Provider sementara: Groq (free tier, OpenAI-compatible). Kalau nanti pindah
 ke Anthropic Claude, cukup ganti implementasi _call_llm di modul ini -
@@ -23,16 +23,16 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
 REQUEST_TIMEOUT_SECONDS = 30
 
-SYSTEM_PROMPT = """Kamu adalah ThinkPath, sistem analisis integritas akademik untuk pendidikan K-12 Indonesia.
+SYSTEM_PROMPT = """Kamu adalah ThinkPath, sistem analisis integritas akademik untuk pendidikan tinggi Indonesia.
 
-Analisislah teks tugas siswa dan hasilkan output JSON dengan kriteria berikut:
+Analisislah teks tugas mahasiswa dan hasilkan output JSON dengan kriteria berikut:
 
 1. ai_probability (0-100): kemungkinan teks ini dibuat menggunakan AI generatif.
    Sinyal yang menunjukkan AI: kalimat sangat terprediksi, panjang kalimat
-   seragam tanpa variasi, frasa khas LLM seperti "perlu dicatat bahwa",
-   "dalam era modern ini", "sangat penting untuk", tidak ada pengalaman
-   personal atau contoh konkret, transisi terlalu formal untuk jenjang
-   tersebut, tidak ada kesalahan kecil yang wajar untuk siswa.
+   seragam tanpa variasi, klaim yang selalu seimbang tanpa pendirian, tidak ada
+   contoh konkret dari mata kuliah atau praktikum yang sedang dijalani, tidak
+   ada rujukan spesifik ke bacaan tertentu, dan tidak ada keraguan atau
+   kualifikasi yang wajar muncul saat seseorang benar benar memikirkan sesuatu.
 
 2. bloom_level (1-6): level kognitif Bloom's Taxonomy yang DITUNJUKKAN teks.
    L1 Mengingat, L2 Memahami, L3 Mengaplikasikan, L4 Menganalisis,
@@ -40,7 +40,7 @@ Analisislah teks tugas siswa dan hasilkan output JSON dengan kriteria berikut:
    Nilai ini harus ditentukan HANYA dari isi jawaban. Jangan dipengaruhi oleh
    ai_probability yang kamu tentukan di poin 1. Jawaban yang kuat secara
    kognitif tetap L5 walaupun kamu menduga dibuat AI, dan jawaban yang lemah
-   tetap L1 walaupun kamu yakin ditulis sendiri oleh siswa.
+   tetap L1 walaupun kamu yakin ditulis sendiri oleh mahasiswa.
    Level tinggi menuntut bukti dalam teks: L4 butuh penalaran sebab akibat atau
    pembandingan, L5 butuh penilaian yang disertai alasan, L6 butuh usulan atau
    rancangan baru. Tanpa bukti itu, jangan naikkan levelnya.
@@ -60,13 +60,24 @@ Analisislah teks tugas siswa dan hasilkan output JSON dengan kriteria berikut:
 
 6. summary: 1-2 kalimat bahasa Indonesia yang menjelaskan kesimpulan analisis.
 
-Sesuaikan toleransi deteksi AI dengan jenjang:
-- SD: lebih toleran terhadap tulisan sederhana.
-- SMP: tulisan sederhana masih wajar.
-- SMA-SMK: ragam baku lebih wajar, tapi tetap jangan menghukum tulisan rapi.
+PERINGATAN PALING PENTING, BACA DUA KALI.
 
-JANGAN menghukum tulisan simpel sebagai AI hanya karena strukturnya sederhana.
-Pelajar Indonesia sering mencampur bahasa Indonesia dan Inggris, itu wajar.
+Mahasiswa memang menulis dengan ragam baku dan akademik. Itu yang diajarkan
+kepada mereka. Frasa seperti "dengan demikian", "hal ini menunjukkan bahwa",
+"berbagai faktor", dan "secara signifikan" adalah bahasa Indonesia akademik yang
+benar, BUKAN jejak AI. JANGAN menaikkan ai_probability hanya karena tulisannya
+rapi, formal, tanpa salah ketik, atau memakai istilah teknis.
+
+Deteksi teks AI diketahui menandai penulis non-native jauh lebih sering
+daripada penulis native, dan tulisan akademik yang baik justru paling mirip
+keluaran model. Kalau ragu, beri skor lebih rendah. Menuduh mahasiswa jujur
+jauh lebih merugikan daripada melewatkan satu kasus.
+
+Sesuaikan sedikit dengan jenjang studi:
+- D3 dan S1: tulisan yang masih berkembang itu normal.
+- S2 dan S3: ragam akademik matang itu yang diharapkan, bukan mencurigakan.
+
+Mahasiswa Indonesia sering mencampur bahasa Indonesia dan Inggris, itu wajar.
 
 Respond HANYA dalam JSON valid dengan keys: ai_probability, bloom_level,
 confidence, bloom_confidence, signals, summary. Tidak ada teks lain di luar JSON."""
@@ -77,15 +88,15 @@ VALID_CONFIDENCE = {Confidence.LOW, Confidence.MEDIUM, Confidence.HIGH}
 def _build_user_message(text: str, education_level: str) -> str:
     """Konteks yang dikirim ke model.
 
-    Target Bloom guru sengaja TIDAK dikirim. Menyebutkan target di prompt
+    Target Bloom dosen sengaja TIDAK dikirim. Menyebutkan target di prompt
     membuat model ter-anchor dan cenderung menjawab di sekitar angka itu,
-    sehingga hasilnya memantulkan harapan guru alih alih mengukur jawaban.
+    sehingga hasilnya memantulkan harapan dosen alih alih mengukur jawaban.
     Perbandingan terhadap target dilakukan di sisi backend setelah model
     memberi taksiran secara mandiri.
     """
     return (
-        f"Jenjang siswa: {education_level}\n\n"
-        f"Teks jawaban siswa:\n{text}"
+        f"Jenjang studi: {education_level}\n\n"
+        f"Teks jawaban mahasiswa:\n{text}"
     )
 
 
@@ -128,7 +139,7 @@ def _blend_with_process(
     produksi.
 
     Rincian yang dikembalikan tetap merekonstruksi skor akhir, sehingga panel
-    "Asal Skor AI" di layar guru tidak berbohong.
+    "Asal Skor AI" di layar dosen tidak berbohong.
     """
     if process is None:
         return llm_score, []

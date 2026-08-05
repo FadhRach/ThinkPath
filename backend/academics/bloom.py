@@ -1,14 +1,14 @@
-"""E2: taksiran level kognitif Bloom dari teks jawaban siswa.
+"""E2: taksiran level kognitif Bloom dari teks jawaban mahasiswa.
 
 Dua aturan yang tidak boleh dilanggar modul ini:
 
 1. Tidak membaca ai_score. Level kognitif dan dugaan penggunaan AI adalah dua
-   hal yang berbeda. Siswa bisa menulis analisis tajam dengan bantuan AI, dan
+   hal yang berbeda. Mahasiswa bisa menulis analisis tajam dengan bantuan AI, dan
    bisa juga menulis jawaban lemah sepenuhnya sendiri.
 
-2. Tidak membaca expected_bloom_level. Target guru adalah harapan, bukan hasil
+2. Tidak membaca expected_bloom_level. Target dosen adalah harapan, bukan hasil
    pengukuran. Kalau target dipakai sebagai dasar taksiran, sistem hanya
-   memantulkan kembali asumsi guru dan tidak akan pernah bisa memberi tahu
+   memantulkan kembali asumsi dosen dan tidak akan pernah bisa memberi tahu
    bahwa targetnya terlalu tinggi atau terlalu rendah untuk kelas itu.
 
 Perbandingan terhadap target tetap dilakukan, tetapi di analysis.py, setelah
@@ -20,7 +20,7 @@ mensyaratkan adanya konektor sebab akibat. Panjang teks membatasi level maksimum
 karena level kognitif tinggi tidak mungkin ditunjukkan dalam beberapa kalimat.
 
 Sama seperti E1, ini baseline yang dapat dijelaskan, bukan model tervalidasi.
-Angka akurasi hanya boleh diklaim setelah diuji terhadap gold set berlabel guru.
+Angka akurasi hanya boleh diklaim setelah diuji terhadap gold set berlabel dosen.
 """
 from __future__ import annotations
 
@@ -38,13 +38,19 @@ BLOOM_LABELS = {
     6: "Mencipta",
 }
 
-# Batas level maksimum menurut panjang teks. Jawaban 30 kata tidak bisa
+# Batas level maksimum menurut panjang teks. Jawaban pendek tidak bisa
 # menunjukkan evaluasi bertingkat, sepanjang apa pun kata kerjanya.
+#
+# Ambang dinaikkan saat fokus pindah ke mahasiswa. Sebelumnya 25, 50, 80, dan
+# 120 kata, yang wajar untuk jawaban singkat anak sekolah. Esai tugas mahasiswa
+# rutin melewati 120 kata, sehingga batas lama praktis tidak pernah aktif dan
+# kehilangan fungsinya sebagai pengaman.
 LENGTH_CAPS = (
-    (25, 1),
-    (50, 2),
-    (80, 3),
-    (120, 4),
+    (50, 1),
+    (90, 2),
+    (140, 3),
+    (200, 4),
+    (280, 5),
 )
 
 # Ambang bukti minimum agar sebuah level dianggap benar benar ditunjukkan.

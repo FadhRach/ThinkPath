@@ -17,9 +17,20 @@ class Role(models.TextChoices):
 
 
 class EducationLevel(models.TextChoices):
-    SD = "SD", "SD"
-    SMP = "SMP", "SMP"
-    SMA_SMK = "SMA-SMK", "SMA/SMK"
+    """Jenjang studi mahasiswa.
+
+    Sebelumnya berisi SD, SMP, dan SMA-SMK. Fokus produk dipindahkan ke
+    mahasiswa, sehingga populasi yang dianalisis seragam dan kalibrasi model
+    tidak perlu berbeda per jenjang sekolah.
+
+    Nama kelas dipertahankan agar impor di academics dan serializers tidak
+    berubah. Hanya pilihannya yang diganti.
+    """
+
+    D3 = "D3", "D3"
+    S1 = "S1", "S1"
+    S2 = "S2", "S2"
+    S3 = "S3", "S3"
 
 
 class Profile(models.Model):

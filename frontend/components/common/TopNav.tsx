@@ -41,8 +41,8 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
 };
 
 const ROLE_LABEL: Record<Role, string> = {
-  teacher: "Guru",
-  student: "Siswa",
+  teacher: "Dosen",
+  student: "Mahasiswa",
 };
 
 interface Props {

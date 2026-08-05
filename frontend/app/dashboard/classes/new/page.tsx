@@ -17,7 +17,7 @@ export default function NewClassPage() {
       </Link>
       <PageHeader
         title="Buat Kelas Baru"
-        subtitle="Kelas menjadi wadah tugas dan pengumpulan siswa. Kode gabung dibuat otomatis setelah kelas tersimpan."
+        subtitle="Kelas menjadi wadah tugas dan pengumpulan mahasiswa. Kode gabung dibuat otomatis setelah kelas tersimpan."
       />
       <Card className="p-6 shadow-soft">
         <CreateClassForm />

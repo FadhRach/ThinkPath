@@ -26,6 +26,7 @@ import { getSubmissionDetail } from "@/lib/data";
 import { bandsForDetail } from "@/lib/evidence";
 import { formatClockHHMM, formatDurationSeconds } from "@/lib/formatting";
 import { aiBandLabel } from "@/lib/ui";
+import { academicLabel } from "@/lib/academic";
 
 const BAND_DETAIL_COPY: Record<"low" | "mid" | "high", string> = {
   low: "Pola wajar untuk jenjang ini.",
@@ -72,7 +73,7 @@ export default async function SubmissionDetailPage({
             {detail.student.display_name} &middot; {detail.assignment.title}
           </h1>
           <p className="text-body-sm text-muted-foreground">
-            {detail.assignment.education_level} &middot; Target{" "}
+            {academicLabel(detail.assignment)} &middot; Target{" "}
             {bloomCode(detail.assignment.expected_bloom_level)} &middot; Mulai{" "}
             {formatClockHHMM(detail.started_at)}
             {detail.submitted_at
@@ -130,7 +131,7 @@ export default async function SubmissionDetailPage({
           <RecommendationBlock recommendation={analysis?.recommendation ?? null} />
 
           <Card className="space-y-3 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Jawaban Siswa</p>
+            <p className="caption-eyebrow text-primary">Jawaban Mahasiswa</p>
             <p className="whitespace-pre-wrap text-body text-foreground">
               {detail.text_answer || "Belum ada teks jawaban."}
             </p>

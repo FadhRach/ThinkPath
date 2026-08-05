@@ -1,5 +1,5 @@
 export type Role = "teacher" | "student";
-export type EducationLevel = "SD" | "SMP" | "SMA-SMK";
+export type EducationLevel = "D3" | "S1" | "S2" | "S3";
 export type AiBand = "low" | "mid" | "high";
 export type Confidence = "low" | "medium" | "high" | "";
 export type SubmissionStatus = "draft" | "submitted" | "reviewed";
@@ -7,7 +7,7 @@ export type EventType = "started" | "revision" | "paste" | "submitted";
 export type AnalysisSource = "llm" | "heuristic" | "seed";
 
 /** Kontribusi satu sinyal terhadap skor AI. Jumlah seluruh contribution
- *  sama dengan ai_score, sehingga skor bisa ditelusuri guru. */
+ *  sama dengan ai_score, sehingga skor bisa ditelusuri dosen. */
 export interface SignalContribution {
   key: string;
   label: string;
@@ -53,6 +53,10 @@ export interface ClassPublic {
   name: string;
   subject: string;
   education_level: EducationLevel;
+  /** Prodi penyelenggara. Kosong untuk mata kuliah umum atau kelas lintas prodi. */
+  program_studi: string;
+  /** Semester penyelenggaraan kelas, bukan semester mahasiswa. */
+  semester: number | null;
 }
 
 export interface StudentAssignment {
@@ -98,6 +102,8 @@ export interface ClassSummary {
   name: string;
   subject: string;
   education_level: EducationLevel;
+  program_studi: string;
+  semester: number | null;
   join_code: string;
   assignment_count: number;
   created_at: string;
@@ -146,7 +152,10 @@ export interface SubmissionDetail {
     id: string;
     title: string;
     expected_bloom_level: number;
+    /** Diwarisi dari kelas, tidak lagi disimpan di Assignment. */
     education_level: EducationLevel;
+    program_studi: string;
+    semester: number | null;
   };
   student: StudentMini;
   text_answer: string;

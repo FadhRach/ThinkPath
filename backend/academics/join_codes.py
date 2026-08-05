@@ -1,7 +1,7 @@
 """Generator join_code unik untuk kelas.
 
 Format: 2 huruf + dash + 4 alfanumerik (mis. "K7-9A2B"). Cukup pendek untuk
-diingat & diketik siswa.
+diingat & diketik mahasiswa.
 """
 from __future__ import annotations
 

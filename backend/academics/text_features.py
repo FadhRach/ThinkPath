@@ -1,4 +1,4 @@
-"""Ekstraksi fitur teks jawaban siswa.
+"""Ekstraksi fitur teks jawaban mahasiswa.
 
 Modul ini sengaja dibuat murni deskriptif: ia hanya mengukur properti teks,
 tidak memutuskan apa pun soal AI maupun level Bloom. Kebijakan skor ada di
@@ -13,61 +13,101 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-# Frasa transisi yang khas dipakai LLM saat menulis esai formal Indonesia.
-# Daftar ini bersifat indikatif, bukan bukti. Manusia juga memakainya.
+# Frasa yang khas dipakai LLM saat menulis esai formal Indonesia.
+#
+# Daftar ini DIPANGKAS saat fokus produk pindah ke mahasiswa. Sebelumnya ia
+# memuat "dengan demikian", "hal ini menunjukkan bahwa", "berbagai faktor",
+# "secara signifikan", "sebagai kesimpulan", dan "korelasi signifikan". Semua
+# itu bahasa Indonesia akademik yang benar dan dipakai penulis manusia setiap
+# hari. Menghitungnya sebagai jejak AI berarti menghukum mahasiswa karena
+# menulis dengan baik, dan uji jalan memang menunjukkan esai akademik tulisan
+# manusia ikut tertuduh karenanya.
+#
+# Yang tersisa adalah klise yang jarang muncul di tulisan akademik sungguhan.
+# Daftar ini tetap indikatif, bukan bukti, dan wajib diuji ulang lewat
+# ai_experiment sebelum bobotnya dipercaya.
 LLM_PHRASES = (
     "perlu dicatat",
     "penting untuk dicatat",
     "dalam era",
     "di era modern",
+    "di era digital",
     "sangat penting untuk",
     "secara fundamental",
     "secara holistik",
-    "secara signifikan",
-    "secara simultan",
-    "terintegrasi",
     "dapat dikonseptualisasikan",
-    "korelasi signifikan",
-    "dengan demikian",
-    "sebagai kesimpulan",
-    "kesimpulannya",
-    "hal ini menunjukkan bahwa",
-    "berbagai faktor",
     "memainkan peran penting",
+    "tidak dapat dipungkiri",
+    "seiring berjalannya waktu",
+    "membuka jalan bagi",
+    "di tengah dinamika",
+    "dalam lanskap",
+    "menjadi sorotan utama",
 )
 
 # Penanda suara orang pertama dan pengalaman konkret.
 PERSONAL_MARKERS = (
     "saya",
-    "aku",
-    "menurutku",
+    "penulis",
+    "kami",
     "menurut saya",
     "pengalaman",
-    "saat itu",
-    "waktu itu",
-    "di rumah",
-    "di sekolah saya",
-    "teman saya",
     "pernah",
+    "di kelas",
+    "saat praktikum",
+    "dosen saya",
+    "teman sekelompok",
+    "mata kuliah",
+    "waktu itu",
 )
 
-# Ragam informal yang praktis tidak pernah muncul di keluaran LLM formal.
+# Ragam informal. Dipertahankan karena kalau muncul memang bukti kuat tulisan
+# manusia, tetapi TIDAK lagi diandalkan sebagai sinyal utama: mahasiswa yang
+# menulis esai formal tidak akan memakainya sama sekali, sehingga nilainya
+# konstan untuk seluruh populasi dan tidak membedakan siapa pun.
+# Dicocokkan sebagai KATA UTUH, bukan potongan. Sebelumnya daftar ini memakai
+# spasi di belakang seperti "sih " dan "aja " sebagai pengganti batas kata, tapi
+# itu hanya menjaga sisi kanan. Akibatnya "sih " cocok di dalam "masih" dan
+# "aja " cocok di dalam "saja", dua kata yang ada di hampir setiap teks formal,
+# sehingga teks akademik murni tercatat punya ragam informal.
 INFORMAL_MARKERS = (
-    "gak ",
+    "gak",
     "nggak",
     "engga",
     "banget",
     "kayak",
-    "sih ",
-    "aja ",
+    "sih",
+    "aja",
     "udah",
     "bikin",
-    "yg ",
-    "dgn ",
-    "tdk ",
-    "krn ",
-    "utk ",
-    "jd ",
+    "yg",
+    "dgn",
+    "tdk",
+)
+
+# Penanda keraguan dan kualifikasi. Inilah pengganti utama INFORMAL_MARKERS
+# untuk register akademik.
+#
+# Hipotesisnya: manusia yang benar benar memikirkan sesuatu akan ragu, memberi
+# syarat, dan mengakui batas argumennya. LLM cenderung menulis dengan kepastian
+# rata dan selalu seimbang. Hipotesis ini BELUM diuji terhadap data berlabel,
+# dan itulah yang dikerjakan notebook diagnostik di ai_experiment.
+HEDGING_MARKERS = (
+    "tampaknya",
+    "kemungkinan",
+    "cenderung",
+    "agaknya",
+    "barangkali",
+    "belum tentu",
+    "setidaknya",
+    "sejauh ini",
+    "harus diakui",
+    "sayangnya",
+    "masih perlu",
+    "belum jelas",
+    "diduga",
+    "boleh jadi",
+    "tidak selalu",
 )
 
 # Konektor sebab akibat. Penanda utama penalaran analitis.
@@ -223,6 +263,7 @@ class TextFeatures:
     llm_phrase_count: int
     personal_count: int
     informal_count: int
+    hedging_count: int
     causal_count: int
     contrast_count: int
     evaluative_count: int
@@ -236,7 +277,7 @@ class TextFeatures:
     @property
     def is_too_short(self) -> bool:
         """Di bawah ambang ini tidak ada sinyal yang layak dipercaya."""
-        return self.word_count < 25
+        return self.word_count < 40
 
 
 def _split_sentences(text: str) -> list[str]:
@@ -284,6 +325,23 @@ def _count_distinct_markers(text_lower: str, markers: tuple[str, ...]) -> int:
     return sum(1 for marker in markers if marker in text_lower)
 
 
+def _count_distinct_words(text_lower: str, markers: tuple[str, ...]) -> int:
+    """Sama seperti _count_distinct_markers, tetapi menuntut batas kata.
+
+    Dipakai untuk penanda yang berupa kata lepas, di mana pencocokan potongan
+    menghasilkan positif palsu yang serius: "sih" di dalam "masih", "aja" di
+    dalam "saja", "kami" di dalam "kamis", "saya" di dalam "sayang".
+
+    Frasa berspasi seperti "menurut saya" tetap bekerja karena \\b hanya
+    memeriksa tepi kiri dan kanan seluruh pola.
+    """
+    return sum(
+        1
+        for marker in markers
+        if re.search(rf"\b{re.escape(marker)}\b", text_lower)
+    )
+
+
 def extract_features(text: str) -> TextFeatures:
     """Ukur satu teks jawaban menjadi TextFeatures."""
     text_lower = text.lower()
@@ -304,8 +362,9 @@ def extract_features(text: str) -> TextFeatures:
         burstiness=_burstiness(sentences),
         type_token_ratio=_type_token_ratio(words),
         llm_phrase_count=_count_distinct_markers(text_lower, LLM_PHRASES),
-        personal_count=_count_distinct_markers(text_lower, PERSONAL_MARKERS),
-        informal_count=_count_distinct_markers(text_lower, INFORMAL_MARKERS),
+        personal_count=_count_distinct_words(text_lower, PERSONAL_MARKERS),
+        informal_count=_count_distinct_words(text_lower, INFORMAL_MARKERS),
+        hedging_count=_count_distinct_words(text_lower, HEDGING_MARKERS),
         causal_count=_count_markers(text_lower, CAUSAL_MARKERS),
         contrast_count=_count_markers(text_lower, CONTRAST_MARKERS),
         evaluative_count=_count_distinct_markers(text_lower, EVALUATIVE_MARKERS),

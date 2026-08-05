@@ -15,13 +15,13 @@ interface RoleOption {
 const OPTIONS: RoleOption[] = [
   {
     value: "student",
-    label: "Siswa",
+    label: "Mahasiswa",
     caption: "Kerjakan & kumpulkan tugas",
     icon: GraduationCap,
   },
   {
     value: "teacher",
-    label: "Guru",
+    label: "Dosen",
     caption: "Monitor & analisis kelas",
     icon: Presentation,
   },

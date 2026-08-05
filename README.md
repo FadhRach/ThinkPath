@@ -1,10 +1,10 @@
 # ThinkPath
 
-Platform integritas akademik untuk guru SMP/SMA/SMK di Indonesia. Berbeda dari Turnitin/ZeroGPT yang hanya memberi satu skor "AI atau bukan", ThinkPath merekam proses berpikir siswa dan menyajikan beberapa sinyal sebagai **bukti yang dapat ditinjau guru, bukan vonis**.
+Platform integritas akademik untuk dosen di perguruan tinggi Indonesia. Berbeda dari Turnitin/ZeroGPT yang hanya memberi satu skor "AI atau bukan", ThinkPath merekam proses berpikir mahasiswa dan menyajikan beberapa sinyal sebagai **bukti yang dapat ditinjau dosen, bukan vonis**.
 
-Status: **Core platform berjalan**. Auth email/password, kelas & tugas oleh guru,
-pengumpulan + revisi jawaban oleh siswa, analisis AI (Groq, dengan fallback
-heuristik), dan dashboard guru sudah jalan end-to-end. UI memakai palette teal +
+Status: **Core platform berjalan**. Auth email/password, kelas & tugas oleh dosen,
+pengumpulan + revisi jawaban oleh mahasiswa, analisis AI (Groq, dengan fallback
+heuristik), dan dashboard dosen sudah jalan end-to-end. UI memakai palette teal +
 shadcn/ui (lihat `frontend/README.md`).
 
 ## Struktur monorepo
@@ -32,18 +32,18 @@ tetapi tidak pernah saling membaca hasil.
 |---|---|---|
 | E1 indikasi AI | `ai_score.py`, `text_features.py`, `process_signals.py` | skor 0 sampai 100 plus rincian kontribusi tiap sinyal |
 | E2 level Bloom | `bloom.py` | level C1 sampai C6 plus keyakinan dan bukti |
-| Orkestrator | `analysis.py` | menggabungkan keduanya, membandingkan ke target guru |
+| Orkestrator | `analysis.py` | menggabungkan keduanya, membandingkan ke target dosen |
 | Jalur LLM | `llm.py` | Groq, dengan jatuh ke heuristik bila gagal |
 
 Tiga aturan yang tidak boleh dilanggar, dijaga oleh 27 tes di
 `backend/academics/tests/`:
 
 1. **E2 tidak pernah membaca skor E1.** Level kognitif dan dugaan penggunaan AI
-   adalah dua hal berbeda. Siswa bisa menulis analisis tajam dengan bantuan AI,
+   adalah dua hal berbeda. Mahasiswa bisa menulis analisis tajam dengan bantuan AI,
    dan bisa juga menulis jawaban lemah sepenuhnya sendiri.
-2. **E2 tidak pernah membaca target Bloom guru.** Target adalah harapan, bukan
+2. **E2 tidak pernah membaca target Bloom dosen.** Target adalah harapan, bukan
    hasil ukur. Kalau target dipakai sebagai dasar taksiran, sistem hanya
-   memantulkan kembali asumsi guru dan tidak akan pernah bisa memberi tahu bahwa
+   memantulkan kembali asumsi dosen dan tidak akan pernah bisa memberi tahu bahwa
    targetnya terlalu tinggi atau terlalu rendah.
 3. **Tidak ada langit langit pada level teramati.** Jawaban yang melampaui
    target harus bisa tercatat, kalau tidak pertumbuhan kognitif mustahil dilacak.
@@ -61,6 +61,29 @@ sekarang meleset di dua arah: pada skor 35 lebih dari separuh teks manusia
 tertuduh, sedangkan pada skor 70 tidak ada sampel yang mencapainya.
 
 Perkakas untuk memperbaikinya ada di [`ai_experiment/`](./ai_experiment/README.md).
+
+## Pemodelan domain mahasiswa
+
+Jenjang (`D3`, `S1`, `S2`, `S3`), program studi, dan semester **melekat di
+kelas**, bukan di profil mahasiswa dan bukan di tugas.
+
+- **Bukan di profil.** Semester seorang mahasiswa berubah tiap enam bulan.
+  Menyimpannya di `Profile` berarti datanya basi terus dan harus diperbarui
+  manual. Sebuah kelas sebaliknya permanen berstatus "semester 3".
+- **Bukan di tugas.** Sebelumnya `Assignment` menyimpan `education_level`
+  sendiri, menduplikasi kolom yang sama di `Class`. Duplikasi itu memungkinkan
+  tugas S2 tersimpan di dalam kelas S1. Kolomnya sudah dihapus; serializer tetap
+  memaparkan jenjang, tetapi bersumber dari kelas sehingga kontrak API tidak
+  berubah.
+
+Program studi dan semester keduanya opsional: ada mata kuliah umum yang tidak
+dimiliki satu prodi mana pun, dan ada kelas yang ditawarkan lintas semester.
+Memaksakannya wajib hanya akan membuat dosen mengisi data karangan.
+
+Keduanya saat ini murni metadata pelaporan. **Belum menjadi masukan bagi lapisan
+analisis**, dan itu disengaja: menambah dimensi kalibrasi sebelum ada data
+berlabel akan memperbanyak sel dan memperkecil sampel per sel, sehingga model
+justru memburuk. Uji pengaruhnya lewat `ai_experiment` lebih dulu.
 
 ## Stack ringkas
 
@@ -135,8 +158,8 @@ assignments, submissions, reasoning_events, analysis_results).
 
 Seeder membuat akun demo siap login (password semua: `thinkpath123`):
 
-- Guru: `guru@thinkpath.local`, punya 2 kelas, 3 tugas, 24 submission beranalisis.
-- Siswa: `siswa01@thinkpath.local` s.d. `siswa08@thinkpath.local`.
+- Dosen: `dosen@thinkpath.local`, punya 2 kelas, 3 tugas, 24 submission beranalisis.
+- Mahasiswa: `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`.
 
 Alternatif tanpa Supabase: kosongkan/komentari `DATABASE_URL` di `.env`, maka
 backend otomatis memakai SQLite lokal (`backend/db.sqlite3`). Berguna saat
@@ -154,26 +177,26 @@ npm run dev
 
 Buka `http://localhost:3000`. Alur MVP:
 
-1. `/register` → daftar sebagai guru atau siswa (atau login akun seed di `/login`).
-2. Guru diarahkan ke `/dashboard`, siswa ke `/student`.
-3. Guru membuat kelas + tugas (tenggat wajib), lalu membagikan kode kelas.
-   Dashboard guru berbasis kelas: daftar kelas → pilih kelas → tugas-tugasnya →
+1. `/register` → daftar sebagai dosen atau mahasiswa (atau login akun seed di `/login`).
+2. Dosen diarahkan ke `/dashboard`, mahasiswa ke `/student`.
+3. Dosen membuat kelas + tugas (tenggat wajib), lalu membagikan kode kelas.
+   Dashboard dosen berbasis kelas: daftar kelas → pilih kelas → tugas-tugasnya →
    tabel submission (dengan pencarian nama + filter "perlu review"/"AI tinggi").
-4. Siswa bergabung dengan kode kelas (keanggotaan tersimpan, seperti Google
+4. Mahasiswa bergabung dengan kode kelas (keanggotaan tersimpan, seperti Google
    Classroom), memilih tugas, dan mengumpulkan jawaban teks. Backend langsung
    menganalisis jawaban: via LLM Groq kalau `GROQ_API_KEY` diisi
    (`backend/academics/llm.py`), atau heuristik fallback kalau kosong.
-5. **Siswa bisa melihat & merevisi jawabannya sendiri selama tenggat belum
+5. **Mahasiswa bisa melihat & merevisi jawabannya sendiri selama tenggat belum
    berakhir dan belum dinilai.** Revisi memperbarui jawaban yang sama (tidak
    menumpuk duplikat), menaikkan `revision_count`, dan memicu analisis ulang.
-   Skor AI tidak ditampilkan ke siswa, hanya jawaban, status, nilai, umpan balik.
-6. Guru membuka detail submission: probabilitas AI + bar, panel **Asal Skor AI**
+   Skor AI tidak ditampilkan ke mahasiswa, hanya jawaban, status, nilai, umpan balik.
+6. Dosen membuka detail submission: probabilitas AI + bar, panel **Asal Skor AI**
    yang merinci kontribusi tiap sinyal, level Bloom beserta keyakinannya
    sendiri, penanda asal analisis (LLM, cadangan heuristik, atau data demo),
    jam mulai dan jam pengumpulan, jumlah kata, daftar sinyal, ringkasan, jumlah
    revisi, tombol Analisis Ulang, dan form penilaian.
-7. Siswa melihat status tugasnya berubah menjadi "Dinilai" beserta nilai dan
-   umpan balik guru.
+7. Mahasiswa melihat status tugasnya berubah menjadi "Dinilai" beserta nilai dan
+   umpan balik dosen.
 8. Tombol **Keluar** menghapus sesi dan kembali ke `/login`.
 
 ## Dokumentasi proyek
@@ -239,6 +262,6 @@ header) aktif otomatis. Detail di [`backend/README.md`](./backend/README.md).
 
 ## Filosofi produk (jangan dilanggar)
 
-- Tujuannya **bukan menghukum** siswa karena pakai AI, tujuannya memberi guru visibilitas + feedback presisi.
+- Tujuannya **bukan menghukum** mahasiswa karena pakai AI, tujuannya memberi dosen visibilitas + feedback presisi.
 - **Tidak ada satu skor pun yang jadi vonis.** Setiap flag selalu disertai bukti yang bisa dijelaskan.
-- Data milik anak di bawah umur. Privasi & framing yang tidak menuduh adalah requirement, bukan opsi.
+- Fokus pada mahasiswa, bukan anak di bawah umur, sehingga persetujuan partisipan lebih sederhana. Privasi dan framing yang tidak menuduh tetap requirement, bukan opsi.

@@ -74,7 +74,7 @@ def _parse_uuid_or_404(value: str) -> UUID:
 
 
 def _require_owned_class(request, class_id: str) -> Class:
-    """Kelas milik guru pemanggil. 404 bila tidak ada atau bukan miliknya."""
+    """Kelas milik dosen pemanggil. 404 bila tidak ada atau bukan miliknya."""
     target = Class.objects.filter(pk=_parse_uuid_or_404(class_id)).first()
     if target is None or target.owner_id != _owner_uuid(request):
         raise NotFound()
@@ -82,7 +82,7 @@ def _require_owned_class(request, class_id: str) -> Class:
 
 
 def _require_owned_assignment(request, assignment_id: str) -> Assignment:
-    """Tugas di kelas milik guru pemanggil (class_ref ikut di-load)."""
+    """Tugas di kelas milik dosen pemanggil (class_ref ikut di-load)."""
     assignment = (
         Assignment.objects.select_related("class_ref")
         .filter(pk=_parse_uuid_or_404(assignment_id))
@@ -94,7 +94,7 @@ def _require_owned_assignment(request, assignment_id: str) -> Assignment:
 
 
 def _require_member_assignment(request, assignment_id: str) -> Assignment:
-    """Tugas di kelas yang diikuti siswa pemanggil."""
+    """Tugas di kelas yang diikuti mahasiswa pemanggil."""
     assignment = (
         Assignment.objects.select_related("class_ref")
         .filter(pk=_parse_uuid_or_404(assignment_id))
@@ -160,7 +160,7 @@ def _assignment_annotations():
 
 
 class ClassListCreateView(APIView):
-    """GET daftar kelas guru; POST buat kelas baru."""
+    """GET daftar kelas dosen; POST buat kelas baru."""
 
     permission_classes = [IsTeacher]
 
@@ -193,7 +193,7 @@ class ClassListCreateView(APIView):
 
 
 class AssignmentListCreateView(APIView):
-    """GET assignment di kelas; POST buat assignment baru (guru pemilik kelas)."""
+    """GET assignment di kelas; POST buat assignment baru (dosen pemilik kelas)."""
 
     permission_classes = [IsTeacher]
 
@@ -201,6 +201,7 @@ class AssignmentListCreateView(APIView):
         target_class = _require_owned_class(request, class_id)
         assignments = (
             Assignment.objects.filter(class_ref=target_class)
+            .select_related("class_ref")
             .annotate(**_assignment_annotations())
             .order_by("-created_at")
         )
@@ -216,6 +217,7 @@ class AssignmentListCreateView(APIView):
         )
         annotated = (
             Assignment.objects.filter(pk=new_assignment.pk)
+            .select_related("class_ref")
             .annotate(**_assignment_annotations())
             .first()
         )
@@ -226,7 +228,7 @@ class AssignmentListCreateView(APIView):
 
 
 class JoinClassView(APIView):
-    """POST gabung kelas via join code (siswa). Idempotent."""
+    """POST gabung kelas via join code (mahasiswa). Idempotent."""
 
     permission_classes = [IsStudent]
 
@@ -250,7 +252,7 @@ class JoinClassView(APIView):
 
 
 def _latest_submission_map(student_id: UUID, assignment_ids: list) -> dict:
-    """Map assignment_id -> submission terbaru milik siswa."""
+    """Map assignment_id -> submission terbaru milik mahasiswa."""
     submissions = Submission.objects.filter(
         student_profile_id=student_id,
         assignment_id__in=assignment_ids,
@@ -273,7 +275,7 @@ def _serialize_student_assignment(assignment: Assignment, submission) -> dict:
 
 
 class StudentClassListView(APIView):
-    """GET daftar kelas yang diikuti siswa beserta status tiap tugas."""
+    """GET daftar kelas yang diikuti mahasiswa beserta status tiap tugas."""
 
     permission_classes = [IsStudent]
 
@@ -285,8 +287,10 @@ class StudentClassListView(APIView):
             .order_by("-joined_at")
         )
         class_ids = [membership.class_ref_id for membership in memberships]
-        assignments = Assignment.objects.filter(class_ref_id__in=class_ids).order_by(
-            "-created_at"
+        assignments = (
+            Assignment.objects.filter(class_ref_id__in=class_ids)
+            .select_related("class_ref")
+            .order_by("-created_at")
         )
         latest = _latest_submission_map(
             student_id, [assignment.id for assignment in assignments]
@@ -308,6 +312,8 @@ class StudentClassListView(APIView):
                     "name": cls.name,
                     "subject": cls.subject,
                     "education_level": cls.education_level,
+                    "program_studi": cls.program_studi,
+                    "semester": cls.semester,
                     "teacher_name": owner.display_name or owner.email,
                     "joined_at": membership.joined_at,
                     "assignments": assignments_by_class.get(cls.id, []),
@@ -317,7 +323,7 @@ class StudentClassListView(APIView):
 
 
 class StudentAssignmentDetailView(APIView):
-    """GET detail satu tugas untuk siswa anggota kelasnya."""
+    """GET detail satu tugas untuk mahasiswa anggota kelasnya."""
 
     permission_classes = [IsStudent]
 
@@ -338,7 +344,7 @@ class StudentAssignmentDetailView(APIView):
 
 
 class SubmissionListView(APIView):
-    """GET daftar submission (guru pemilik). POST submit/revisi jawaban (siswa)."""
+    """GET daftar submission (dosen pemilik). POST submit/revisi jawaban (mahasiswa)."""
 
     def get_permissions(self):
         if self.request.method == "POST":
@@ -372,7 +378,7 @@ class SubmissionListView(APIView):
         )
         if latest is not None and latest.status == SubmissionStatus.REVIEWED:
             raise ValidationError(
-                "Jawaban sudah dinilai guru dan tidak bisa direvisi."
+                "Jawaban sudah dinilai dosen dan tidak bisa direvisi."
             )
 
         if latest is not None:
@@ -404,7 +410,7 @@ class SubmissionListView(APIView):
 
         analysis = run_analysis(
             text_answer,
-            assignment.education_level,
+            assignment.class_ref.education_level,
             assignment.expected_bloom_level,
             _build_process_context(text_answer, duration_seconds, revision_count=0),
         )
@@ -446,7 +452,7 @@ class SubmissionListView(APIView):
         # dengan yang nanti tersimpan.
         analysis = run_analysis(
             text_answer,
-            assignment.education_level,
+            assignment.class_ref.education_level,
             assignment.expected_bloom_level,
             _build_process_context(
                 text_answer,
@@ -495,7 +501,7 @@ def _get_submission_or_404(submission_id: str) -> Submission:
 
 
 def _require_owned_submission(request, submission_id: str) -> Submission:
-    """Submission di kelas milik guru pemanggil (cek pemilik di memori)."""
+    """Submission di kelas milik dosen pemanggil (cek pemilik di memori)."""
     submission = _get_submission_or_404(submission_id)
     if submission.assignment.class_ref.owner_id != _owner_uuid(request):
         raise NotFound()
@@ -503,7 +509,7 @@ def _require_owned_submission(request, submission_id: str) -> Submission:
 
 
 class SubmissionDetailView(APIView):
-    """GET detail submission; PATCH nilai + umpan balik guru."""
+    """GET detail submission; PATCH nilai + umpan balik dosen."""
 
     permission_classes = [IsTeacher]
 
@@ -523,7 +529,7 @@ class SubmissionDetailView(APIView):
 
 
 class SubmissionReanalyzeView(APIView):
-    """POST analisis ulang satu submission (guru pemilik)."""
+    """POST analisis ulang satu submission (dosen pemilik)."""
 
     permission_classes = [IsTeacher]
 
@@ -531,7 +537,7 @@ class SubmissionReanalyzeView(APIView):
         submission = _require_owned_submission(request, submission_id)
         analysis = run_analysis(
             submission.text_answer,
-            submission.assignment.education_level,
+            submission.assignment.class_ref.education_level,
             submission.assignment.expected_bloom_level,
             _build_process_context(
                 submission.text_answer,
