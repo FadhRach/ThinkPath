@@ -58,7 +58,7 @@ npm run dev                         # http://localhost:3000
 ```
 
 Pastikan backend Django jalan di port 7860 dulu. Login pakai akun demo
-(`guru@thinkpath.local` / `siswa01@thinkpath.local`, password `thinkpath123`).
+(`dosen@thinkpath.local` / `mahasiswa01@thinkpath.local`, password `thinkpath123`).
 
 ## Skrip
 

@@ -3,7 +3,7 @@
 Berkas ini adalah pengaman regresi untuk cacat yang diperbaiki di branch
 fix/decouple-bloom-from-ai-score. Sebelumnya bloom_level dihitung dari ai_band
 dan expected_bloom_level lewat fungsi band_to_bloom(), sehingga level kognitif
-sepenuhnya ditentukan oleh dugaan kecurangan dan target guru, tanpa pernah
+sepenuhnya ditentukan oleh dugaan kecurangan dan target dosen, tanpa pernah
 membaca isi jawaban.
 
 Kalau ada yang menyambungkan kembali kedua jalur itu di kemudian hari, tes di
@@ -31,53 +31,78 @@ from academics.models import AiBand, AnalysisSource, Confidence
 from academics.process_signals import ProcessContext
 from academics.text_features import extract_features
 
-# Jawaban dangkal: menyebutkan ulang tanpa penalaran, ragam informal.
+# Keempat contoh ditulis dalam register akademik mahasiswa, bukan register anak
+# sekolah. Populasi sasaran produk berubah, jadi fixture harus ikut berubah:
+# menguji detektor mahasiswa dengan tulisan berisi "gak" dan "banget" akan
+# memberi rasa aman yang palsu.
+
+# Dangkal: mendaftar ulang isi bacaan tanpa penalaran. Suara manusia hadir lewat
+# keraguan dan rujukan ke mata kuliah.
 SHALLOW_HUMAN = (
-    "Yang aku tau tentang fotosintesis itu ada beberapa bagian. Aku menyebutkan "
-    "ulang aja dari catetan waktu Bu guru nerangin kemarin. Bagian pertama namanya "
-    "apa gitu, terus ada bagian kedua sama ketiga. Di buku paket ada tabelnya juga. "
-    "Jujur aku belum terlalu paham sih, jadi aku tulis yang aku inget aja dulu."
+    "Sejauh ini yang saya pahami dari materi kebijakan subsidi energi ada beberapa "
+    "bagian. Pertama soal definisinya, lalu jenis jenisnya, kemudian siapa saja yang "
+    "menerimanya. Di slide mata kuliah kemarin disebutkan juga ada dampak fiskalnya. "
+    "Harus diakui saya belum sepenuhnya paham bagian terakhir itu, jadi saya tuliskan "
+    "kembali yang sempat saya catat. Belum jelas bagi saya bagaimana ketiganya "
+    "berhubungan satu sama lain."
 )
 
-# Jawaban mendalam dengan gaya tulis yang sama informalnya: sebab akibat,
-# pembandingan, dan penilaian yang disertai alasan.
+# Mendalam dengan suara manusia yang sama: sebab akibat, pembandingan, dan
+# penilaian yang disertai alasan, ditambah keraguan yang wajar.
 DEEP_HUMAN = (
-    "Aku coba jelasin fotosintesis pakai bahasa aku sendiri ya. Jadi bagian awalnya "
-    "itu jalan duluan, dan karena bagian itu jalan, bagian berikutnya jadi ikut "
-    "kepicu. Kalau yang awal gagal, sisanya juga berhenti, sehingga urutannya nggak "
-    "bisa dibalik. Ini beda dengan yang aku kira awalnya. Dulu aku pikir semuanya "
-    "jalan barengan, ternyata nggak. Misalnya waktu praktikum kemarin di sekolah, "
-    "kelompok aku sengaja ngeskip langkah pertama dan hasilnya memang nggak keluar. "
-    "Menurut aku penjelasan di buku paket agak kurang tepat soal ini, karena di situ "
-    "digambarkan seolah olah serentak. Sebaiknya digambarkan bertahap biar nggak "
-    "bikin salah paham. Kelemahan lain dari penjelasan buku itu, contohnya cuma satu "
-    "dan kurang nyambung sama kehidupan sehari hari."
+    "Saya mencoba menguraikan kebijakan subsidi energi berdasarkan bacaan mata "
+    "kuliah dan diskusi kelas. Subsidi menjaga daya beli rumah tangga berpendapatan "
+    "rendah, tetapi distribusinya cenderung regresif karena konsumsi bahan bakar "
+    "justru terkonsentrasi pada kelompok menengah atas. Akibatnya instrumen yang "
+    "sama bisa menghasilkan efek yang berlawanan, tergantung bagaimana penyalurannya "
+    "dirancang. Waktu praktikum simulasi kebijakan kemarin, kelompok saya mencoba "
+    "menaikkan ambang penerima dan hasilnya justru memperlebar kesenjangan, sesuatu "
+    "yang tidak kami duga sebelumnya. Ini berbeda dengan asumsi awal saya bahwa "
+    "penargetan selalu memperbaiki keadaan. Setidaknya pada simulasi itu, kualitas "
+    "basis data penerima tampaknya lebih menentukan daripada besaran subsidinya. "
+    "Menurut saya argumen yang menyerukan pencabutan total kurang tepat, karena "
+    "mengabaikan kapasitas administratif daerah yang belum merata. Sebaiknya "
+    "pembahasan diarahkan ke perbaikan basis data lebih dulu. Kelemahan analisis "
+    "saya sendiri, datanya hanya dari satu simulasi, sehingga belum tentu berlaku "
+    "untuk kasus lain. Masih perlu pembanding dari daerah dengan kapasitas berbeda "
+    "sebelum kesimpulan ini bisa dipegang."
 )
 
 # Gaya formulaik khas LLM, tetapi isinya tetap menunjukkan penalaran kuat.
+# Perhatikan: tidak ada keraguan, tidak ada rujukan konkret, tidak ada pendirian
+# yang bisa salah.
 DEEP_FORMULAIC = (
-    "Secara fundamental, fotosintesis dapat dikonseptualisasikan sebagai sistem yang "
-    "saling terhubung. Terdapat korelasi signifikan antara komponen pembentuknya. "
-    "Komponen awal menentukan keluaran komponen berikutnya, sehingga urutan "
-    "pemrosesan memainkan peran penting. Namun demikian, terdapat perbedaan mendasar "
-    "apabila dibandingkan dengan pendekatan konvensional. Pendekatan konvensional "
-    "mengasumsikan independensi antarvariabel, sedangkan pendekatan kontemporer "
-    "menekankan keterkaitan. Perbedaan asumsi tersebut menyebabkan implikasi "
+    "Secara fundamental, kebijakan subsidi energi dapat dikonseptualisasikan "
+    "sebagai mekanisme redistribusi sumber daya. Komponen fiskal menentukan "
+    "keluaran komponen distribusi, sehingga urutan perumusan memainkan peran "
+    "penting. Namun demikian, terdapat perbedaan mendasar apabila dibandingkan "
+    "dengan pendekatan konvensional. Pendekatan konvensional mengasumsikan "
+    "independensi antarvariabel, sedangkan pendekatan kontemporer menekankan "
+    "keterkaitan struktural. Perbedaan asumsi tersebut menyebabkan implikasi "
     "metodologis yang berbeda pula. Ditinjau dari efektivitasnya, pendekatan "
-    "kontemporer lebih efektif untuk kasus kompleks. Kelebihan utamanya terletak pada "
-    "akurasi prediksi, sementara kekurangannya adalah kebutuhan data yang lebih besar. "
-    "Dengan demikian, pemilihan pendekatan seharusnya mempertimbangkan ketersediaan "
-    "sumber daya."
+    "kontemporer lebih efektif untuk kasus kompleks. Kelebihan utamanya terletak "
+    "pada akurasi prediksi, sementara kekurangannya adalah kebutuhan data yang "
+    "lebih besar. Analisis komparatif menunjukkan bahwa desain penyaluran "
+    "menentukan hasil akhir kebijakan. Evaluasi terhadap kedua pendekatan "
+    "memperlihatkan bahwa pemilihan instrumen seharusnya mempertimbangkan "
+    "ketersediaan sumber daya administratif. Implikasi tersebut berlaku pada "
+    "berbagai konteks penerapan kebijakan publik. Pertimbangan tersebut menjadi "
+    "dasar perumusan rekomendasi yang lebih tepat sasaran. Kerangka analitis "
+    "tersebut memungkinkan pemetaan hubungan antarvariabel secara sistematis. "
+    "Pemetaan tersebut menghasilkan pemahaman yang lebih utuh terhadap "
+    "mekanisme kebijakan yang dijalankan pemerintah."
 )
 
 # Gaya formulaik yang sama, tetapi isinya hanya menyebutkan.
 SHALLOW_FORMULAIC = (
-    "Fotosintesis adalah suatu proses yang melibatkan berbagai variabel secara "
-    "simultan. Dalam konteks ini, setiap variabel memiliki peran spesifik yang "
-    "berkontribusi secara holistik dan terintegrasi. Terdapat beberapa komponen utama "
-    "di dalamnya. Komponen tersebut meliputi bagian pertama, bagian kedua, dan bagian "
-    "ketiga. Masing masing komponen memiliki definisi dan karakteristik tersendiri. "
-    "Hal ini menunjukkan bahwa struktur tersebut bersifat kompleks."
+    "Di era modern ini, kebijakan subsidi energi tidak dapat dipungkiri "
+    "memainkan peran penting. Secara fundamental, kebijakan tersebut melibatkan "
+    "banyak variabel. Dalam konteks ini, setiap variabel memiliki peran spesifik "
+    "yang berkontribusi secara holistik. Terdapat beberapa komponen utama di "
+    "dalamnya. Komponen tersebut meliputi aspek fiskal, aspek distribusi, dan "
+    "aspek administratif. Masing masing komponen memiliki definisi dan "
+    "karakteristik tersendiri. Uraian tersebut memperlihatkan struktur kebijakan "
+    "yang kompleks."
 )
 
 
@@ -112,7 +137,7 @@ def _ai_of(text: str) -> int:
 
 
 class TargetDoesNotDetermineBloomTest(SimpleTestCase):
-    """Target guru tidak boleh mempengaruhi level yang diukur."""
+    """Target dosen tidak boleh mempengaruhi level yang diukur."""
 
     def test_bloom_level_identical_across_every_target(self):
         levels = {
@@ -122,7 +147,7 @@ class TargetDoesNotDetermineBloomTest(SimpleTestCase):
         self.assertEqual(
             len(set(levels.values())),
             1,
-            f"bloom_level berubah mengikuti target guru: {levels}",
+            f"bloom_level berubah mengikuti target dosen: {levels}",
         )
 
     def test_ai_score_identical_across_every_target(self):
@@ -134,13 +159,13 @@ class TargetDoesNotDetermineBloomTest(SimpleTestCase):
 
     def test_answer_can_exceed_teacher_target(self):
         """Dulu bloom_level dibatasi min(6, expected), jadi tidak pernah bisa
-        melampaui target. Guru karena itu tidak pernah tahu ada siswa yang siap
+        melampaui target. Dosen karena itu tidak pernah tahu ada mahasiswa yang siap
         diberi tantangan lebih tinggi."""
         result = analyze_text(DEEP_HUMAN, expected_bloom_level=1)
         self.assertGreater(
             result["bloom_level"],
             1,
-            "jawaban dengan penalaran kuat tetap tertahan di target guru",
+            "jawaban dengan penalaran kuat tetap tertahan di target dosen",
         )
 
 
@@ -255,7 +280,7 @@ class SignalBreakdownTest(SimpleTestCase):
     def test_contributions_reconstruct_the_score(self):
         """Skor harus benar benar merupakan jumlah kontribusi yang ditampilkan.
 
-        Kalau tidak, rincian yang dilihat guru bukan penjelasan skor melainkan
+        Kalau tidak, rincian yang dilihat dosen bukan penjelasan skor melainkan
         hiasan.
         """
         result = score_ai_probability(extract_features(DEEP_FORMULAIC))
@@ -280,6 +305,95 @@ RUSHED_PROCESS = ProcessContext(
     char_count=2500,
     paste_char_count=1400,
 )
+
+
+class FlatCertaintySignalTest(SimpleTestCase):
+    """Sinyal pengganti mechanical_polish, inti dari pemindahan fokus ke mahasiswa.
+
+    Sinyal lama menghitung ragam informal seperti "gak" dan "banget". Mahasiswa
+    yang menulis esai akademik tidak pernah memakainya, sehingga nilainya
+    konstan 1.0 untuk seluruh populasi: menyumbang bobot ke setiap orang tanpa
+    membedakan siapa pun, dan ikut menaikkan skor mahasiswa jujur.
+    """
+
+    @staticmethod
+    def _value(text: str) -> float:
+        result = score_ai_probability(extract_features(text))
+        return next(s for s in result.breakdown if s.key == "flat_certainty").value
+
+    def test_hedging_lowers_the_signal(self):
+        """Penulis yang ragu dan memberi syarat terbaca sebagai manusia."""
+        self.assertLess(self._value(DEEP_HUMAN), self._value(DEEP_FORMULAIC))
+
+    def test_not_constant_across_the_population(self):
+        """Pengaman utama berkas ini.
+
+        Kalau sinyal ini kembali bernilai sama untuk semua teks mahasiswa, ia
+        mati lagi seperti pendahulunya, dan tes ini yang gagal lebih dulu.
+        """
+        values = {
+            self._value(text)
+            for text in (
+                SHALLOW_HUMAN,
+                DEEP_HUMAN,
+                DEEP_FORMULAIC,
+                SHALLOW_FORMULAIC,
+            )
+        }
+        self.assertGreater(
+            len(values),
+            1,
+            f"flat_certainty konstan di seluruh fixture: {values}",
+        )
+
+    def test_academic_register_is_not_punished_by_itself(self):
+        """Ragam baku tanpa satu pun kata informal tidak otomatis mentok 1.0.
+
+        Inilah bug yang membuat esai akademik tulisan manusia sebelumnya
+        mendapat skor tinggi dan tertuduh.
+        """
+        features = extract_features(DEEP_HUMAN)
+        self.assertEqual(features.informal_count, 0)
+        self.assertGreater(features.hedging_count, 0)
+        self.assertLess(self._value(DEEP_HUMAN), 1.0)
+
+
+class WordBoundaryMatchingTest(SimpleTestCase):
+    """Penanda kata lepas harus dicocokkan sebagai kata utuh.
+
+    Pencocokan potongan pernah membuat "sih" cocok di dalam "masih" dan "aja"
+    di dalam "saja". Keduanya kata yang muncul di hampir setiap teks formal,
+    sehingga esai akademik murni tercatat mengandung ragam informal.
+    """
+
+    def test_masih_is_not_counted_as_informal(self):
+        features = extract_features(
+            "Masih perlu pembanding sebelum kesimpulan ini bisa dipegang. "
+            "Analisis tersebut memerlukan data tambahan yang memadai."
+        )
+        self.assertEqual(features.informal_count, 0)
+
+    def test_saja_is_not_counted_as_informal(self):
+        features = extract_features(
+            "Pendekatan tersebut saja belum cukup untuk menjelaskan fenomena. "
+            "Diperlukan kerangka analitis yang lebih menyeluruh."
+        )
+        self.assertEqual(features.informal_count, 0)
+
+    def test_real_informal_words_are_still_counted(self):
+        features = extract_features(
+            "Jujur aja sih aku nggak paham banget bagian ini. "
+            "Nanti aku baca lagi deh biar ngerti."
+        )
+        self.assertGreaterEqual(features.informal_count, 3)
+
+    def test_sayang_is_not_counted_as_first_person(self):
+        """"saya" di dalam "sayangnya" bukan sudut pandang orang pertama."""
+        features = extract_features(
+            "Sayangnya keterbatasan data membuat simpulan tersebut lemah. "
+            "Kondisi itu berulang pada beberapa penelitian sebelumnya."
+        )
+        self.assertEqual(features.personal_count, 0)
 
 
 class ProcessSignalTest(SimpleTestCase):

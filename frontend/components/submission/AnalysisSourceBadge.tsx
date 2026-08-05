@@ -4,7 +4,7 @@ import type { AnalysisSource } from "@/lib/types";
  * Menandai mesin yang menghasilkan satu hasil analisis.
  *
  * Tanpa penanda ini, hasil heuristik dangkal tampil identik dengan hasil LLM di
- * layar guru. Guru berhak tahu bahwa angka yang sedang dilihatnya berasal dari
+ * layar dosen. Dosen berhak tahu bahwa angka yang sedang dilihatnya berasal dari
  * hitungan cadangan, bukan dari analisis penuh.
  */
 const SOURCE_COPY: Record<AnalysisSource, { label: string; hint: string; tone: string }> = {
@@ -20,7 +20,7 @@ const SOURCE_COPY: Record<AnalysisSource, { label: string; hint: string; tone: s
   },
   seed: {
     label: "Data demo",
-    hint: "Baris ini berasal dari data contoh, bukan pengerjaan siswa sungguhan.",
+    hint: "Baris ini berasal dari data contoh, bukan pengerjaan mahasiswa sungguhan.",
     tone: "bg-accent text-accent-foreground",
   },
 };

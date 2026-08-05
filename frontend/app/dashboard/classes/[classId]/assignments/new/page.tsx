@@ -36,14 +36,11 @@ export default async function NewAssignmentPage({
       />
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card className="p-6 shadow-soft">
-          <CreateAssignmentForm
-            classId={targetClass.id}
-            defaultEducationLevel={targetClass.education_level}
-          />
+          <CreateAssignmentForm classId={targetClass.id} />
         </Card>
         <Callout variant="info" title="Tentang target Bloom" icon={ShieldCheck}>
           Target level Bloom membantu sistem menilai kedalaman berpikir yang
-          diharapkan dari jawaban siswa. Siswa melihat target ini sebelum
+          diharapkan dari jawaban mahasiswa. Mahasiswa melihat target ini sebelum
           mengerjakan.
         </Callout>
       </div>

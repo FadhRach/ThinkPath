@@ -32,7 +32,7 @@ def _auth_response(profile) -> dict:
 
 
 class RegisterView(APIView):
-    """POST daftar akun baru (guru atau siswa), langsung mengembalikan token."""
+    """POST daftar akun baru (dosen atau mahasiswa), langsung mengembalikan token."""
 
     authentication_classes: list = []
     permission_classes = [AllowAny]

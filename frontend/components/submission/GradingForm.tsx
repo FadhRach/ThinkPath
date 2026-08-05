@@ -35,7 +35,7 @@ export function GradingForm({ submissionId, initialGrade, initialFeedback }: Pro
         grade: Number(grade),
         teacher_feedback: feedback.trim(),
       });
-      setMessage("Nilai tersimpan. Siswa dapat melihatnya di halaman tugas.");
+      setMessage("Nilai tersimpan. Mahasiswa dapat melihatnya di halaman tugas.");
       router.refresh();
     } catch (err) {
       setError(getApiErrorMessage(err, "Gagal menyimpan nilai. Coba lagi."));
@@ -61,7 +61,7 @@ export function GradingForm({ submissionId, initialGrade, initialFeedback }: Pro
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="feedback">Umpan balik untuk siswa (opsional)</Label>
+          <Label htmlFor="feedback">Umpan balik untuk mahasiswa (opsional)</Label>
           <Textarea
             id="feedback"
             rows={3}

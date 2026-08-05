@@ -11,7 +11,7 @@ const sans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "ThinkPath",
-  description: "Platform integritas akademik berbasis bukti untuk guru.",
+  description: "Platform integritas akademik berbasis bukti untuk dosen.",
 };
 
 export default function RootLayout({

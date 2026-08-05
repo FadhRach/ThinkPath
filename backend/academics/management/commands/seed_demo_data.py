@@ -35,8 +35,8 @@ from core.models import EducationLevel, Profile, Role
 
 
 SEED_NAMESPACE = uuid.UUID("8c5ff61a-94e0-4f3a-9d4e-4ad27d2e8d3c")
-TEACHER_EMAIL = "guru@thinkpath.local"
-TEACHER_NAME = "Bu Ningsih"
+TEACHER_EMAIL = "dosen@thinkpath.local"
+TEACHER_NAME = "Dr. Ningsih Prameswari"
 SEED_PASSWORD = "thinkpath123"
 
 
@@ -65,9 +65,9 @@ def _ensure_students(count: int) -> list[Profile]:
         student, _ = Profile.objects.update_or_create(
             id=_stable_uuid(label),
             defaults={
-                "email": f"siswa{i:02d}@thinkpath.local",
+                "email": f"mhs{i:02d}@thinkpath.local",
                 "password": make_password(SEED_PASSWORD),
-                "display_name": f"Siswa {i:02d}",
+                "display_name": f"Mahasiswa {i:02d}",
                 "role": Role.STUDENT,
             },
         )
@@ -75,7 +75,15 @@ def _ensure_students(count: int) -> list[Profile]:
     return students
 
 
-def _ensure_class(owner: Profile, label: str, name: str, subject: str, level: str) -> Class:
+def _ensure_class(
+    owner: Profile,
+    label: str,
+    name: str,
+    subject: str,
+    level: str,
+    program_studi: str,
+    semester: int,
+) -> Class:
     class_id = _stable_uuid(f"class:{label}")
     existing = Class.objects.filter(pk=class_id).first()
     if existing is not None:
@@ -83,6 +91,8 @@ def _ensure_class(owner: Profile, label: str, name: str, subject: str, level: st
         existing.name = name
         existing.subject = subject
         existing.education_level = level
+        existing.program_studi = program_studi
+        existing.semester = semester
         existing.save()
         return existing
     return Class.objects.create(
@@ -91,6 +101,8 @@ def _ensure_class(owner: Profile, label: str, name: str, subject: str, level: st
         name=name,
         subject=subject,
         education_level=level,
+        program_studi=program_studi,
+        semester=semester,
         join_code=generate_unique_join_code(),
     )
 
@@ -101,7 +113,6 @@ def _ensure_assignment(
     title: str,
     instructions: str,
     expected_bloom_level: int,
-    education_level: str,
     deadline_days: int,
 ) -> Assignment:
     assignment_id = _stable_uuid(f"assignment:{label}")
@@ -114,7 +125,6 @@ def _ensure_assignment(
             "instructions": instructions,
             "deadline": deadline,
             "expected_bloom_level": expected_bloom_level,
-            "education_level": education_level,
         },
     )
     return assignment
@@ -188,7 +198,7 @@ def _seed_submissions_for_assignment(
     Return jumlah submission yang berhasil di-upsert.
     """
     if len(students) < 8:
-        raise RuntimeError("Butuh setidaknya 8 student profile untuk seed assignment.")
+        raise RuntimeError("Butuh setidaknya 8 profil mahasiswa untuk seed assignment.")
 
     created = 0
     student_iter = iter(students[:8])
@@ -206,7 +216,7 @@ def _seed_submissions_for_assignment(
             label = f"submission:{assignment.id}:{profile_name}:{index}"
             submission_id = _stable_uuid(label)
 
-            # Sebagian profil "natural" sudah dinilai guru agar UI
+            # Sebagian profil "natural" sudah dinilai dosen agar UI
             # memperlihatkan status Dinilai + umpan balik.
             is_graded = profile_name == "natural" and index < 2
             submission, _ = Submission.objects.update_or_create(
@@ -226,7 +236,7 @@ def _seed_submissions_for_assignment(
                     ),
                     "grade": rng.randint(78, 95) if is_graded else None,
                     "teacher_feedback": (
-                        "Penjelasanmu runtut dan memakai contoh sendiri. Pertahankan."
+                        "Argumenmu runtut dan memakai contoh dari praktikum sendiri. Pertahankan."
                         if is_graded
                         else ""
                     ),
@@ -297,83 +307,109 @@ def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
     base = assignment.title.lower()
     return {
         # Ragam informal dan suara orang pertama menekan skor AI.
+        # Suara manusia pada register akademik hadir lewat keraguan, kualifikasi,
+        # dan rujukan konkret ke mata kuliah. Bukan lewat ragam informal, karena
+        # mahasiswa yang menulis esai tidak memakainya.
         AiBand.LOW: [
-            # Kognitif lemah: hanya menyebutkan ulang isi catatan.
+            # Kognitif lemah: mendaftar ulang isi bacaan tanpa penalaran.
             (
-                "Yang aku tau tentang " + base + " itu ada beberapa bagian. Aku "
-                "menyebutkan ulang aja dari catetan waktu Bu guru nerangin kemarin. "
-                "Bagian pertama namanya apa gitu, terus ada bagian kedua sama ketiga. "
-                "Di buku paket ada tabelnya juga. Jujur aku belum terlalu paham sih, "
-                "jadi aku tulis yang aku inget aja dulu."
+                "Sejauh ini yang saya pahami dari materi " + base + " ada beberapa "
+                "bagian. Pertama soal definisinya, lalu jenis jenisnya, kemudian "
+                "pihak yang terlibat di dalamnya. Di slide mata kuliah kemarin "
+                "disebutkan juga ada dampak lanjutannya. Harus diakui saya belum "
+                "sepenuhnya paham bagian terakhir itu, jadi saya tuliskan kembali "
+                "yang sempat saya catat. Belum jelas bagi saya bagaimana ketiganya "
+                "berhubungan satu sama lain."
             ),
             # Kognitif kuat: sebab akibat, pembandingan, penilaian berdasar alasan.
             (
-                "Aku coba jelasin " + base + " pakai bahasa aku sendiri ya. Jadi "
-                "bagian awalnya itu jalan duluan, dan karena bagian itu jalan, bagian "
-                "berikutnya jadi ikut kepicu. Kalau yang awal gagal, sisanya juga "
-                "berhenti, sehingga urutannya nggak bisa dibalik. Ini beda dengan yang "
-                "aku kira awalnya. Dulu aku pikir semuanya jalan barengan, ternyata "
-                "nggak. Misalnya waktu praktikum kemarin di sekolah, kelompok aku "
-                "sengaja ngeskip langkah pertama dan hasilnya memang nggak keluar. "
-                "Menurut aku penjelasan di buku paket agak kurang tepat soal ini, "
-                "karena di situ digambarkan seolah olah serentak. Sebaiknya "
-                "digambarkan bertahap biar nggak bikin salah paham. Kelemahan lain "
-                "dari penjelasan buku itu, contohnya cuma satu dan kurang nyambung "
-                "sama kehidupan sehari hari."
+                "Saya mencoba menguraikan " + base + " berdasarkan bacaan mata "
+                "kuliah dan diskusi kelas. Faktor awal menentukan hasil faktor "
+                "berikutnya, sehingga urutannya tidak bisa dibalik begitu saja. "
+                "Akibatnya pendekatan yang sama bisa menghasilkan efek berlawanan, "
+                "tergantung bagaimana penerapannya dirancang. Waktu praktikum "
+                "kemarin, kelompok saya sengaja melewati tahap pertama dan hasilnya "
+                "justru menyimpang jauh, sesuatu yang tidak kami duga. Ini berbeda "
+                "dengan asumsi awal saya bahwa tahapannya bisa dipertukarkan. "
+                "Setidaknya pada percobaan itu, kualitas persiapan tampaknya lebih "
+                "menentukan daripada urutannya sendiri. Menurut saya penjelasan di "
+                "buku rujukan kurang tepat, karena menggambarkan seolah semuanya "
+                "berjalan serentak. Sebaiknya digambarkan bertahap. Kelemahan "
+                "analisis saya sendiri, datanya hanya dari satu percobaan, sehingga "
+                "belum tentu berlaku untuk kasus lain. Masih perlu pembanding "
+                "sebelum kesimpulan ini bisa dipegang. Kalau dibandingkan dengan "
+                "studi kasus yang dibahas pada pertemuan sebelumnya, polanya juga "
+                "tidak sepenuhnya sama, sedangkan kondisi awalnya mirip. Perbedaan "
+                "itu membuat saya menduga ada faktor lain yang belum kami "
+                "perhitungkan. Sejauh ini saya menilai kerangka yang dipakai di "
+                "kelas masih lebih tepat daripada yang ada di buku rujukan, karena "
+                "kerangka itu setidaknya mengakui adanya ketergantungan antartahap. "
+                "Meski begitu saya belum sepenuhnya yakin, dan akan mencoba "
+                "menguji ulang dengan data pembanding pada tugas berikutnya."
             ),
         ],
-        # Campuran: sebagian baku, sebagian masih menyisakan suara siswa.
+        # Campuran: sebagian baku, sebagian masih menyisakan suara penulisnya.
         AiBand.MID: [
             # Kognitif menengah: menjelaskan ulang dan menguraikan langkah.
             (
                 base.capitalize() + " merupakan rangkaian proses yang dapat "
                 "dijelaskan dalam beberapa tahap. Artinya, ada urutan yang perlu "
-                "diikuti supaya hasilnya sesuai. Pertama, bahan awal disiapkan "
-                "terlebih dahulu. Kemudian bahan tersebut diproses pada tahap "
-                "berikutnya. Setelah itu hasilnya bisa diamati dan dicatat. Caranya "
-                "kurang lebih seperti yang dicontohkan di kelas. Saya menerapkan "
-                "langkah yang sama waktu mengerjakan latihan soal kemarin."
+                "diikuti supaya hasilnya sesuai. Pertama, kondisi awal disiapkan "
+                "terlebih dahulu. Kemudian kondisi tersebut diproses pada tahap "
+                "berikutnya. Setelah itu hasilnya dapat diamati dan dicatat. Caranya "
+                "kurang lebih seperti yang dicontohkan pada modul praktikum. Saya "
+                "menerapkan langkah yang sama ketika mengerjakan studi kasus "
+                "sebelumnya."
             ),
             # Kognitif kuat: sebab akibat dan pembandingan yang eksplisit.
             (
                 "Berdasarkan bacaan, " + base + " mencakup beberapa komponen yang "
                 "saling mempengaruhi. Komponen pertama menentukan hasil komponen "
-                "kedua, sehingga urutannya penting. Namun kalau dibandingkan dengan "
-                "kasus yang dibahas di kelas, ada perbedaan yang cukup jelas. Pada "
-                "kasus di kelas faktor luar hampir tidak berpengaruh, sedangkan pada "
-                "contoh di buku faktor luar justru menyebabkan hasilnya berubah. "
-                "Perbedaan ini muncul karena kondisi awalnya memang tidak sama. Jadi "
-                "kesimpulannya tergantung konteksnya."
+                "kedua, sehingga urutannya penting. Namun apabila dibandingkan "
+                "dengan kasus yang dibahas di kelas, ada perbedaan yang cukup jelas. "
+                "Pada kasus di kelas faktor eksternal hampir tidak berpengaruh, "
+                "sedangkan pada contoh di literatur faktor eksternal justru "
+                "menyebabkan hasilnya berubah. Perbedaan ini muncul karena kondisi "
+                "awalnya memang tidak sama. Kesimpulannya bergantung pada konteks."
             ),
         ],
-        # Ragam sangat baku, frasa formulaik, tanpa suara personal.
+        # Ragam sangat baku, frasa klise, tanpa keraguan dan tanpa rujukan konkret.
         AiBand.HIGH: [
             # Kognitif kuat: penalaran dan penilaian tetap ada meski gaya formulaik.
             (
                 "Secara fundamental, " + base + " dapat dikonseptualisasikan "
-                "sebagai sistem yang saling terhubung. Terdapat korelasi signifikan "
-                "antara komponen pembentuknya. Komponen awal menentukan keluaran "
-                "komponen berikutnya, sehingga urutan pemrosesan memainkan peran "
-                "penting. Namun demikian, terdapat perbedaan mendasar apabila "
-                "dibandingkan dengan pendekatan konvensional. Pendekatan konvensional "
-                "mengasumsikan independensi antarvariabel, sedangkan pendekatan "
-                "kontemporer menekankan keterkaitan. Perbedaan asumsi tersebut "
-                "menyebabkan implikasi metodologis yang berbeda pula. Ditinjau dari "
-                "efektivitasnya, pendekatan kontemporer lebih efektif untuk kasus "
-                "kompleks. Kelebihan utamanya terletak pada akurasi prediksi, "
-                "sementara kekurangannya adalah kebutuhan data yang lebih besar. "
-                "Dengan demikian, pemilihan pendekatan seharusnya mempertimbangkan "
-                "ketersediaan sumber daya."
+                "sebagai sistem yang saling terhubung. Komponen awal menentukan "
+                "keluaran komponen berikutnya, sehingga urutan pemrosesan memainkan "
+                "peran penting. Namun demikian, terdapat perbedaan mendasar apabila "
+                "dibandingkan dengan pendekatan konvensional. Pendekatan "
+                "konvensional mengasumsikan independensi antarvariabel, sedangkan "
+                "pendekatan kontemporer menekankan keterkaitan struktural. "
+                "Perbedaan asumsi tersebut menyebabkan implikasi metodologis yang "
+                "berbeda pula. Ditinjau dari efektivitasnya, pendekatan kontemporer "
+                "lebih efektif untuk kasus kompleks. Kelebihan utamanya terletak "
+                "pada akurasi prediksi, sementara kekurangannya adalah kebutuhan "
+                "data yang lebih besar. Analisis komparatif memperlihatkan bahwa "
+                "desain penerapan menentukan hasil akhirnya. Pertimbangan tersebut "
+                "menjadi dasar perumusan rekomendasi yang lebih tepat sasaran. "
+                "Kerangka analitis tersebut memungkinkan pemetaan hubungan "
+                "antarvariabel secara sistematis. Pemetaan tersebut menghasilkan "
+                "pemahaman yang lebih utuh terhadap mekanisme yang berlangsung. "
+                "Evaluasi terhadap kedua pendekatan memperlihatkan bahwa pemilihan "
+                "instrumen seharusnya mempertimbangkan ketersediaan sumber daya. "
+                "Implikasi tersebut berlaku pada berbagai konteks penerapan. "
+                "Dengan mempertimbangkan seluruh aspek tersebut, pendekatan "
+                "kontemporer dinilai lebih unggul untuk kasus berskala besar."
             ),
             # Kognitif lemah: gaya formulaik tapi isinya sekadar menyebutkan.
             (
-                base.capitalize() + " adalah suatu proses yang melibatkan berbagai "
-                "variabel secara simultan. Dalam konteks ini, setiap variabel memiliki "
-                "peran spesifik yang berkontribusi secara holistik dan terintegrasi. "
-                "Terdapat beberapa komponen utama di dalamnya. Komponen tersebut "
-                "meliputi bagian pertama, bagian kedua, dan bagian ketiga. Masing "
-                "masing komponen memiliki definisi dan karakteristik tersendiri. "
-                "Hal ini menunjukkan bahwa struktur tersebut bersifat kompleks."
+                "Di era modern ini, " + base + " tidak dapat dipungkiri memainkan "
+                "peran penting. Secara fundamental, hal tersebut melibatkan banyak "
+                "variabel. Dalam konteks ini, setiap variabel memiliki peran "
+                "spesifik yang berkontribusi secara holistik. Terdapat beberapa "
+                "komponen utama di dalamnya. Komponen tersebut meliputi aspek "
+                "pertama, aspek kedua, dan aspek ketiga. Masing masing komponen "
+                "memiliki definisi dan karakteristik tersendiri. Uraian tersebut "
+                "memperlihatkan struktur yang kompleks."
             ),
         ],
     }
@@ -396,49 +432,50 @@ class Command(BaseCommand):
                         student_profile=student,
                     )
 
-            class_smp = _ensure_class(
+            class_metpen = _ensure_class(
                 owner=teacher,
-                label="ipa-7a",
-                name="IPA 7A",
-                subject="IPA",
-                level=EducationLevel.SMP,
+                label="metpen-a",
+                name="Metodologi Penelitian A",
+                subject="Metodologi Penelitian",
+                level=EducationLevel.S1,
+                program_studi="Sistem Informasi",
+                semester=5,
             )
-            class_sma = _ensure_class(
+            class_ekbang = _ensure_class(
                 owner=teacher,
-                label="sejarah-11ips",
-                name="Sejarah 11 IPS",
-                subject="Sejarah",
-                level=EducationLevel.SMA_SMK,
+                label="ekbang-b",
+                name="Ekonomi Pembangunan B",
+                subject="Ekonomi Pembangunan",
+                level=EducationLevel.S1,
+                program_studi="Ilmu Ekonomi",
+                semester=3,
             )
-            _ensure_memberships(class_smp)
-            _ensure_memberships(class_sma)
+            _ensure_memberships(class_metpen)
+            _ensure_memberships(class_ekbang)
 
             assignments = [
                 _ensure_assignment(
-                    target_class=class_smp,
-                    label="fotosintesis",
-                    title="Fotosintesis: jelaskan prosesnya",
-                    instructions="Tulis penjelasan singkat tentang tahapan fotosintesis dengan kata-kata sendiri.",
+                    target_class=class_metpen,
+                    label="desain-kualitatif",
+                    title="Desain penelitian kualitatif",
+                    instructions="Uraikan pertimbangan dalam memilih desain penelitian kualitatif untuk topik skripsi Anda.",
                     expected_bloom_level=3,
-                    education_level=EducationLevel.SMP,
                     deadline_days=5,
                 ),
                 _ensure_assignment(
-                    target_class=class_sma,
-                    label="kolonialisme",
-                    title="Reaksi terhadap kolonialisme di Asia Tenggara",
-                    instructions="Bandingkan reaksi tiga negara terhadap kolonialisme Eropa pada abad ke-19.",
+                    target_class=class_ekbang,
+                    label="subsidi-energi",
+                    title="Efektivitas kebijakan subsidi energi",
+                    instructions="Bandingkan subsidi harga dan transfer langsung, lalu argumentasikan mana yang lebih tepat sasaran.",
                     expected_bloom_level=4,
-                    education_level=EducationLevel.SMA_SMK,
                     deadline_days=7,
                 ),
                 _ensure_assignment(
-                    target_class=class_smp,
-                    label="sel",
-                    title="Bandingkan sel hewan dan tumbuhan",
-                    instructions="Buat tabel perbandingan sel hewan dan tumbuhan, lalu tuliskan kesimpulan singkat.",
+                    target_class=class_metpen,
+                    label="validitas-reliabilitas",
+                    title="Validitas dan reliabilitas instrumen",
+                    instructions="Bandingkan ancaman terhadap validitas dan reliabilitas, lalu jelaskan cara menanganinya.",
                     expected_bloom_level=4,
-                    education_level=EducationLevel.SMP,
                     deadline_days=10,
                 ),
             ]
@@ -459,8 +496,8 @@ class Command(BaseCommand):
             )
         )
         self.stdout.write(
-            "Akun demo (password semua: {password}): guru={teacher_email}, "
-            "siswa=siswa01@thinkpath.local s.d. siswa08@thinkpath.local".format(
+            "Akun demo (password semua: {password}): dosen={teacher_email}, "
+            "mahasiswa=mhs01@thinkpath.local s.d. mhs08@thinkpath.local".format(
                 password=SEED_PASSWORD,
                 teacher_email=TEACHER_EMAIL,
             )

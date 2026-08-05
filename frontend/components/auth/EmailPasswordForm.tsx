@@ -19,8 +19,8 @@ interface Props {
 }
 
 const ROLE_LABEL: Record<Role, string> = {
-  student: "Siswa",
-  teacher: "Guru",
+  student: "Mahasiswa",
+  teacher: "Dosen",
 };
 
 export function EmailPasswordForm({ mode }: Props) {
@@ -86,7 +86,7 @@ export function EmailPasswordForm({ mode }: Props) {
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="email">Email sekolah</Label>
+        <Label htmlFor="email">Email kampus</Label>
         <div className="relative">
           <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -94,7 +94,7 @@ export function EmailPasswordForm({ mode }: Props) {
             type="email"
             required
             autoComplete="email"
-            placeholder="nama@sekolah.sch.id"
+            placeholder="nama@kampus.ac.id"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="pl-9"

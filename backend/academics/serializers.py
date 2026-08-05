@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from core.models import EducationLevel
-
 from .models import AnalysisResult, Assignment, Class, ReasoningEvent, Submission
 
 
@@ -20,6 +18,8 @@ class ClassListSerializer(serializers.ModelSerializer):
             "name",
             "subject",
             "education_level",
+            "program_studi",
+            "semester",
             "join_code",
             "assignment_count",
             "created_at",
@@ -29,7 +29,7 @@ class ClassListSerializer(serializers.ModelSerializer):
 class ClassCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Class
-        fields = ["name", "subject", "education_level"]
+        fields = ["name", "subject", "education_level", "program_studi", "semester"]
 
 
 # --- Assignments -----------------------------------------------------------
@@ -37,6 +37,11 @@ class ClassCreateSerializer(serializers.ModelSerializer):
 
 class AssignmentListSerializer(serializers.ModelSerializer):
     class_id = serializers.UUIDField(source="class_ref_id", read_only=True)
+    # Jenjang tidak lagi disimpan di Assignment. Dipaparkan dari kelasnya supaya
+    # kontrak API tidak berubah. Queryset pemanggil wajib select_related.
+    education_level = serializers.CharField(
+        source="class_ref.education_level", read_only=True
+    )
     submission_count = serializers.IntegerField(read_only=True)
     high_band_count = serializers.IntegerField(read_only=True)
     needs_review_count = serializers.IntegerField(read_only=True)
@@ -59,8 +64,14 @@ class AssignmentListSerializer(serializers.ModelSerializer):
 
 
 class AssignmentCreateSerializer(serializers.ModelSerializer):
+    """Jenjang sengaja tidak diterima di sini.
+
+    Tugas mewarisi jenjang dari kelas tempatnya dibuat. Menerimanya sebagai
+    masukan membuka kemungkinan tugas tersimpan dengan jenjang berbeda dari
+    kelasnya, yang tidak punya arti apa pun.
+    """
+
     expected_bloom_level = serializers.IntegerField(min_value=1, max_value=6)
-    education_level = serializers.ChoiceField(choices=EducationLevel.choices)
     deadline = serializers.DateTimeField(required=True)
 
     class Meta:
@@ -70,11 +81,10 @@ class AssignmentCreateSerializer(serializers.ModelSerializer):
             "instructions",
             "deadline",
             "expected_bloom_level",
-            "education_level",
         ]
 
 
-# --- Akses siswa (join + daftar kelas) ---------------------------------------
+# --- Akses mahasiswa (join + daftar kelas) ---------------------------------------
 
 
 class JoinClassSerializer(serializers.Serializer):
@@ -87,10 +97,14 @@ class JoinClassSerializer(serializers.Serializer):
 class ClassPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Class
-        fields = ["id", "name", "subject", "education_level"]
+        fields = ["id", "name", "subject", "education_level", "program_studi", "semester"]
 
 
 class StudentAssignmentSerializer(serializers.ModelSerializer):
+    education_level = serializers.CharField(
+        source="class_ref.education_level", read_only=True
+    )
+
     class Meta:
         model = Assignment
         fields = [
@@ -104,8 +118,8 @@ class StudentAssignmentSerializer(serializers.ModelSerializer):
 
 
 class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
-    # Sengaja tanpa ai_score/signals: siswa tidak melihat hasil analisis AI,
-    # hanya jawabannya sendiri, status, nilai, dan umpan balik guru.
+    # Sengaja tanpa ai_score/signals: mahasiswa tidak melihat hasil analisis AI,
+    # hanya jawabannya sendiri, status, nilai, dan umpan balik dosen.
     class Meta:
         model = Submission
         fields = [
@@ -197,9 +211,24 @@ class AnalysisFullSerializer(serializers.ModelSerializer):
 
 
 class AssignmentMiniSerializer(serializers.ModelSerializer):
+    education_level = serializers.CharField(
+        source="class_ref.education_level", read_only=True
+    )
+    program_studi = serializers.CharField(
+        source="class_ref.program_studi", read_only=True
+    )
+    semester = serializers.IntegerField(source="class_ref.semester", read_only=True)
+
     class Meta:
         model = Assignment
-        fields = ["id", "title", "expected_bloom_level", "education_level"]
+        fields = [
+            "id",
+            "title",
+            "expected_bloom_level",
+            "education_level",
+            "program_studi",
+            "semester",
+        ]
 
 
 class SubmissionDetailSerializer(serializers.ModelSerializer):

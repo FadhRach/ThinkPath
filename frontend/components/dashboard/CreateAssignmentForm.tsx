@@ -10,27 +10,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { getApiErrorMessage } from "@/lib/api-shared";
 import { BLOOM_LEVELS, bloomCode, bloomShortLabel } from "@/lib/bloom";
 import { createAssignment } from "@/lib/mutations";
-import type { EducationLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const EDUCATION_LEVELS: EducationLevel[] = ["SD", "SMP", "SMA-SMK"];
-
-const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-body shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring";
-
+// Jenjang tidak lagi diminta di sini. Tugas mewarisinya dari kelas, sehingga
+// tidak mungkin ada tugas S2 di dalam kelas S1.
 interface Props {
   classId: string;
-  defaultEducationLevel: EducationLevel;
 }
 
-export function CreateAssignmentForm({ classId, defaultEducationLevel }: Props) {
+export function CreateAssignmentForm({ classId }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [deadline, setDeadline] = useState("");
   const [expectedBloomLevel, setExpectedBloomLevel] = useState(4);
-  const [educationLevel, setEducationLevel] =
-    useState<EducationLevel>(defaultEducationLevel);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +38,6 @@ export function CreateAssignmentForm({ classId, defaultEducationLevel }: Props) 
         instructions: instructions.trim(),
         deadline: new Date(deadline).toISOString(),
         expected_bloom_level: expectedBloomLevel,
-        education_level: educationLevel,
       });
       router.push(`/dashboard/classes/${classId}?assignment=${created.id}`);
       router.refresh();
@@ -72,7 +64,7 @@ export function CreateAssignmentForm({ classId, defaultEducationLevel }: Props) 
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="assignment-instructions">Instruksi untuk siswa</Label>
+        <Label htmlFor="assignment-instructions">Instruksi untuk mahasiswa</Label>
         <Textarea
           id="assignment-instructions"
           rows={4}
@@ -80,32 +72,15 @@ export function CreateAssignmentForm({ classId, defaultEducationLevel }: Props) 
           onChange={(event) => setInstructions(event.target.value)}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="assignment-deadline">Tenggat</Label>
-          <Input
-            id="assignment-deadline"
-            type="datetime-local"
-            required
-            value={deadline}
-            onChange={(event) => setDeadline(event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="assignment-education-level">Jenjang</Label>
-          <select
-            id="assignment-education-level"
-            value={educationLevel}
-            onChange={(event) => setEducationLevel(event.target.value as EducationLevel)}
-            className={SELECT_CLASS}
-          >
-            {EDUCATION_LEVELS.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="assignment-deadline">Tenggat</Label>
+        <Input
+          id="assignment-deadline"
+          type="datetime-local"
+          required
+          value={deadline}
+          onChange={(event) => setDeadline(event.target.value)}
+        />
       </div>
 
       <div className="space-y-2">

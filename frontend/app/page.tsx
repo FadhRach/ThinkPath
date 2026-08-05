@@ -13,12 +13,12 @@ const FEATURES = [
   {
     icon: TrendingUp,
     title: "Level kognitif Bloom",
-    body: "Setiap jawaban dipetakan ke level L1-L6 agar guru melihat cara siswa berpikir.",
+    body: "Setiap jawaban dipetakan ke level L1-L6 agar dosen melihat cara mahasiswa berpikir.",
   },
   {
     icon: Sparkles,
     title: "Bukti, bukan vonis",
-    body: "Skor jadi bahan verifikasi verbal dan umpan balik, keputusan tetap di tangan guru.",
+    body: "Skor jadi bahan verifikasi verbal dan umpan balik, keputusan tetap di tangan dosen.",
   },
 ];
 
@@ -40,12 +40,12 @@ export default function HomePage() {
       <section className="mx-auto w-full max-w-[1120px] px-6 py-16 text-center">
         <p className="caption-eyebrow text-primary">Integritas akademik K-12</p>
         <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-          Pahami cara siswa berpikir, bukan hanya nilainya.
+          Pahami cara mahasiswa berpikir, bukan hanya nilainya.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-body-lg text-muted-foreground">
-          ThinkPath merekam proses berpikir siswa dan menyajikannya sebagai bukti
+          ThinkPath merekam proses berpikir mahasiswa dan menyajikannya sebagai bukti
           yang dapat ditinjau: analisis Taksonomi Bloom dan deteksi penggunaan AI
-          dalam satu platform untuk guru dan siswa.
+          dalam satu platform untuk dosen dan mahasiswa.
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <Button asChild size="lg">

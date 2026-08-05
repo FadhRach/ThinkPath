@@ -60,9 +60,25 @@ class Class(models.Model):
     )
     name = models.CharField(max_length=120)
     subject = models.CharField(max_length=80)
+    # Jenjang studi. Melekat di kelas, bukan di profil, karena satu mahasiswa
+    # bisa mengambil kelas lintas jenjang dan lintas prodi.
     education_level = models.CharField(
         max_length=16,
         choices=EducationLevel.choices,
+    )
+    # Program studi penyelenggara. Opsional karena ada kelas lintas prodi dan
+    # mata kuliah umum yang tidak dimiliki satu prodi mana pun.
+    program_studi = models.CharField(max_length=120, blank=True, default="")
+    # Semester penyelenggaraan, bukan semester mahasiswa.
+    #
+    # Ini keputusan yang disengaja. Semester seorang mahasiswa berubah tiap
+    # enam bulan, sehingga kalau disimpan di Profile datanya basi terus dan
+    # harus diperbarui manual. Sebuah kelas sebaliknya permanen berstatus
+    # "semester 3", jadi di sinilah tempatnya.
+    semester = models.SmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(14)],
     )
     join_code = models.CharField(max_length=8, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -116,10 +132,11 @@ class Assignment(models.Model):
     expected_bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],
     )
-    education_level = models.CharField(
-        max_length=16,
-        choices=EducationLevel.choices,
-    )
+    # education_level sengaja TIDAK ada di sini. Sebelumnya kolom ini
+    # menduplikasi jenjang milik kelas, sehingga sebuah tugas bisa tersimpan
+    # dengan jenjang yang berbeda dari kelas tempatnya berada. Jenjang sekarang
+    # dibaca dari class_ref, dan serializer tetap memaparkannya agar kontrak
+    # API tidak berubah.
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -228,7 +245,7 @@ class AnalysisResult(models.Model):
     # Daftar string bahasa Indonesia (maks 4) yang mendeskripsikan sinyal.
     signals = models.JSONField(default=list, blank=True)
     # Rincian kontribusi tiap sinyal ke skor AI. Inilah yang membuat skor bisa
-    # ditinjau guru alih alih diterima begitu saja.
+    # ditinjau dosen alih alih diterima begitu saja.
     signal_breakdown = models.JSONField(default=list, blank=True)
     summary = models.TextField(blank=True, default="")
     recommendation = models.TextField(blank=True, default="")

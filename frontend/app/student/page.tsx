@@ -16,8 +16,8 @@ interface Overview {
   gradeChart: GradePoint[];
 }
 
-// Ringkasan diturunkan dari data nyata; data siswa tidak memuat level Bloom
-// per submission, jadi tidak ada grafik kognitif di sisi siswa.
+// Ringkasan diturunkan dari data nyata; data mahasiswa tidak memuat level Bloom
+// per submission, jadi tidak ada grafik kognitif di sisi mahasiswa.
 function deriveOverview(classes: StudentClassWithAssignments[]): Overview {
   const graded: Array<{ label: string; grade: number }> = [];
   let activeCount = 0;

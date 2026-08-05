@@ -4,7 +4,7 @@ import { AppShell } from "@/components/common/AppShell";
 import { getMe } from "@/lib/data";
 import { ApiError } from "@/lib/api";
 
-// Halaman guru bergantung pada cookie auth per-request, jadi tidak boleh
+// Halaman dosen bergantung pada cookie auth per-request, jadi tidak boleh
 // di-prerender statis saat build.
 export const dynamic = "force-dynamic";
 

@@ -5,7 +5,7 @@ E2 (bloom.py) menghitung hasilnya masing masing dari fitur yang sama. Keduanya
 tidak saling melihat hasil.
 
 Peran expected_bloom_level di modul ini hanya satu: membandingkan level yang
-DITAKSIR terhadap target guru untuk menyusun kalimat rekomendasi. Ia tidak
+DITAKSIR terhadap target dosen untuk menyusun kalimat rekomendasi. Ia tidak
 pernah menjadi masukan bagi taksiran itu sendiri.
 
 Sebelumnya modul ini menurunkan bloom_level dari ai_band lewat fungsi
@@ -37,7 +37,7 @@ def band_to_recommendation(band: str) -> str:
         return "Tidak ada indikasi yang perlu ditindaklanjuti. Lanjutkan penilaian seperti biasa."
     if band == AiBand.MID:
         return "Beberapa sinyal bercampur. Disarankan tanya jawab singkat 5-10 menit untuk verifikasi."
-    return "Disarankan diskusi 10-15 menit dengan siswa untuk memverifikasi pemahaman."
+    return "Disarankan diskusi 10-15 menit dengan mahasiswa untuk memverifikasi pemahaman."
 
 
 def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int) -> str:
@@ -45,7 +45,7 @@ def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int)
 
     Karena bloom_level tidak lagi diturunkan dari band, kombinasi keduanya
     membawa informasi nyata. Jawaban dengan indikasi AI rendah tetapi level
-    kognitif di bawah target adalah kasus yang paling berguna bagi guru, dan
+    kognitif di bawah target adalah kasus yang paling berguna bagi dosen, dan
     dulu mustahil muncul.
     """
     gap = bloom_level - expected_bloom_level
@@ -67,7 +67,7 @@ def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int)
     else:
         cognitive = (
             f"Level kognitif jawaban ada di L{bloom_level}, di atas target "
-            f"L{expected_bloom_level}. Siswa ini bisa diberi tantangan lebih tinggi."
+            f"L{expected_bloom_level}. Mahasiswa ini bisa diberi tantangan lebih tinggi."
         )
 
     return f"{integrity} {cognitive}"
@@ -76,18 +76,18 @@ def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int)
 def build_summary(band: str, bloom_level: int, bloom_confidence: str) -> str:
     if band == AiBand.LOW:
         integrity = (
-            "Tulisan menunjukkan pola yang wajar untuk siswa. "
+            "Tulisan menunjukkan pola yang wajar untuk mahasiswa. "
             "Tidak ditemukan indikasi kuat penggunaan AI generatif."
         )
     elif band == AiBand.MID:
         integrity = (
-            "Ada sinyal yang bercampur antara tulisan siswa dan pola khas AI. "
+            "Ada sinyal yang bercampur antara tulisan mahasiswa dan pola khas AI. "
             "Perlu ditinjau bersama konteks proses pengerjaan."
         )
     else:
         integrity = (
             "Tulisan memuat beberapa pola kuat yang khas AI generatif. "
-            "Disarankan verifikasi langsung dengan siswa."
+            "Disarankan verifikasi langsung dengan mahasiswa."
         )
 
     cognitive = (
@@ -102,7 +102,7 @@ def build_summary(band: str, bloom_level: int, bloom_confidence: str) -> str:
 def _overall_confidence(word_count: int) -> str:
     """Jalur heuristik tidak pernah mencapai keyakinan tinggi.
 
-    Sinyalnya terlalu dangkal. Menaikkannya ke high akan menyesatkan guru.
+    Sinyalnya terlalu dangkal. Menaikkannya ke high akan menyesatkan dosen.
     """
     return Confidence.LOW if word_count < 80 else Confidence.MEDIUM
 
@@ -112,7 +112,7 @@ def analyze_text(
     expected_bloom_level: int,
     process: ProcessContext | None = None,
 ) -> dict:
-    """Hasil analisis heuristik untuk satu jawaban siswa.
+    """Hasil analisis heuristik untuk satu jawaban mahasiswa.
 
     Bentuk dict yang dikembalikan sama persis dengan jalur LLM sehingga
     langsung bisa dipakai sebagai kwargs AnalysisResult.
