@@ -1,70 +1,38 @@
-"""Analisis fallback berbasis heuristik teks.
+"""Orkestrator analisis jalur heuristik.
 
-Dipakai ketika GROQ_API_KEY kosong atau panggilan LLM gagal (lihat llm.py).
-Skor dihitung dari sinyal sederhana: variasi panjang kalimat (burstiness),
-frasa khas LLM, dan penanda personal. Cukup untuk menjaga flow tetap hidup,
-bukan deteksi yang akurat.
+Alur: teks mentah dibaca sekali menjadi TextFeatures, lalu E1 (ai_score.py) dan
+E2 (bloom.py) menghitung hasilnya masing masing dari fitur yang sama. Keduanya
+tidak saling melihat hasil.
+
+Peran expected_bloom_level di modul ini hanya satu: membandingkan level yang
+DITAKSIR terhadap target guru untuk menyusun kalimat rekomendasi. Ia tidak
+pernah menjadi masukan bagi taksiran itu sendiri.
+
+Sebelumnya modul ini menurunkan bloom_level dari ai_band lewat fungsi
+band_to_bloom(). Fungsi itu sudah dihapus. Alasannya ada di docstring bloom.py.
 """
 from __future__ import annotations
 
-import re
+from .ai_score import score_ai_probability, score_to_band
+from .bloom import BLOOM_LABELS, estimate_bloom_level
+from .models import AiBand, AnalysisSource, Confidence
+from .process_signals import ProcessContext
+from .text_features import extract_features
 
-from .models import AiBand, Confidence
-
-LLM_PHRASES = (
-    "perlu dicatat",
-    "dalam era",
-    "sangat penting untuk",
-    "secara fundamental",
-    "secara holistik",
-    "terintegrasi",
-    "dapat dikonseptualisasikan",
-    "korelasi signifikan",
-    "secara simultan",
-    "kesimpulannya",
-)
-
-PERSONAL_MARKERS = ("saya", "aku", "menurutku", "pengalaman", "saat itu")
-
-
-def _split_sentences(text: str) -> list[str]:
-    sentences = re.split(r"[.!?]+", text)
-    return [sentence.strip() for sentence in sentences if sentence.strip()]
-
-
-def _burstiness(sentences: list[str]) -> float:
-    """Rasio deviasi panjang kalimat terhadap rata-rata; rendah = seragam."""
-    if len(sentences) < 2:
-        return 0.0
-    lengths = [len(sentence.split()) for sentence in sentences]
-    mean = sum(lengths) / len(lengths)
-    if mean == 0:
-        return 0.0
-    variance = sum((length - mean) ** 2 for length in lengths) / len(lengths)
-    return round(min(1.0, (variance ** 0.5) / mean), 2)
-
-
-def _count_matches(text_lower: str, phrases: tuple[str, ...]) -> int:
-    return sum(1 for phrase in phrases if phrase in text_lower)
-
-
-def score_to_band(ai_score: int) -> str:
-    if ai_score < 35:
-        return AiBand.LOW
-    if ai_score < 70:
-        return AiBand.MID
-    return AiBand.HIGH
-
-
-def band_to_bloom(band: str, expected: int) -> int:
-    if band == AiBand.LOW:
-        return min(6, expected)
-    if band == AiBand.MID:
-        return max(1, expected - 1)
-    return max(1, expected - 2)
+__all__ = [
+    "analyze_text",
+    "score_to_band",
+    "band_to_recommendation",
+    "build_recommendation",
+]
 
 
 def band_to_recommendation(band: str) -> str:
+    """Tindak lanjut berdasarkan band AI saja.
+
+    Dipertahankan karena llm.py memakainya. Untuk rekomendasi yang juga
+    memperhitungkan kesenjangan kognitif, pakai build_recommendation().
+    """
     if band == AiBand.LOW:
         return "Tidak ada indikasi yang perlu ditindaklanjuti. Lanjutkan penilaian seperti biasa."
     if band == AiBand.MID:
@@ -72,65 +40,105 @@ def band_to_recommendation(band: str) -> str:
     return "Disarankan diskusi 10-15 menit dengan siswa untuk memverifikasi pemahaman."
 
 
-def _band_to_summary(band: str) -> str:
-    if band == AiBand.LOW:
-        return "Tulisan menunjukkan pola yang wajar untuk siswa. Tidak ditemukan indikasi kuat penggunaan AI generatif."
-    if band == AiBand.MID:
-        return "Ada beberapa sinyal yang bercampur antara tulisan siswa dan pola khas AI. Perlu ditinjau bersama konteks proses pengerjaan."
-    return "Tulisan memuat beberapa pola kuat yang khas AI generatif. Disarankan verifikasi langsung dengan siswa."
+def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int) -> str:
+    """Rekomendasi yang menggabungkan dua dimensi yang kini terpisah.
 
-
-def _build_signals(
-    llm_phrase_count: int,
-    personal_count: int,
-    burstiness: float,
-    sentence_count: int,
-) -> list[str]:
-    signals: list[str] = []
-    if llm_phrase_count > 0:
-        signals.append(f"Ditemukan {llm_phrase_count} frasa khas AI generatif")
-    if sentence_count >= 3 and burstiness < 0.3:
-        signals.append("Panjang kalimat seragam tanpa variasi")
-    if personal_count == 0:
-        signals.append("Tidak ada penanda pengalaman atau sudut pandang pribadi")
-    else:
-        signals.append("Ada penanda sudut pandang pribadi dalam tulisan")
-    if sentence_count < 3:
-        signals.append("Teks terlalu pendek untuk dianalisis mendalam")
-    return signals[:4]
-
-
-def analyze_text(text: str, expected_bloom_level: int) -> dict:
-    """Hitung hasil analisis fallback untuk satu jawaban siswa.
-
-    Mengembalikan dict dengan shape yang sama seperti hasil LLM sehingga
-    langsung bisa dipakai sebagai kwargs AnalysisResult.
+    Karena bloom_level tidak lagi diturunkan dari band, kombinasi keduanya
+    membawa informasi nyata. Jawaban dengan indikasi AI rendah tetapi level
+    kognitif di bawah target adalah kasus yang paling berguna bagi guru, dan
+    dulu mustahil muncul.
     """
-    text_lower = text.lower()
-    sentences = _split_sentences(text)
-    burstiness = _burstiness(sentences)
-    llm_phrase_count = _count_matches(text_lower, LLM_PHRASES)
-    personal_count = _count_matches(text_lower, PERSONAL_MARKERS)
+    gap = bloom_level - expected_bloom_level
+    integrity = band_to_recommendation(band)
 
-    score = 50
-    score += llm_phrase_count * 12
-    score -= personal_count * 10
-    score -= int(burstiness * 40)
-    ai_score = max(2, min(95, score))
+    if gap <= -2:
+        cognitive = (
+            f"Level kognitif jawaban ada di L{bloom_level} ({BLOOM_LABELS[bloom_level]}), "
+            f"dua tingkat di bawah target L{expected_bloom_level}. "
+            "Pertimbangkan pengulangan konsep sebelum lanjut ke materi berikutnya."
+        )
+    elif gap == -1:
+        cognitive = (
+            f"Level kognitif jawaban ada di L{bloom_level}, satu tingkat di bawah "
+            f"target L{expected_bloom_level}. Umpan balik terarah kemungkinan cukup."
+        )
+    elif gap == 0:
+        cognitive = f"Level kognitif jawaban sudah sesuai target L{expected_bloom_level}."
+    else:
+        cognitive = (
+            f"Level kognitif jawaban ada di L{bloom_level}, di atas target "
+            f"L{expected_bloom_level}. Siswa ini bisa diberi tantangan lebih tinggi."
+        )
 
-    band = score_to_band(ai_score)
-    word_count = len(text.split())
-    # Heuristik tidak pernah "high": sinyalnya terlalu dangkal untuk yakin.
-    confidence = Confidence.LOW if word_count < 80 else Confidence.MEDIUM
+    return f"{integrity} {cognitive}"
+
+
+def build_summary(band: str, bloom_level: int, bloom_confidence: str) -> str:
+    if band == AiBand.LOW:
+        integrity = (
+            "Tulisan menunjukkan pola yang wajar untuk siswa. "
+            "Tidak ditemukan indikasi kuat penggunaan AI generatif."
+        )
+    elif band == AiBand.MID:
+        integrity = (
+            "Ada sinyal yang bercampur antara tulisan siswa dan pola khas AI. "
+            "Perlu ditinjau bersama konteks proses pengerjaan."
+        )
+    else:
+        integrity = (
+            "Tulisan memuat beberapa pola kuat yang khas AI generatif. "
+            "Disarankan verifikasi langsung dengan siswa."
+        )
+
+    cognitive = (
+        f"Secara kognitif jawaban ini menunjukkan L{bloom_level} "
+        f"({BLOOM_LABELS[bloom_level]})"
+    )
+    if bloom_confidence == Confidence.LOW:
+        cognitive += ", meski buktinya masih tipis"
+    return f"{integrity} {cognitive}."
+
+
+def _overall_confidence(word_count: int) -> str:
+    """Jalur heuristik tidak pernah mencapai keyakinan tinggi.
+
+    Sinyalnya terlalu dangkal. Menaikkannya ke high akan menyesatkan guru.
+    """
+    return Confidence.LOW if word_count < 80 else Confidence.MEDIUM
+
+
+def analyze_text(
+    text: str,
+    expected_bloom_level: int,
+    process: ProcessContext | None = None,
+) -> dict:
+    """Hasil analisis heuristik untuk satu jawaban siswa.
+
+    Bentuk dict yang dikembalikan sama persis dengan jalur LLM sehingga
+    langsung bisa dipakai sebagai kwargs AnalysisResult.
+
+    process bersifat opsional supaya modul ini tetap bisa diuji tanpa database.
+    Bila tersedia, sinyal forensik proses ikut masuk ke skor E1. Ia tidak pernah
+    menyentuh taksiran Bloom, karena kecepatan mengetik tidak mengubah level
+    kognitif yang ditunjukkan sebuah jawaban.
+    """
+    features = extract_features(text)
+    ai = score_ai_probability(features, process)
+    bloom = estimate_bloom_level(features)
+
+    signals = ai.evidence_lines[:2] + bloom.evidence[:2]
 
     return {
-        "ai_score": ai_score,
-        "ai_band": band,
-        "bloom_level": band_to_bloom(band, expected_bloom_level),
-        "confidence": confidence,
-        "signals": _build_signals(
-            llm_phrase_count, personal_count, burstiness, len(sentences)
+        "ai_score": ai.score,
+        "ai_band": ai.band,
+        "bloom_level": bloom.level,
+        "confidence": _overall_confidence(features.word_count),
+        "bloom_confidence": bloom.confidence,
+        "signals": signals[:4],
+        "summary": build_summary(ai.band, bloom.level, bloom.confidence),
+        "recommendation": build_recommendation(
+            ai.band, bloom.level, expected_bloom_level
         ),
-        "summary": _band_to_summary(band),
-        "recommendation": band_to_recommendation(band),
+        "signal_breakdown": ai.breakdown_as_dicts(),
+        "analysis_source": AnalysisSource.HEURISTIC,
     }

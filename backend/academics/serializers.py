@@ -187,9 +187,12 @@ class AnalysisFullSerializer(serializers.ModelSerializer):
             "ai_band",
             "bloom_level",
             "confidence",
+            "bloom_confidence",
             "signals",
+            "signal_breakdown",
             "summary",
             "recommendation",
+            "analysis_source",
         ]
 
 

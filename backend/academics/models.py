@@ -25,6 +25,19 @@ class Confidence(models.TextChoices):
     HIGH = "high", "High"
 
 
+class AnalysisSource(models.TextChoices):
+    """Mesin yang menghasilkan satu baris AnalysisResult.
+
+    Wajib disimpan. Tanpa ini, hasil heuristik dangkal dan hasil LLM tersimpan
+    identik di database, sehingga grafik tren dan laporan agregat tidak bisa
+    membedakan mana yang layak dipercaya.
+    """
+
+    LLM = "llm", "LLM"
+    HEURISTIC = "heuristic", "Heuristic"
+    SEED = "seed", "Seed demo"
+
+
 class EventType(models.TextChoices):
     STARTED = "started", "Started"
     REVISION = "revision", "Revision"
@@ -202,10 +215,28 @@ class AnalysisResult(models.Model):
         blank=True,
         default="",
     )
+    # Keyakinan terhadap taksiran Bloom, terpisah dari keyakinan skor AI.
+    # Dua taksiran yang dihitung terpisah tidak boleh berbagi satu angka
+    # keyakinan, karena teks bisa jelas di satu dimensi dan ambigu di dimensi
+    # lain.
+    bloom_confidence = models.CharField(
+        max_length=8,
+        choices=Confidence.choices,
+        blank=True,
+        default="",
+    )
     # Daftar string bahasa Indonesia (maks 4) yang mendeskripsikan sinyal.
     signals = models.JSONField(default=list, blank=True)
+    # Rincian kontribusi tiap sinyal ke skor AI. Inilah yang membuat skor bisa
+    # ditinjau guru alih alih diterima begitu saja.
+    signal_breakdown = models.JSONField(default=list, blank=True)
     summary = models.TextField(blank=True, default="")
     recommendation = models.TextField(blank=True, default="")
+    analysis_source = models.CharField(
+        max_length=16,
+        choices=AnalysisSource.choices,
+        default=AnalysisSource.HEURISTIC,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

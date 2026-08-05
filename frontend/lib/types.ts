@@ -4,15 +4,34 @@ export type AiBand = "low" | "mid" | "high";
 export type Confidence = "low" | "medium" | "high" | "";
 export type SubmissionStatus = "draft" | "submitted" | "reviewed";
 export type EventType = "started" | "revision" | "paste" | "submitted";
+export type AnalysisSource = "llm" | "heuristic" | "seed";
+
+/** Kontribusi satu sinyal terhadap skor AI. Jumlah seluruh contribution
+ *  sama dengan ai_score, sehingga skor bisa ditelusuri guru. */
+export interface SignalContribution {
+  key: string;
+  label: string;
+  value: number;
+  weight: number;
+  contribution: number;
+  evidence: string;
+}
 
 export interface AnalysisView {
   ai_score: number;
   ai_band: AiBand;
   bloom_level: number;
+  /** Keyakinan terhadap skor AI. */
   confidence: Confidence;
+  /** Keyakinan terhadap level Bloom. Dinilai terpisah karena satu teks bisa
+   *  jelas di satu dimensi dan ambigu di dimensi lain. */
+  bloom_confidence: Confidence;
   signals: string[];
+  /** Kosong pada jalur LLM, karena rincian bobot hanya dimiliki heuristik. */
+  signal_breakdown: SignalContribution[];
   summary: string;
   recommendation: string;
+  analysis_source: AnalysisSource;
 }
 
 export interface Profile {

@@ -15,11 +15,13 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from academics.analysis import band_to_bloom, band_to_recommendation
+from academics.analysis import analyze_text
 from academics.join_codes import generate_unique_join_code
+from academics.process_signals import ProcessContext
 from academics.models import (
     AiBand,
     AnalysisResult,
+    AnalysisSource,
     Assignment,
     Class,
     ClassMembership,
@@ -124,43 +126,6 @@ _PROFILES = (
     ("ambiguous", 2, (8 * 60, 15 * 60), (1, 2), True, AiBand.MID, (35, 65)),
     ("review", 2, (2 * 60, 5 * 60), (0, 1), True, AiBand.HIGH, (70, 92)),
 )
-
-
-def _build_signals(band: str) -> list[str]:
-    if band == AiBand.LOW:
-        return [
-            "Variasi panjang kalimat wajar",
-            "Ada penanda sudut pandang pribadi",
-            "Kesalahan kecil yang wajar untuk siswa",
-        ]
-    if band == AiBand.MID:
-        return [
-            "Transisi antar paragraf cukup formal untuk jenjang ini",
-            "Sedikit contoh dari pengalaman pribadi",
-            "Struktur kalimat cenderung seragam",
-        ]
-    return [
-        "Kalimat sangat terprediksi dan seragam",
-        "Banyak frasa khas AI generatif",
-        "Tidak ada contoh dari pengalaman pribadi",
-        "Tidak ada kesalahan kecil yang wajar untuk siswa",
-    ]
-
-
-def _build_confidence(band: str) -> str:
-    if band == AiBand.LOW:
-        return Confidence.MEDIUM
-    if band == AiBand.MID:
-        return Confidence.MEDIUM
-    return Confidence.HIGH
-
-
-def _build_summary(band: str) -> str:
-    if band == AiBand.LOW:
-        return "Tulisan menunjukkan pola pengerjaan yang wajar untuk siswa. Tidak ada indikasi kuat penggunaan AI generatif."
-    if band == AiBand.MID:
-        return "Beberapa sinyal bercampur antara tulisan siswa dan pola khas AI. Tinjau bersama konteks proses pengerjaan."
-    return "Tulisan memuat pola kuat yang khas AI generatif. Disarankan verifikasi langsung dengan siswa."
 
 
 def _build_reasoning_events(
@@ -279,59 +244,136 @@ def _seed_submissions_for_assignment(
                 )
             )
 
-            ai_score = rng.randint(*ai_score_range)
+            # Tidak ada angka yang ditulis tangan lagi. Seluruh baris demo
+            # dihitung oleh pipeline yang sama dengan jalur produksi, termasuk
+            # sinyal forensik proses dari durasi, revisi, dan tempelan di atas.
+            #
+            # Sebaran band tetap terjaga karena profil pengerjaan memang sudah
+            # dirancang berbeda: "natural" 20-45 menit dengan banyak revisi,
+            # "review" 2-5 menit tanpa revisi dan dengan tempelan besar.
+            analysis = analyze_text(
+                submission.text_answer,
+                assignment.expected_bloom_level,
+                ProcessContext(
+                    duration_seconds=duration_seconds,
+                    revision_count=revision_count,
+                    word_count=len(submission.text_answer.split()),
+                    char_count=len(submission.text_answer),
+                    paste_char_count=_seed_paste_chars(submission),
+                ),
+            )
+            analysis["analysis_source"] = AnalysisSource.SEED
             AnalysisResult.objects.update_or_create(
                 submission=submission,
-                defaults={
-                    "ai_score": ai_score,
-                    "ai_band": band,
-                    "bloom_level": band_to_bloom(band, assignment.expected_bloom_level),
-                    "confidence": _build_confidence(band),
-                    "signals": _build_signals(band),
-                    "summary": _build_summary(band),
-                    "recommendation": band_to_recommendation(band),
-                },
+                defaults=analysis,
             )
             created += 1
     return created
 
 
+def _seed_paste_chars(submission: Submission) -> int:
+    total = 0
+    for event in submission.reasoning_events.all():
+        if event.event_type != EventType.PASTE:
+            continue
+        value = (event.payload or {}).get("char_count")
+        if isinstance(value, int):
+            total += value
+    return total
+
+
 def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
-    """Kumpulan jawaban contoh per band agar UI terlihat hidup."""
+    """Jawaban contoh yang memvariasikan dua dimensi secara terpisah.
+
+    Tiap band punya satu varian kognitif lemah dan satu varian kognitif kuat.
+    Tujuannya supaya dashboard demo memperlihatkan keempat kombinasi:
+    indikasi AI rendah dengan penalaran kuat, indikasi AI rendah dengan
+    penalaran lemah, indikasi AI tinggi dengan penalaran kuat, dan indikasi AI
+    tinggi dengan penalaran lemah.
+
+    Kombinasi silang itu adalah bukti paling langsung bahwa skor AI dan level
+    Bloom sekarang benar benar diukur terpisah.
+    """
     base = assignment.title.lower()
     return {
+        # Ragam informal dan suara orang pertama menekan skor AI.
         AiBand.LOW: [
+            # Kognitif lemah: hanya menyebutkan ulang isi catatan.
             (
-                "Menurut pemahaman saya, " + base + " adalah proses yang melibatkan beberapa "
-                "tahap. Pertama, saya mengamati contoh di sekitar. Kemudian saya mencoba menjelaskan "
-                "dengan kata-kata sendiri meski belum sempurna."
+                "Yang aku tau tentang " + base + " itu ada beberapa bagian. Aku "
+                "menyebutkan ulang aja dari catetan waktu Bu guru nerangin kemarin. "
+                "Bagian pertama namanya apa gitu, terus ada bagian kedua sama ketiga. "
+                "Di buku paket ada tabelnya juga. Jujur aku belum terlalu paham sih, "
+                "jadi aku tulis yang aku inget aja dulu."
             ),
+            # Kognitif kuat: sebab akibat, pembandingan, penilaian berdasar alasan.
             (
-                "Saya mencoba menjelaskan " + base + " berdasarkan diskusi di kelas. Awalnya saya "
-                "kira hanya satu langkah, ternyata ada beberapa bagian yang saling berhubungan."
+                "Aku coba jelasin " + base + " pakai bahasa aku sendiri ya. Jadi "
+                "bagian awalnya itu jalan duluan, dan karena bagian itu jalan, bagian "
+                "berikutnya jadi ikut kepicu. Kalau yang awal gagal, sisanya juga "
+                "berhenti, sehingga urutannya nggak bisa dibalik. Ini beda dengan yang "
+                "aku kira awalnya. Dulu aku pikir semuanya jalan barengan, ternyata "
+                "nggak. Misalnya waktu praktikum kemarin di sekolah, kelompok aku "
+                "sengaja ngeskip langkah pertama dan hasilnya memang nggak keluar. "
+                "Menurut aku penjelasan di buku paket agak kurang tepat soal ini, "
+                "karena di situ digambarkan seolah olah serentak. Sebaiknya "
+                "digambarkan bertahap biar nggak bikin salah paham. Kelemahan lain "
+                "dari penjelasan buku itu, contohnya cuma satu dan kurang nyambung "
+                "sama kehidupan sehari hari."
             ),
         ],
+        # Campuran: sebagian baku, sebagian masih menyisakan suara siswa.
         AiBand.MID: [
+            # Kognitif menengah: menjelaskan ulang dan menguraikan langkah.
             (
-                base.capitalize() + " merupakan rangkaian proses yang dapat dijelaskan dalam "
-                "beberapa tahap utama. Tahap pertama berkaitan dengan input, lalu pengolahan, dan "
-                "akhirnya hasil yang dapat diamati."
+                base.capitalize() + " merupakan rangkaian proses yang dapat "
+                "dijelaskan dalam beberapa tahap. Artinya, ada urutan yang perlu "
+                "diikuti supaya hasilnya sesuai. Pertama, bahan awal disiapkan "
+                "terlebih dahulu. Kemudian bahan tersebut diproses pada tahap "
+                "berikutnya. Setelah itu hasilnya bisa diamati dan dicatat. Caranya "
+                "kurang lebih seperti yang dicontohkan di kelas. Saya menerapkan "
+                "langkah yang sama waktu mengerjakan latihan soal kemarin."
             ),
+            # Kognitif kuat: sebab akibat dan pembandingan yang eksplisit.
             (
-                "Berdasarkan literatur, " + base + " mencakup beberapa komponen kunci. Komponen "
-                "tersebut saling mempengaruhi sehingga membentuk satu kesatuan yang utuh."
+                "Berdasarkan bacaan, " + base + " mencakup beberapa komponen yang "
+                "saling mempengaruhi. Komponen pertama menentukan hasil komponen "
+                "kedua, sehingga urutannya penting. Namun kalau dibandingkan dengan "
+                "kasus yang dibahas di kelas, ada perbedaan yang cukup jelas. Pada "
+                "kasus di kelas faktor luar hampir tidak berpengaruh, sedangkan pada "
+                "contoh di buku faktor luar justru menyebabkan hasilnya berubah. "
+                "Perbedaan ini muncul karena kondisi awalnya memang tidak sama. Jadi "
+                "kesimpulannya tergantung konteksnya."
             ),
         ],
+        # Ragam sangat baku, frasa formulaik, tanpa suara personal.
         AiBand.HIGH: [
+            # Kognitif kuat: penalaran dan penilaian tetap ada meski gaya formulaik.
             (
-                base.capitalize() + " adalah suatu proses kompleks yang melibatkan interaksi "
-                "berbagai variabel secara simultan. Dalam konteks ini, setiap variabel memiliki "
-                "peran spesifik yang berkontribusi pada hasil akhir secara holistik dan terintegrasi."
+                "Secara fundamental, " + base + " dapat dikonseptualisasikan "
+                "sebagai sistem yang saling terhubung. Terdapat korelasi signifikan "
+                "antara komponen pembentuknya. Komponen awal menentukan keluaran "
+                "komponen berikutnya, sehingga urutan pemrosesan memainkan peran "
+                "penting. Namun demikian, terdapat perbedaan mendasar apabila "
+                "dibandingkan dengan pendekatan konvensional. Pendekatan konvensional "
+                "mengasumsikan independensi antarvariabel, sedangkan pendekatan "
+                "kontemporer menekankan keterkaitan. Perbedaan asumsi tersebut "
+                "menyebabkan implikasi metodologis yang berbeda pula. Ditinjau dari "
+                "efektivitasnya, pendekatan kontemporer lebih efektif untuk kasus "
+                "kompleks. Kelebihan utamanya terletak pada akurasi prediksi, "
+                "sementara kekurangannya adalah kebutuhan data yang lebih besar. "
+                "Dengan demikian, pemilihan pendekatan seharusnya mempertimbangkan "
+                "ketersediaan sumber daya."
             ),
+            # Kognitif lemah: gaya formulaik tapi isinya sekadar menyebutkan.
             (
-                "Secara fundamental, " + base + " dapat dikonseptualisasikan sebagai sistem yang "
-                "saling terhubung. Pendekatan analitis menunjukkan bahwa terdapat korelasi signifikan "
-                "antara komponen-komponen yang membentuknya."
+                base.capitalize() + " adalah suatu proses yang melibatkan berbagai "
+                "variabel secara simultan. Dalam konteks ini, setiap variabel memiliki "
+                "peran spesifik yang berkontribusi secara holistik dan terintegrasi. "
+                "Terdapat beberapa komponen utama di dalamnya. Komponen tersebut "
+                "meliputi bagian pertama, bagian kedua, dan bagian ketiga. Masing "
+                "masing komponen memiliki definisi dan karakteristik tersendiri. "
+                "Hal ini menunjukkan bahwa struktur tersebut bersifat kompleks."
             ),
         ],
     }

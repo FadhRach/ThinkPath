@@ -12,8 +12,10 @@ import os
 
 import requests
 
-from .analysis import analyze_text, band_to_recommendation, score_to_band
-from .models import Confidence
+from .analysis import analyze_text, build_recommendation
+from .ai_score import PROCESS_WEIGHT, SignalScore, build_process_signal, score_to_band
+from .models import AnalysisSource, Confidence
+from .process_signals import ProcessContext
 
 logger = logging.getLogger(__name__)
 
@@ -32,46 +34,62 @@ Analisislah teks tugas siswa dan hasilkan output JSON dengan kriteria berikut:
    personal atau contoh konkret, transisi terlalu formal untuk jenjang
    tersebut, tidak ada kesalahan kecil yang wajar untuk siswa.
 
-2. bloom_level (1-6): level kognitif Bloom's Taxonomy yang ditunjukkan teks.
+2. bloom_level (1-6): level kognitif Bloom's Taxonomy yang DITUNJUKKAN teks.
    L1 Mengingat, L2 Memahami, L3 Mengaplikasikan, L4 Menganalisis,
    L5 Mengevaluasi, L6 Mencipta.
+   Nilai ini harus ditentukan HANYA dari isi jawaban. Jangan dipengaruhi oleh
+   ai_probability yang kamu tentukan di poin 1. Jawaban yang kuat secara
+   kognitif tetap L5 walaupun kamu menduga dibuat AI, dan jawaban yang lemah
+   tetap L1 walaupun kamu yakin ditulis sendiri oleh siswa.
+   Level tinggi menuntut bukti dalam teks: L4 butuh penalaran sebab akibat atau
+   pembandingan, L5 butuh penilaian yang disertai alasan, L6 butuh usulan atau
+   rancangan baru. Tanpa bukti itu, jangan naikkan levelnya.
 
-3. confidence: seberapa yakin kamu dengan analisis ini.
+3. confidence: seberapa yakin kamu dengan skor ai_probability.
    "low" jika teks terlalu pendek atau ambigu.
    "medium" jika ada sinyal tapi tidak kuat.
    "high" jika sinyal jelas dan konsisten.
 
-4. signals: maksimal 4 string pendek, bahasa Indonesia, mendeskripsikan sinyal
+4. bloom_confidence: seberapa yakin kamu dengan bloom_level, memakai skala yang
+   sama. Ini dinilai terpisah dari confidence di poin 3, karena satu teks bisa
+   jelas di satu dimensi dan ambigu di dimensi lain.
+
+5. signals: maksimal 4 string pendek, bahasa Indonesia, mendeskripsikan sinyal
    konkret yang ditemukan. Contoh: "panjang kalimat seragam tanpa variasi",
    "tidak ada contoh dari pengalaman pribadi".
 
-5. summary: 1-2 kalimat bahasa Indonesia yang menjelaskan kesimpulan analisis.
+6. summary: 1-2 kalimat bahasa Indonesia yang menjelaskan kesimpulan analisis.
 
-Sesuaikan ekspektasi dengan jenjang:
-- SD: L1-L2 normal, L3+ mengesankan. Lebih toleran terhadap tulisan sederhana.
-- SMP: L2-L3 wajar. L1 mengkhawatirkan jika tugasnya analitis.
-- SMA-SMK: L3-L5 wajar. L1-L2 mengkhawatirkan untuk tugas analitis/esai.
+Sesuaikan toleransi deteksi AI dengan jenjang:
+- SD: lebih toleran terhadap tulisan sederhana.
+- SMP: tulisan sederhana masih wajar.
+- SMA-SMK: ragam baku lebih wajar, tapi tetap jangan menghukum tulisan rapi.
 
 JANGAN menghukum tulisan simpel sebagai AI hanya karena strukturnya sederhana.
-Pelajar Indonesia sering mencampur bahasa Indonesia dan Inggris - itu wajar.
+Pelajar Indonesia sering mencampur bahasa Indonesia dan Inggris, itu wajar.
 
 Respond HANYA dalam JSON valid dengan keys: ai_probability, bloom_level,
-confidence, signals, summary. Tidak ada teks lain di luar JSON."""
+confidence, bloom_confidence, signals, summary. Tidak ada teks lain di luar JSON."""
 
 VALID_CONFIDENCE = {Confidence.LOW, Confidence.MEDIUM, Confidence.HIGH}
 
 
-def _build_user_message(
-    text: str, education_level: str, expected_bloom_level: int
-) -> str:
+def _build_user_message(text: str, education_level: str) -> str:
+    """Konteks yang dikirim ke model.
+
+    Target Bloom guru sengaja TIDAK dikirim. Menyebutkan target di prompt
+    membuat model ter-anchor dan cenderung menjawab di sekitar angka itu,
+    sehingga hasilnya memantulkan harapan guru alih alih mengukur jawaban.
+    Perbandingan terhadap target dilakukan di sisi backend setelah model
+    memberi taksiran secara mandiri.
+    """
     return (
-        f"Jenjang siswa: {education_level}\n"
-        f"Target level Bloom tugas: L{expected_bloom_level}\n\n"
+        f"Jenjang siswa: {education_level}\n\n"
         f"Teks jawaban siswa:\n{text}"
     )
 
 
-def _call_groq(text: str, education_level: str, expected_bloom_level: int) -> dict:
+def _call_groq(text: str, education_level: str) -> dict:
     api_key = os.getenv("GROQ_API_KEY", "").strip()
     response = requests.post(
         GROQ_API_URL,
@@ -82,9 +100,7 @@ def _call_groq(text: str, education_level: str, expected_bloom_level: int) -> di
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {
                     "role": "user",
-                    "content": _build_user_message(
-                        text, education_level, expected_bloom_level
-                    ),
+                    "content": _build_user_message(text, education_level),
                 },
             ],
             "response_format": {"type": "json_object"},
@@ -101,13 +117,50 @@ def _clamp(value: object, minimum: int, maximum: int) -> int:
     return max(minimum, min(maximum, int(value)))  # type: ignore[arg-type]
 
 
-def _parse_llm_result(raw: dict) -> dict:
-    ai_score = _clamp(raw["ai_probability"], 0, 100)
+def _blend_with_process(
+    llm_score: int, process: ProcessContext | None
+) -> tuple[int, list[SignalScore]]:
+    """Gabungkan penilaian teks oleh model dengan sinyal forensik proses.
+
+    Model tidak pernah menerima metadata pengerjaan, jadi kedua penilaian ini
+    benar benar berdiri sendiri dan layak digabung. Tanpa penggabungan ini,
+    sinyal terkuat yang dimiliki ThinkPath justru tidak terpakai di jalur
+    produksi.
+
+    Rincian yang dikembalikan tetap merekonstruksi skor akhir, sehingga panel
+    "Asal Skor AI" di layar guru tidak berbohong.
+    """
+    if process is None:
+        return llm_score, []
+
+    text_signal = SignalScore(
+        key="llm_text",
+        label="Penilaian teks oleh model",
+        value=llm_score / 100.0,
+        weight=round(1.0 - PROCESS_WEIGHT, 4),
+        evidence=f"Model menilai indikasi AI pada teks sebesar {llm_score} dari 100",
+    )
+    process_signal = build_process_signal(process)
+    breakdown = [text_signal, process_signal]
+    blended = sum(signal.value * signal.weight for signal in breakdown)
+    return int(round(max(0.0, min(1.0, blended)) * 100)), breakdown
+
+
+def _parse_llm_result(
+    raw: dict, expected_bloom_level: int, process: ProcessContext | None
+) -> dict:
+    llm_score = _clamp(raw["ai_probability"], 0, 100)
     bloom_level = _clamp(raw["bloom_level"], 1, 6)
 
     confidence = str(raw.get("confidence", "")).lower()
     if confidence not in VALID_CONFIDENCE:
         raise ValueError(f"confidence tidak valid: {confidence}")
+
+    # Model lama mungkin belum mengirim bloom_confidence. Jangan gagalkan
+    # seluruh analisis karenanya, cukup turunkan ke low.
+    bloom_confidence = str(raw.get("bloom_confidence", "")).lower()
+    if bloom_confidence not in VALID_CONFIDENCE:
+        bloom_confidence = Confidence.LOW
 
     raw_signals = raw.get("signals", [])
     if not isinstance(raw_signals, list):
@@ -118,26 +171,37 @@ def _parse_llm_result(raw: dict) -> dict:
     if not summary:
         raise ValueError("summary kosong")
 
+    ai_score, breakdown = _blend_with_process(llm_score, process)
     band = score_to_band(ai_score)
     return {
         "ai_score": ai_score,
         "ai_band": band,
         "bloom_level": bloom_level,
         "confidence": confidence,
+        "bloom_confidence": bloom_confidence,
         "signals": signals,
+        "signal_breakdown": [signal.as_dict() for signal in breakdown],
         "summary": summary,
-        "recommendation": band_to_recommendation(band),
+        "recommendation": build_recommendation(
+            band, bloom_level, expected_bloom_level
+        ),
+        "analysis_source": AnalysisSource.LLM,
     }
 
 
-def run_analysis(text: str, education_level: str, expected_bloom_level: int) -> dict:
+def run_analysis(
+    text: str,
+    education_level: str,
+    expected_bloom_level: int,
+    process: ProcessContext | None = None,
+) -> dict:
     """Entry point tunggal analisis. Selalu mengembalikan dict lengkap."""
     if not os.getenv("GROQ_API_KEY", "").strip():
-        return analyze_text(text, expected_bloom_level)
+        return analyze_text(text, expected_bloom_level, process)
 
     try:
-        raw = _call_groq(text, education_level, expected_bloom_level)
-        return _parse_llm_result(raw)
+        raw = _call_groq(text, education_level)
+        return _parse_llm_result(raw, expected_bloom_level, process)
     except (requests.RequestException, json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
         logger.warning("Analisis LLM gagal, memakai fallback heuristik: %s", exc)
-        return analyze_text(text, expected_bloom_level)
+        return analyze_text(text, expected_bloom_level, process)
