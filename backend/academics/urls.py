@@ -4,6 +4,7 @@ from .views import (
     AssignmentListCreateView,
     ClassListCreateView,
     JoinClassView,
+    ReportOverviewView,
     StudentAssignmentDetailView,
     StudentClassListView,
     SubmissionDetailView,
@@ -13,6 +14,7 @@ from .views import (
 
 
 urlpatterns = [
+    path("reports/overview", ReportOverviewView.as_view()),
     path("classes", ClassListCreateView.as_view()),
     path("classes/<str:class_id>/assignments", AssignmentListCreateView.as_view()),
     path("join", JoinClassView.as_view()),
