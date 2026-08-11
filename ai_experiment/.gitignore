@@ -6,3 +6,7 @@ __pycache__/
 # kapan saja dengan skrip yang sama.
 data/cache/
 data/gold/
+
+# Label penilai memuat jawaban mahasiswa dan identitas penilai. Jangan
+# masuk repo. Yang dibagikan ke naskah cukup angka ringkasannya.
+data/labels/

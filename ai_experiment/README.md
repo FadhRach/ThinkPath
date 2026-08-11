@@ -16,12 +16,26 @@ tempat masalah seperti itu ditemukan dan diperbaiki.
 
 ## Yang sudah tersedia
 
+**E1, deteksi AI.** Labelnya gratis dari tanggal terbit, jadi tidak butuh
+anotator sama sekali.
+
 | Berkas | Guna |
 |---|---|
 | `src/build_gold_set.py` | membangun set uji manusia vs AI tanpa anotator |
 | `src/evaluate_baseline.py` | mengukur heuristik produksi terhadap set itu |
 | `src/metrics.py` | ROC-AUC, FPR, korelasi per sinyal |
-| `tests/test_metrics.py` | mengunci kebenaran metrik |
+
+**E2, level Bloom.** Tidak ada trik seperti itu. Level kognitif tidak tercatat di
+mana pun kecuali sebagai penilaian orang yang membaca jawabannya, jadi manusia
+wajib terlibat.
+
+| Berkas | Guna |
+|---|---|
+| `protocol/bloom_rubric.md` | rubrik C1 sampai C6 untuk **jawaban**, bukan soal |
+| `protocol/labeling_sop.md` | prosedur penilai dari awal sampai angka siap |
+| `tools/label.html` | antarmuka pelabelan luring, klik ganda, tanpa pemasangan |
+| `src/agreement.py` | Cohen's kappa biasa dan berbobot, F1, matriks konfusi |
+| `src/evaluate_bloom.py` | CLI: kesepakatan penilai, lalu ukur E2 terhadapnya |
 
 ## Cara pakai
 
@@ -87,6 +101,55 @@ Jalankan tes metriknya lebih dulu kalau ragu:
 ```bash
 python -m unittest discover -s tests
 ```
+
+## Memvalidasi E2 level Bloom
+
+Ini satu satunya bagian yang tidak bisa diotomatiskan. Level kognitif hanya ada
+sebagai penilaian manusia, jadi seseorang harus membaca dan memutuskan.
+
+Urutannya, dan **jangan dibalik**:
+
+```bash
+# 1. Kalibrasi dengan 20 item lebih dulu, jangan langsung semuanya
+python -m src.evaluate_bloom --raters data/labels/penilai1.csv data/labels/penilai2.csv
+
+# 2. Setelah kappa memadai dan seluruhnya dilabeli, ukur sistemnya
+python -m src.evaluate_bloom \
+    --raters data/labels/penilai1.csv data/labels/penilai2.csv \
+    --gold data/labels/konsensus.csv \
+    --answers data/labels/jawaban.csv
+```
+
+Penilai cukup membuka `tools/label.html` dengan klik ganda. Berjalan penuh di
+browser tanpa server dan tanpa internet, kemajuan tersimpan otomatis, dan
+hasilnya diekspor sebagai CSV. Tidak ada yang perlu dipasang, karena hambatan
+pemasangan adalah alasan paling sering pelabelan tidak pernah dimulai.
+
+### Kenapa kesepakatan diukur lebih dulu
+
+Kesepakatan antar manusia adalah **langit langit** yang bisa dicapai mesin.
+
+- Manusia sepakat 65%, mesin 60%: mesin nyaris menyentuh batas atas. Melaporkan
+  60% sebagai kegagalan justru keliru.
+- Manusia sepakat 90%, mesin 60%: ini kesenjangan nyata yang layak diperbaiki.
+
+Tanpa angka kesepakatan, angka akurasi mesin tidak bisa ditafsirkan sama sekali.
+Karena itu `evaluate_bloom.py` menolak melanjutkan tanpa dua berkas penilai, dan
+memperingatkan keras kalau kappa di bawah 0,4.
+
+### Kenapa kappa berbobot ikut dilaporkan
+
+Level Bloom itu skala berurutan. Kappa biasa memperlakukan ketidaksepakatan C3
+lawan C4 sama beratnya dengan C1 lawan C6.
+
+Tes di `tests/test_agreement.py` memperlihatkan akibatnya dengan angka: dua
+situasi dengan tingkat kesepakatan persis sama, yang satu selalu meleset satu
+tingkat dan yang lain selalu meleset tiga tingkat, menghasilkan **kappa biasa
+yang identik 0,600**, sedangkan kappa berbobot memisahkannya menjadi **0,939
+lawan 0,629**.
+
+Laporkan keduanya: yang biasa untuk dibandingkan dengan literatur, yang berbobot
+untuk gambaran yang jujur.
 
 ## Cara labelnya dijamin benar
 

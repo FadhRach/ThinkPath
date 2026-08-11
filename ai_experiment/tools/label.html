@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pelabelan Bloom - ThinkPath</title>
+<!--
+  Alat pelabelan luring untuk penilai manusia.
+
+  Sengaja satu berkas tanpa dependensi apa pun: dibuka dengan klik ganda,
+  berjalan penuh di browser, tanpa server dan tanpa internet. Penilai tidak
+  perlu memasang apa pun. Hambatan pemasangan adalah alasan paling sering
+  pelabelan tidak pernah dimulai.
+
+  Kemajuan disimpan di localStorage, jadi menutup tab tidak menghilangkan
+  pekerjaan. Tombol simpan menghasilkan CSV yang dibaca src/evaluate_bloom.py.
+-->
+<style>
+  :root {
+    --bg: #f6f8f8; --card: #fff; --ink: #16302c; --muted: #5f7370;
+    --line: #dde7e5; --teal: #0aa9a4; --teal-soft: #d9f2f0; --danger: #c2506b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, "Segoe UI", sans-serif; background: var(--bg);
+         color: var(--ink); line-height: 1.6; padding: 20px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+           margin-bottom: 16px; }
+  h1 { font-size: 1.15rem; font-weight: 700; }
+  .grow { flex: 1; }
+  .card { background: var(--card); border: 1px solid var(--line);
+          border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+  .muted { color: var(--muted); font-size: .86rem; }
+  button { font: inherit; cursor: pointer; border-radius: 9px;
+           border: 1px solid var(--line); background: #fff; padding: 8px 14px; }
+  button:hover { border-color: var(--teal); }
+  button.primary { background: var(--teal); color: #fff; border-color: var(--teal); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .answer { white-space: pre-wrap; font-size: 1.02rem; line-height: 1.75;
+            max-height: 46vh; overflow-y: auto; }
+  .levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px; margin-top: 4px; }
+  .lv { text-align: left; padding: 10px 12px; }
+  .lv b { display: block; font-size: .95rem; }
+  .lv span { font-size: .78rem; color: var(--muted); }
+  .lv.on { background: var(--teal-soft); border-color: var(--teal); }
+  .lv.x.on { background: #fbe9ee; border-color: var(--danger); }
+  .bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--teal); }
+  textarea { width: 100%; font: inherit; padding: 9px 11px; border-radius: 9px;
+             border: 1px solid var(--line); resize: vertical; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  kbd { background: var(--line); border-radius: 5px; padding: 1px 6px;
+        font-size: .78rem; font-family: ui-monospace, monospace; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Pelabelan Bloom</h1>
+    <span class="grow"></span>
+    <span id="who" class="muted"></span>
+  </header>
+
+  <div class="card" id="setup">
+    <p style="margin-bottom:10px"><b>1.</b> Isi nama penilai, lalu muat berkas CSV berisi kolom <code>id</code> dan <code>text</code>.</p>
+    <div class="row">
+      <input id="rater" placeholder="Nama penilai" style="font:inherit;padding:8px 11px;border-radius:9px;border:1px solid var(--line)">
+      <input id="file" type="file" accept=".csv">
+    </div>
+    <p class="muted" style="margin-top:10px">
+      Berjalan luring sepenuhnya. Tidak ada data yang dikirim ke mana pun.
+      Kemajuan tersimpan otomatis di browser ini.
+    </p>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="card">
+      <div class="row" style="margin-bottom:8px">
+        <span id="pos" class="muted"></span>
+        <span class="grow"></span>
+        <span id="left" class="muted"></span>
+      </div>
+      <div class="bar"><i id="prog" style="width:0%"></i></div>
+    </div>
+
+    <div class="card">
+      <p class="muted" style="margin-bottom:8px">Jawaban <span id="sid"></span> &middot; <span id="wc"></span> kata</p>
+      <div class="answer" id="text"></div>
+    </div>
+
+    <div class="card">
+      <p class="muted" style="margin-bottom:8px">
+        Level tertinggi yang <b>ditunjukkan</b> jawaban. Ragu antara dua yang bersebelahan? Pilih yang lebih rendah.
+        Pintasan <kbd>1</kbd> sampai <kbd>6</kbd> dan <kbd>x</kbd>.
+      </p>
+      <div class="levels" id="levels"></div>
+    </div>
+
+    <div class="card">
+      <p class="muted" style="margin-bottom:6px">Catatan (opsional, isi kalau ragu)</p>
+      <textarea id="note" rows="2" placeholder="Contoh: ragu C3 atau C4, ada langkah tapi tidak ada sebab akibat"></textarea>
+    </div>
+
+    <div class="card row">
+      <button id="prev">&larr; Sebelumnya</button>
+      <button id="next">Berikutnya &rarr;</button>
+      <span class="grow"></span>
+      <button id="save" class="primary">Simpan CSV</button>
+      <button id="reset">Hapus kemajuan</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const LEVELS = [
+  ["1", "C1 Mengingat", "mengulang dari ingatan"],
+  ["2", "C2 Memahami", "menjelaskan dengan bahasa sendiri"],
+  ["3", "C3 Menerapkan", "memakai konsep pada kasus"],
+  ["4", "C4 Menganalisis", "sebab akibat atau pembandingan"],
+  ["5", "C5 Mengevaluasi", "menilai disertai alasan"],
+  ["6", "C6 Mencipta", "usulan atau rancangan baru"],
+  ["X", "X Tak dapat dinilai", "kosong, di luar topik, terlalu pendek"],
+];
+
+let rows = [];
+let labels = {};
+let idx = 0;
+let raterName = "";
+
+const $ = (id) => document.getElementById(id);
+const storeKey = () => "bloom-labels:" + raterName;
+
+/* Pembaca CSV minimal yang menghormati tanda kutip dan koma di dalamnya.
+   Jawaban esai hampir pasti memuat koma, jadi pemisahan naif akan merusak
+   teksnya. */
+function parseCsv(text) {
+  const out = [];
+  let row = [], cell = "", quoted = false;
+  text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else quoted = false;
+      } else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n") { row.push(cell); out.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  if (cell.length || row.length) { row.push(cell); out.push(row); }
+  return out.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
+function toCsv(records) {
+  const esc = (v) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const head = ["id", "label", "rater", "note"];
+  return [head.join(",")]
+    .concat(records.map((r) => head.map((h) => esc(r[h])).join(",")))
+    .join("\n");
+}
+
+function load(text) {
+  const table = parseCsv(text);
+  if (!table.length) return alert("Berkas kosong.");
+  const head = table[0].map((h) => h.trim().toLowerCase());
+  const idAt = head.indexOf("id");
+  const textAt = head.indexOf("text");
+  if (idAt === -1 || textAt === -1) {
+    return alert('CSV harus punya kolom "id" dan "text".');
+  }
+  rows = table.slice(1)
+    .map((r) => ({ id: r[idAt], text: r[textAt] || "" }))
+    .filter((r) => r.id);
+  if (!rows.length) return alert("Tidak ada baris berisi id.");
+
+  try {
+    labels = JSON.parse(localStorage.getItem(storeKey()) || "{}");
+  } catch { labels = {}; }
+
+  idx = rows.findIndex((r) => !labels[r.id]);
+  if (idx < 0) idx = 0;
+
+  $("setup").classList.add("hide");
+  $("app").classList.remove("hide");
+  $("who").textContent = raterName + " · " + rows.length + " jawaban";
+  render();
+}
+
+function render() {
+  const row = rows[idx];
+  const done = Object.keys(labels).filter((k) => labels[k]).length;
+
+  $("pos").textContent = "Jawaban " + (idx + 1) + " dari " + rows.length;
+  $("left").textContent = done + " selesai, " + (rows.length - done) + " tersisa";
+  $("prog").style.width = (done / rows.length) * 100 + "%";
+  $("sid").textContent = row.id;
+  $("wc").textContent = row.text.trim().split(/\s+/).filter(Boolean).length;
+  $("text").textContent = row.text;
+  $("note").value = (labels[row.id] || {}).note || "";
+
+  const current = (labels[row.id] || {}).label;
+  $("levels").innerHTML = "";
+  LEVELS.forEach(([key, title, hint]) => {
+    const b = document.createElement("button");
+    b.className = "lv" + (key === "X" ? " x" : "") + (current === key ? " on" : "");
+    b.innerHTML = "<b>" + title + "</b><span>" + hint + "</span>";
+    b.onclick = () => choose(key);
+    $("levels").appendChild(b);
+  });
+
+  $("prev").disabled = idx === 0;
+  $("next").disabled = idx >= rows.length - 1;
+}
+
+function choose(key) {
+  const row = rows[idx];
+  labels[row.id] = { label: key, note: $("note").value.trim() };
+  localStorage.setItem(storeKey(), JSON.stringify(labels));
+  // Maju otomatis supaya penilai tidak perlu berpindah tangan ke mouse.
+  if (idx < rows.length - 1) { idx++; render(); } else render();
+}
+
+function saveNote() {
+  const row = rows[idx];
+  if (!labels[row.id]) return;
+  labels[row.id].note = $("note").value.trim();
+  localStorage.setItem(storeKey(), JSON.stringify(labels));
+}
+
+$("file").onchange = (e) => {
+  raterName = $("rater").value.trim();
+  if (!raterName) { alert("Isi nama penilai lebih dulu."); e.target.value = ""; return; }
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => load(String(reader.result));
+  reader.readAsText(f, "utf-8");
+};
+
+$("prev").onclick = () => { saveNote(); if (idx > 0) { idx--; render(); } };
+$("next").onclick = () => { saveNote(); if (idx < rows.length - 1) { idx++; render(); } };
+$("note").onblur = saveNote;
+
+$("save").onclick = () => {
+  saveNote();
+  const records = rows
+    .filter((r) => labels[r.id] && labels[r.id].label)
+    .map((r) => ({
+      id: r.id,
+      label: labels[r.id].label,
+      rater: raterName,
+      note: labels[r.id].note || "",
+    }));
+  if (!records.length) return alert("Belum ada label yang bisa disimpan.");
+  const blob = new Blob([toCsv(records)], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "labels-" + raterName.replace(/\s+/g, "-").toLowerCase() + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+$("reset").onclick = () => {
+  if (!confirm("Hapus seluruh kemajuan penilai " + raterName + "?")) return;
+  localStorage.removeItem(storeKey());
+  labels = {};
+  idx = 0;
+  render();
+};
+
+document.addEventListener("keydown", (e) => {
+  if (document.activeElement === $("note") || $("app").classList.contains("hide")) return;
+  const key = e.key.toLowerCase();
+  if ("123456".includes(key)) choose(key);
+  else if (key === "x") choose("X");
+  else if (key === "arrowleft") $("prev").click();
+  else if (key === "arrowright") $("next").click();
+});
+</script>
+</body>
+</html>
