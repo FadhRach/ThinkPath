@@ -5,6 +5,7 @@ import type {
   AssignmentSummary,
   ClassSummary,
   Profile,
+  ReportPayload,
   StudentAssignmentDetail,
   StudentClassWithAssignments,
   SubmissionDetail,
@@ -14,6 +15,10 @@ import type {
 // Dibungkus React cache() supaya layout + page dalam satu render berbagi satu
 // request /api/me, bukan memanggilnya dua kali.
 export const getMe = cache(() => apiFetch<Profile>("/api/me"));
+
+export function getReportOverview() {
+  return apiFetch<ReportPayload>("/api/reports/overview");
+}
 
 export function getClasses() {
   return apiFetch<ClassSummary[]>("/api/classes");
