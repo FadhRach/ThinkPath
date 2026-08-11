@@ -130,12 +130,45 @@ def _ensure_assignment(
     return assignment
 
 
-# Profil submission menentukan distribusi durasi, revisi, paste, band.
-_PROFILES = (
-    ("natural", 4, (20 * 60, 45 * 60), (2, 6), False, AiBand.LOW, (5, 30)),
-    ("ambiguous", 2, (8 * 60, 15 * 60), (1, 2), True, AiBand.MID, (35, 65)),
-    ("review", 2, (2 * 60, 5 * 60), (0, 1), True, AiBand.HIGH, (70, 92)),
+# Profil per mahasiswa, tetap sepanjang semester.
+#
+# trajectory menentukan bagaimana kedalaman jawabannya berubah dari tugas ke
+# tugas. Ini yang membuat grafik Profil Kognitif punya isi: tanpa lintasan,
+# semua mahasiswa akan tampil sebagai garis datar dan layar itu tidak
+# menunjukkan apa pun.
+#
+# band dan lintasan sengaja tidak berkorelasi. Ada mahasiswa berindikasi AI
+# rendah yang tetap mandek di L1, dan ada yang berindikasi tinggi tetapi
+# argumennya berkembang. Kombinasi itu yang membuktikan E1 dan E2 terpisah.
+_STUDENT_PROFILES = (
+    # (band, lintasan, rentang durasi, rentang revisi, ada tempelan besar)
+    (AiBand.LOW, "naik", (20 * 60, 45 * 60), (2, 6), False),
+    (AiBand.LOW, "datar", (22 * 60, 48 * 60), (2, 6), False),
+    (AiBand.LOW, "naik", (25 * 60, 50 * 60), (3, 7), False),
+    (AiBand.LOW, "turun", (20 * 60, 40 * 60), (2, 5), False),
+    (AiBand.MID, "datar", (8 * 60, 15 * 60), (1, 2), True),
+    (AiBand.MID, "naik", (9 * 60, 18 * 60), (1, 3), True),
+    (AiBand.HIGH, "datar", (2 * 60, 5 * 60), (0, 1), True),
+    (AiBand.HIGH, "turun", (2 * 60, 6 * 60), (0, 1), True),
 )
+
+
+def _depth_for(trajectory: str, step: int, total: int) -> int:
+    """Indeks jawaban contoh: 0 dangkal, 1 mendalam.
+
+    Dipilih dari lintasan mahasiswa dan posisi tugas dalam rangkaian, bukan
+    acak, supaya grafik trennya terbaca sebagai cerita: satu mahasiswa membaik,
+    satu mandek, satu menurun.
+    """
+    if total <= 1:
+        return 1 if trajectory == "turun" else 0
+    progress = step / (total - 1)
+    if trajectory == "naik":
+        return 1 if progress >= 0.5 else 0
+    if trajectory == "turun":
+        return 0 if progress >= 0.5 else 1
+    # datar: tetap di kedalaman yang sama sepanjang semester
+    return 0
 
 
 def _build_reasoning_events(
@@ -192,8 +225,16 @@ def _seed_submissions_for_assignment(
     rng: random.Random,
     assignment: Assignment,
     students: Sequence[Profile],
+    step: int,
+    total_steps: int,
+    weeks_ago: int,
 ) -> int:
-    """Buat submission dengan distribusi profil yang ditetapkan.
+    """Buat satu submission per mahasiswa untuk satu tugas.
+
+    step dan total_steps menentukan posisi tugas ini dalam rangkaian satu
+    kelas, dipakai untuk memilih kedalaman jawaban sesuai lintasan mahasiswa.
+    weeks_ago menempatkan submission di masa lalu supaya grafik tren punya
+    sumbu waktu yang nyata.
 
     Return jumlah submission yang berhasil di-upsert.
     """
@@ -201,83 +242,93 @@ def _seed_submissions_for_assignment(
         raise RuntimeError("Butuh setidaknya 8 profil mahasiswa untuk seed assignment.")
 
     created = 0
-    student_iter = iter(students[:8])
+    expected_ids: list[uuid.UUID] = []
     sample_answers = _sample_answers_for(assignment)
 
-    for profile_name, count, duration_range, revision_range, has_paste, band, ai_score_range in _PROFILES:
-        for index in range(count):
-            student = next(student_iter)
-            duration_seconds = rng.randint(*duration_range)
-            revision_count = rng.randint(*revision_range)
-            hours_ago = rng.randint(1, 48)
-            submitted_at = timezone.now() - timedelta(hours=hours_ago)
-            started_at = submitted_at - timedelta(seconds=duration_seconds)
+    for index, (band, trajectory, duration_range, revision_range, has_paste) in enumerate(
+        _STUDENT_PROFILES
+    ):
+        student = students[index]
+        duration_seconds = rng.randint(*duration_range)
+        revision_count = rng.randint(*revision_range)
+        submitted_at = timezone.now() - timedelta(
+            weeks=weeks_ago, hours=rng.randint(1, 40)
+        )
+        started_at = submitted_at - timedelta(seconds=duration_seconds)
 
-            label = f"submission:{assignment.id}:{profile_name}:{index}"
-            submission_id = _stable_uuid(label)
+        label = f"submission:{assignment.id}:{index}"
+        submission_id = _stable_uuid(label)
+        expected_ids.append(submission_id)
 
-            # Sebagian profil "natural" sudah dinilai dosen agar UI
-            # memperlihatkan status Dinilai + umpan balik.
-            is_graded = profile_name == "natural" and index < 2
-            submission, _ = Submission.objects.update_or_create(
-                id=submission_id,
-                defaults={
-                    "assignment": assignment,
-                    "student_profile": student,
-                    "text_answer": sample_answers[band][index % len(sample_answers[band])],
-                    "started_at": started_at,
-                    "submitted_at": submitted_at,
-                    "duration_seconds": duration_seconds,
-                    "revision_count": revision_count,
-                    "status": (
-                        SubmissionStatus.REVIEWED
-                        if is_graded
-                        else SubmissionStatus.SUBMITTED
-                    ),
-                    "grade": rng.randint(78, 95) if is_graded else None,
-                    "teacher_feedback": (
-                        "Argumenmu runtut dan memakai contoh dari praktikum sendiri. Pertahankan."
-                        if is_graded
-                        else ""
-                    ),
-                },
-            )
-
-            ReasoningEvent.objects.filter(submission=submission).delete()
-            ReasoningEvent.objects.bulk_create(
-                _build_reasoning_events(
-                    submission=submission,
-                    started_at=started_at,
-                    submitted_at=submitted_at,
-                    revision_count=revision_count,
-                    has_large_paste=has_paste,
-                )
-            )
-
-            # Tidak ada angka yang ditulis tangan lagi. Seluruh baris demo
-            # dihitung oleh pipeline yang sama dengan jalur produksi, termasuk
-            # sinyal forensik proses dari durasi, revisi, dan tempelan di atas.
-            #
-            # Sebaran band tetap terjaga karena profil pengerjaan memang sudah
-            # dirancang berbeda: "natural" 20-45 menit dengan banyak revisi,
-            # "review" 2-5 menit tanpa revisi dan dengan tempelan besar.
-            analysis = analyze_text(
-                submission.text_answer,
-                assignment.expected_bloom_level,
-                ProcessContext(
-                    duration_seconds=duration_seconds,
-                    revision_count=revision_count,
-                    word_count=len(submission.text_answer.split()),
-                    char_count=len(submission.text_answer),
-                    paste_char_count=_seed_paste_chars(submission),
+        # Tugas lama sudah dinilai, yang terbaru belum. Itu keadaan yang wajar
+        # di tengah semester dan membuat dashboard punya kedua status.
+        is_graded = weeks_ago >= 3
+        depth = _depth_for(trajectory, step, total_steps)
+        submission, _ = Submission.objects.update_or_create(
+            id=submission_id,
+            defaults={
+                "assignment": assignment,
+                "student_profile": student,
+                "text_answer": sample_answers[band][depth],
+                "started_at": started_at,
+                "submitted_at": submitted_at,
+                "duration_seconds": duration_seconds,
+                "revision_count": revision_count,
+                "status": (
+                    SubmissionStatus.REVIEWED
+                    if is_graded
+                    else SubmissionStatus.SUBMITTED
                 ),
-            )
-            analysis["analysis_source"] = AnalysisSource.SEED
-            AnalysisResult.objects.update_or_create(
+                "grade": rng.randint(78, 95) if is_graded else None,
+                "teacher_feedback": (
+                    "Argumenmu runtut dan memakai contoh dari praktikum sendiri. Pertahankan."
+                    if is_graded
+                    else ""
+                ),
+            },
+        )
+
+        ReasoningEvent.objects.filter(submission=submission).delete()
+        ReasoningEvent.objects.bulk_create(
+            _build_reasoning_events(
                 submission=submission,
-                defaults=analysis,
+                started_at=started_at,
+                submitted_at=submitted_at,
+                revision_count=revision_count,
+                has_large_paste=has_paste,
             )
-            created += 1
+        )
+
+        # Tidak ada angka yang ditulis tangan. Seluruh baris demo dihitung
+        # pipeline yang sama dengan jalur produksi, termasuk sinyal forensik
+        # proses dari durasi, revisi, dan tempelan di atas.
+        analysis = analyze_text(
+            submission.text_answer,
+            assignment.expected_bloom_level,
+            ProcessContext(
+                duration_seconds=duration_seconds,
+                revision_count=revision_count,
+                word_count=len(submission.text_answer.split()),
+                char_count=len(submission.text_answer),
+                paste_char_count=_seed_paste_chars(submission),
+            ),
+        )
+        analysis["analysis_source"] = AnalysisSource.SEED
+        AnalysisResult.objects.update_or_create(
+            submission=submission,
+            defaults=analysis,
+        )
+        created += 1
+
+    # Buang submission seed lama yang tidak lagi diharapkan.
+    #
+    # Tanpa ini, seed hanya idempoten selama pola ID-nya tidak berubah. Begitu
+    # strukturnya diubah, baris lama tertinggal berdampingan dengan yang baru
+    # dan grafik tren menampilkan titik hantu: pernah terlihat 7 titik untuk
+    # rangkaian yang cuma berisi 5 tugas.
+    Submission.objects.filter(assignment=assignment).exclude(
+        id__in=expected_ids
+    ).delete()
     return created
 
 
@@ -453,39 +504,86 @@ class Command(BaseCommand):
             _ensure_memberships(class_metpen)
             _ensure_memberships(class_ekbang)
 
-            assignments = [
-                _ensure_assignment(
-                    target_class=class_metpen,
-                    label="desain-kualitatif",
-                    title="Desain penelitian kualitatif",
-                    instructions="Uraikan pertimbangan dalam memilih desain penelitian kualitatif untuk topik skripsi Anda.",
-                    expected_bloom_level=3,
-                    deadline_days=5,
-                ),
-                _ensure_assignment(
-                    target_class=class_ekbang,
-                    label="subsidi-energi",
-                    title="Efektivitas kebijakan subsidi energi",
-                    instructions="Bandingkan subsidi harga dan transfer langsung, lalu argumentasikan mana yang lebih tepat sasaran.",
-                    expected_bloom_level=4,
-                    deadline_days=7,
-                ),
-                _ensure_assignment(
-                    target_class=class_metpen,
-                    label="validitas-reliabilitas",
-                    title="Validitas dan reliabilitas instrumen",
-                    instructions="Bandingkan ancaman terhadap validitas dan reliabilitas, lalu jelaskan cara menanganinya.",
-                    expected_bloom_level=4,
-                    deadline_days=10,
-                ),
-            ]
+            # Tugas disebar lintas minggu supaya Profil Kognitif punya sumbu
+            # waktu yang nyata. Satu titik per mahasiswa tidak membentuk tren
+            # apa pun, dan layar itu akan kosong.
+            series = {
+                class_metpen: [
+                    ("rumusan-masalah", "Merumuskan masalah penelitian",
+                     "Rumuskan masalah penelitian skripsi Anda beserta alasan pemilihannya.", 3, 10),
+                    ("kajian-pustaka", "Menyusun kajian pustaka",
+                     "Bandingkan tiga sumber tentang topik Anda, lalu tunjukkan celah penelitiannya.", 4, 8),
+                    ("desain-kualitatif", "Desain penelitian kualitatif",
+                     "Uraikan pertimbangan dalam memilih desain penelitian kualitatif untuk topik skripsi Anda.", 3, 6),
+                    ("validitas-reliabilitas", "Validitas dan reliabilitas instrumen",
+                     "Bandingkan ancaman terhadap validitas dan reliabilitas, lalu jelaskan cara menanganinya.", 4, 4),
+                    ("analisis-data", "Rencana analisis data",
+                     "Rancang langkah analisis data yang sesuai dengan desain penelitian Anda.", 5, 1),
+                ],
+                class_ekbang: [
+                    ("indikator-pembangunan", "Memilih indikator pembangunan",
+                     "Pilih indikator yang paling tepat untuk mengukur pembangunan daerah, dan pertahankan pilihan Anda.", 4, 7),
+                    ("subsidi-energi", "Efektivitas kebijakan subsidi energi",
+                     "Bandingkan subsidi harga dan transfer langsung, lalu argumentasikan mana yang lebih tepat sasaran.", 4, 5),
+                    ("ketimpangan-wilayah", "Ketimpangan antarwilayah",
+                     "Jelaskan sebab ketimpangan antarwilayah dan usulkan satu kebijakan penanganannya.", 5, 2),
+                ],
+            }
 
+            # Satu tugas yang masih berjalan per kelas, sengaja tanpa submission.
+            # Tanpa ini seluruh data demo berada di masa lalu, sehingga layar
+            # "masih berjalan" dan "perlu dikerjakan" selalu kosong dan alur
+            # mengumpulkan tugas tidak pernah bisa dicoba.
+            open_items = {
+                class_metpen: (
+                    "etika-penelitian",
+                    "Etika penelitian dan persetujuan responden",
+                    "Uraikan risiko etis pada rancangan penelitian Anda, lalu jelaskan cara Anda menanganinya.",
+                    4,
+                ),
+                class_ekbang: (
+                    "kebijakan-fiskal-daerah",
+                    "Ruang fiskal pemerintah daerah",
+                    "Nilai apakah ruang fiskal daerah Anda cukup untuk membiayai satu program prioritas, dan pertahankan penilaian itu.",
+                    5,
+                ),
+            }
+
+            assignments = []
             total_submissions = 0
-            for assignment in assignments:
-                total_submissions += _seed_submissions_for_assignment(
-                    rng=rng,
-                    assignment=assignment,
-                    students=students,
+            for target_class, items in series.items():
+                for step, (label, title, instructions, bloom, weeks_ago) in enumerate(items):
+                    assignment = _ensure_assignment(
+                        target_class=target_class,
+                        label=label,
+                        title=title,
+                        instructions=instructions,
+                        expected_bloom_level=bloom,
+                        # Tenggat relatif terhadap waktu pengumpulannya, bukan
+                        # terhadap hari ini, supaya tugas lama tidak tampil
+                        # seperti masih berjalan.
+                        deadline_days=-(weeks_ago * 7) + 7,
+                    )
+                    assignments.append(assignment)
+                    total_submissions += _seed_submissions_for_assignment(
+                        rng=rng,
+                        assignment=assignment,
+                        students=students,
+                        step=step,
+                        total_steps=len(items),
+                        weeks_ago=weeks_ago,
+                    )
+
+            for target_class, (label, title, instructions, bloom) in open_items.items():
+                assignments.append(
+                    _ensure_assignment(
+                        target_class=target_class,
+                        label=label,
+                        title=title,
+                        instructions=instructions,
+                        expected_bloom_level=bloom,
+                        deadline_days=10,
+                    )
                 )
 
         self.stdout.write(

@@ -49,3 +49,13 @@ export function formatClockHHMM(iso: string | null): string {
     minute: "2-digit",
   });
 }
+
+/** Tanggal singkat untuk sumbu waktu, misalnya "12 Mei 2026". */
+export function formatDate(iso: string | null): string {
+  if (!iso) return "-";
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}

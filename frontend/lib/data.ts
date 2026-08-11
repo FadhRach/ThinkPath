@@ -3,17 +3,42 @@ import { cache } from "react";
 import { apiFetch } from "./api";
 import type {
   AssignmentSummary,
+  CognitiveProfile,
+  OwnProgress,
+  TeacherAssignmentRow,
+  TeacherOverview,
   ClassSummary,
   Profile,
   StudentAssignmentDetail,
   StudentClassWithAssignments,
   SubmissionDetail,
   SubmissionRow,
+  VerificationQueueRow,
 } from "./types";
 
 // Dibungkus React cache() supaya layout + page dalam satu render berbagi satu
 // request /api/me, bukan memanggilnya dua kali.
 export const getMe = cache(() => apiFetch<Profile>("/api/me"));
+
+export function getOverview() {
+  return apiFetch<TeacherOverview>("/api/overview");
+}
+
+export function getAllAssignments() {
+  return apiFetch<TeacherAssignmentRow[]>("/api/assignments");
+}
+
+export function getStudentProfile(studentId: string) {
+  return apiFetch<CognitiveProfile>(`/api/students/${studentId}/profile`);
+}
+
+export function getOwnProgress() {
+  return apiFetch<OwnProgress>("/api/student/progress");
+}
+
+export function getVerificationQueue() {
+  return apiFetch<VerificationQueueRow[]>("/api/verifications");
+}
 
 export function getClasses() {
   return apiFetch<ClassSummary[]>("/api/classes");

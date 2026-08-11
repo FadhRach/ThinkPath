@@ -38,7 +38,7 @@ export default async function ClassDetailPage({
   return (
     <div className="space-y-6">
       <Link
-        href="/dashboard"
+        href="/dashboard/classes"
         className="inline-flex items-center gap-1.5 text-body-sm text-muted-foreground transition hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -91,8 +91,12 @@ async function ClassAssignments({
   selectedAssignmentId?: string;
   newAssignmentHref: string;
 }) {
+  // Tanpa pilihan eksplisit, jatuh ke tugas terbaru yang sudah punya
+  // pengumpulan. Membuka kelas langsung pada tugas yang baru dibuat hanya
+  // menampilkan layar kosong, padahal yang dicari dosen adalah bukti.
   const selectedAssignment =
     assignments.find((assignment) => assignment.id === selectedAssignmentId) ??
+    assignments.find((assignment) => assignment.submission_count > 0) ??
     assignments[0];
   const submissions = await getSubmissions(selectedAssignment.id);
 
