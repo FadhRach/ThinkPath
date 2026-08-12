@@ -5,7 +5,11 @@ import type {
   ClassSummary,
   EducationLevel,
   JoinClassResult,
+  Profile,
   SubmissionDetail,
+  VerificationOutcome,
+  VerificationStatus,
+  VerificationView,
 } from "./types";
 
 export interface CreateClassInput {
@@ -77,6 +81,44 @@ export interface GradeInput {
 
 export function gradeSubmission(submissionId: string, input: GradeInput) {
   return apiFetchBrowser<SubmissionDetail>(`/api/submissions/${submissionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface SaveVerificationInput {
+  status: VerificationStatus;
+  scheduled_at?: string | null;
+  outcome?: VerificationOutcome;
+  notes?: string;
+}
+
+export function saveVerification(
+  submissionId: string,
+  input: SaveVerificationInput,
+) {
+  return apiFetchBrowser<VerificationView>(
+    `/api/submissions/${submissionId}/verification`,
+    { method: "PUT", body: JSON.stringify(input) },
+  );
+}
+
+export function cancelVerification(submissionId: string) {
+  return apiFetchBrowser<void>(
+    `/api/submissions/${submissionId}/verification`,
+    { method: "DELETE" },
+  );
+}
+
+export interface UpdateProfileInput {
+  display_name?: string;
+  education_level?: EducationLevel;
+}
+
+/** Email dan peran sengaja tidak bisa diubah dari sini: keduanya menjadi dasar
+ *  kepemilikan kelas dan submission yang sudah tersimpan. */
+export function updateProfile(input: UpdateProfileInput) {
+  return apiFetchBrowser<Profile>("/api/me", {
     method: "PATCH",
     body: JSON.stringify(input),
   });

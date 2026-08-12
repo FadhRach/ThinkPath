@@ -11,6 +11,7 @@ import {
   AnalysisSourceNote,
 } from "@/components/submission/AnalysisSourceBadge";
 import { ConfidenceBadge } from "@/components/submission/ConfidenceBadge";
+import { ProcessTimeline } from "@/components/submission/ProcessTimeline";
 import { SignalBreakdown } from "@/components/submission/SignalBreakdown";
 import { EvidenceNotVerdictBanner } from "@/components/submission/EvidenceNotVerdictBanner";
 import { EvidenceStrip } from "@/components/submission/EvidenceStrip";
@@ -19,6 +20,7 @@ import { ReanalyzeButton } from "@/components/submission/ReanalyzeButton";
 import { ReasoningSummary } from "@/components/submission/ReasoningSummary";
 import { RecommendationBlock } from "@/components/submission/RecommendationBlock";
 import { SignalList } from "@/components/submission/SignalList";
+import { VerificationPanel } from "@/components/submission/VerificationPanel";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
 import { bloomCode, bloomLabel } from "@/lib/bloom";
@@ -130,6 +132,11 @@ export default async function SubmissionDetailPage({
 
           <RecommendationBlock recommendation={analysis?.recommendation ?? null} />
 
+          <VerificationPanel
+            submissionId={detail.id}
+            verification={detail.verification}
+          />
+
           <Card className="space-y-3 p-5 shadow-soft">
             <p className="caption-eyebrow text-primary">Jawaban Mahasiswa</p>
             <p className="whitespace-pre-wrap text-body text-foreground">
@@ -174,6 +181,15 @@ export default async function SubmissionDetailPage({
           <Card className="space-y-3 p-5 shadow-soft">
             <p className="caption-eyebrow text-primary">Evidence Strip</p>
             <EvidenceStrip rows={evidenceRows} />
+          </Card>
+
+          <Card className="space-y-3 p-5 shadow-soft">
+            <p className="caption-eyebrow text-primary">Linimasa Pengerjaan</p>
+            <ProcessTimeline
+              events={detail.reasoning_events}
+              startedAt={detail.started_at}
+              submittedAt={detail.submitted_at}
+            />
           </Card>
 
           <Card className="space-y-2 p-5 shadow-soft">

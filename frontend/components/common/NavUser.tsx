@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, LogOut, User } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -19,9 +20,11 @@ interface Props {
   displayName: string;
   email: string;
   roleLabel: string;
+  /** Rute pengaturan berbeda per peran karena tata letaknya berbeda. */
+  settingsHref: string;
 }
 
-export function NavUser({ displayName, email, roleLabel }: Props) {
+export function NavUser({ displayName, email, roleLabel, settingsHref }: Props) {
   const router = useRouter();
   const name = displayName || email;
 
@@ -60,9 +63,11 @@ export function NavUser({ displayName, email, roleLabel }: Props) {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2" disabled>
-          <User className="h-4 w-4" />
-          Pengaturan profil
+        <DropdownMenuItem className="gap-2" asChild>
+          <Link href={settingsHref}>
+            <User className="h-4 w-4" />
+            Pengaturan profil
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="gap-2 text-danger focus:text-danger" onSelect={handleLogout}>

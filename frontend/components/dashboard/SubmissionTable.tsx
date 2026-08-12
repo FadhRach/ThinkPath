@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { LineChart, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -90,13 +90,14 @@ export function SubmissionTable({ submissions }: { submissions: SubmissionRow[] 
               <TableHead className="caption-eyebrow">Level Kognitif</TableHead>
               <TableHead className="caption-eyebrow">Nilai</TableHead>
               <TableHead className="caption-eyebrow">Status</TableHead>
+              <TableHead className="caption-eyebrow">Profil</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visible.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="py-8 text-center text-body-sm text-muted-foreground"
                 >
                   Tidak ada submission yang cocok dengan pencarian.
@@ -152,6 +153,19 @@ export function SubmissionTable({ submissions }: { submissions: SubmissionRow[] 
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={row.status} />
+                  </TableCell>
+                  <TableCell>
+                    {/* Tautan terpisah dari sel nama karena sel itu sudah
+                        menjadi tautan ke submission, dan tautan bersarang
+                        bukan HTML yang sah. */}
+                    <Link
+                      href={`/dashboard/students/${row.student.id}`}
+                      className="inline-flex items-center gap-1 text-body-sm text-muted-foreground hover:text-primary"
+                      title={`Lihat perkembangan ${row.student.display_name}`}
+                    >
+                      <LineChart className="h-4 w-4" />
+                      Tren
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))

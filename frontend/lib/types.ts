@@ -5,6 +5,118 @@ export type Confidence = "low" | "medium" | "high" | "";
 export type SubmissionStatus = "draft" | "submitted" | "reviewed";
 export type EventType = "started" | "revision" | "paste" | "submitted";
 export type AnalysisSource = "llm" | "heuristic" | "seed";
+export type VerificationStatus = "scheduled" | "completed" | "cancelled";
+/** Baris pada halaman Daftar Tugas dosen: sama seperti AssignmentSummary,
+ *  ditambah asal kelasnya karena di sana tugas lintas kelas bercampur. */
+export interface TeacherAssignmentRow extends AssignmentSummary {
+  class_name: string;
+  subject: string;
+}
+
+export type TrendDirection = "naik" | "datar" | "turun" | "belum_cukup_data";
+
+export interface CognitivePoint {
+  submission_id: string;
+  label: string;
+  level: number;
+  expected: number;
+  /** Tidak dikirim ke mahasiswa: dia melihat perkembangannya, bukan dugaan sistem. */
+  ai_band?: AiBand;
+  submitted_at: string;
+}
+
+export interface CognitiveClassSeries {
+  class_id: string;
+  class_name: string;
+  subject: string;
+  /** Rata rata bergerak eksponensial, bukan rata rata biasa. */
+  current_level: number | null;
+  direction: TrendDirection;
+  point_count: number;
+  average_target: number | null;
+  points: CognitivePoint[];
+}
+
+export interface CognitiveProfile {
+  student: StudentMini;
+  classes: CognitiveClassSeries[];
+}
+
+export interface OverviewStudent {
+  student_id: string;
+  display_name: string;
+  /** Rata rata skor AI lintas submission, bukan nilai tertinggi. */
+  ai_mean: number;
+  high_count: number;
+  current_level: number | null;
+  average_target: number | null;
+  /** current_level dikurangi average_target. Negatif berarti tertinggal. */
+  gap: number | null;
+  direction: TrendDirection;
+  submission_count: number;
+}
+
+export interface BloomDistributionBin {
+  level: number;
+  count: number;
+}
+
+export interface CohortTrendPoint {
+  label: string;
+  title: string;
+  level: number;
+  expected: number;
+}
+
+export interface OverviewClass {
+  class_id: string;
+  class_name: string;
+  subject: string;
+  students: OverviewStudent[];
+  below_target_count: number;
+  high_band_count: number;
+  bloom_distribution: BloomDistributionBin[];
+  cohort_trend: CohortTrendPoint[];
+  /** Rata rata target lintas tugas kelas, bukan lintas mahasiswa. */
+  average_target: number | null;
+}
+
+export interface TeacherOverview {
+  classes: OverviewClass[];
+}
+
+export interface OwnProgress {
+  classes: CognitiveClassSeries[];
+}
+/** Sengaja tidak ada nilai yang berarti "terbukti menyontek". Yang dinilai
+ *  adalah apakah mahasiswa mampu menjelaskan kembali karyanya. */
+export type VerificationOutcome =
+  | "can_explain"
+  | "partial"
+  | "cannot_explain"
+  | "inconclusive"
+  | "";
+
+export interface VerificationView {
+  status: VerificationStatus;
+  scheduled_at: string | null;
+  outcome: VerificationOutcome;
+  notes: string;
+  completed_at: string | null;
+  updated_at: string;
+}
+
+export interface VerificationQueueRow {
+  submission_id: string;
+  student_name: string;
+  assignment_title: string;
+  class_name: string;
+  ai_band: AiBand | "";
+  status: VerificationStatus;
+  scheduled_at: string | null;
+  outcome: VerificationOutcome;
+  completed_at: string | null;
+}
 
 /** Kontribusi satu sinyal terhadap skor AI. Jumlah seluruh contribution
  *  sama dengan ai_score, sehingga skor bisa ditelusuri dosen. */
@@ -213,4 +325,5 @@ export interface SubmissionDetail {
   teacher_feedback: string;
   reasoning_events: ReasoningEventView[];
   analysis: AnalysisView | null;
+  verification: VerificationView | null;
 }

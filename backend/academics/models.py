@@ -51,6 +51,28 @@ class SubmissionStatus(models.TextChoices):
     REVIEWED = "reviewed", "Reviewed"
 
 
+class VerificationStatus(models.TextChoices):
+    SCHEDULED = "scheduled", "Dijadwalkan"
+    COMPLETED = "completed", "Selesai"
+    CANCELLED = "cancelled", "Dibatalkan"
+
+
+class VerificationOutcome(models.TextChoices):
+    """Kesimpulan dosen setelah berbicara langsung dengan mahasiswa.
+
+    Pilihannya sengaja TIDAK memuat "terbukti menyontek". Sistem ini tidak
+    pernah menyimpulkan kecurangan, dan seorang dosen pun tidak menyimpulkannya
+    dari satu percakapan. Yang bisa dinilai adalah apakah mahasiswa mampu
+    menjelaskan kembali karyanya, dan itu sudah cukup untuk ditindaklanjuti
+    secara pedagogis tanpa menuduh siapa pun.
+    """
+
+    CAN_EXPLAIN = "can_explain", "Dapat menjelaskan"
+    PARTIAL = "partial", "Sebagian dapat dijelaskan"
+    CANNOT_EXPLAIN = "cannot_explain", "Belum dapat menjelaskan"
+    INCONCLUSIVE = "inconclusive", "Belum dapat disimpulkan"
+
+
 class Class(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
@@ -209,6 +231,56 @@ class ReasoningEvent(models.Model):
         db_table = "reasoning_events"
         indexes = [
             models.Index(fields=["submission", "occurred_at"], name="reason_sub_time_idx"),
+        ]
+
+
+class VerbalVerification(models.Model):
+    """Sesi tanya jawab langsung antara dosen dan mahasiswa.
+
+    Inilah tempat manusia mengambil keputusan, dan itu memang seharusnya
+    begitu. Rekomendasi sistem berhenti pada "disarankan diskusi 10-15 menit";
+    tanpa model ini, saran itu tidak pernah bisa ditindaklanjuti dan lingkaran
+    "bukti bukan vonis" tidak pernah tertutup.
+
+    Hasil verifikasi sengaja TIDAK dialirkan balik ke skor AI. Kalau skor
+    dinaikkan atau diturunkan berdasarkan hasil percakapan, skor yang keliru
+    akan membenarkan dirinya sendiri: dosen curiga karena skornya tinggi, lalu
+    hasil percakapan dipakai menguatkan skor itu.
+
+    Yang boleh dilakukan kelak: memakai kumpulan outcome ini sebagai data
+    berlabel manusia untuk mengkalibrasi ulang bobot E1 lewat ai_experiment.
+    Itu berbeda, karena kalibrasi menguji ambangnya secara menyeluruh, bukan
+    menyesuaikan satu skor terhadap satu percakapan.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.OneToOneField(
+        Submission,
+        on_delete=models.CASCADE,
+        related_name="verification",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.SCHEDULED,
+    )
+    scheduled_at = models.DateTimeField(null=True, blank=True)
+    # Diisi hanya setelah sesi berlangsung. Kosong selama masih dijadwalkan.
+    outcome = models.CharField(
+        max_length=20,
+        choices=VerificationOutcome.choices,
+        blank=True,
+        default="",
+    )
+    notes = models.TextField(blank=True, default="")
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "verbal_verifications"
+        indexes = [
+            models.Index(fields=["status", "scheduled_at"], name="verif_status_time_idx"),
         ]
 
 

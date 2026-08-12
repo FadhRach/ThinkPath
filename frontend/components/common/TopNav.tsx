@@ -26,17 +26,17 @@ interface NavItem {
 const NAV_ITEMS: Record<Role, NavItem[]> = {
   teacher: [
     { label: "Overview", href: "/dashboard" },
-    { label: "Kelas", href: "/dashboard/classes", disabled: true },
-    { label: "Tugas", href: "/dashboard/tugas", disabled: true },
-    { label: "Verifikasi", href: "/dashboard/verifikasi", disabled: true },
+    { label: "Kelas", href: "/dashboard/classes" },
+    { label: "Tugas", href: "/dashboard/tugas" },
+    { label: "Verifikasi", href: "/dashboard/verifikasi" },
     { label: "Laporan", href: "/dashboard/laporan" },
   ],
   student: [
     { label: "Beranda", href: "/student" },
-    { label: "Tugas", href: "/student/tugas", disabled: true },
+    { label: "Tugas", href: "/student/tugas" },
     { label: "Materi", href: "/student/materi", disabled: true },
     { label: "Jadwal", href: "/student/jadwal", disabled: true },
-    { label: "Progres", href: "/student/progres", disabled: true },
+    { label: "Progres", href: "/student/progres" },
   ],
 };
 
@@ -96,18 +96,24 @@ export function TopNav({ role, displayName, email }: Props) {
 
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <NavSearch />
-          <button
-            type="button"
-            aria-label="Notifikasi"
-            className="relative grid h-10 w-10 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
+          {/* Titik merah dihapus bersama tombol aktifnya. Titik itu berarti
+              "ada notifikasi belum dibaca", padahal tombolnya tidak punya
+              penangan sama sekali. Menjanjikan sesuatu yang tidak ada lebih
+              buruk daripada terlihat belum jadi. */}
+          <span
+            aria-disabled="true"
+            title="Notifikasi segera hadir"
+            className="grid h-10 w-10 cursor-not-allowed place-items-center rounded-full text-muted-foreground/40"
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-danger" />
-          </button>
+          </span>
           <NavUser
             displayName={displayName}
             email={email}
             roleLabel={ROLE_LABEL[role]}
+            settingsHref={
+              role === "teacher" ? "/dashboard/pengaturan" : "/student/pengaturan"
+            }
           />
         </div>
       </div>

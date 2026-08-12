@@ -26,6 +26,8 @@ from core.services import get_profile_by_sub
 
 from .join_codes import generate_unique_join_code
 from .llm import run_analysis
+from .cognitive import build_profile
+from .overview import build_overview
 from .process_signals import ProcessContext
 from .reports import build_report
 from .models import (
@@ -38,6 +40,8 @@ from .models import (
     ReasoningEvent,
     Submission,
     SubmissionStatus,
+    VerbalVerification,
+    VerificationStatus,
 )
 from .serializers import (
     AnalysisFullSerializer,
@@ -53,6 +57,10 @@ from .serializers import (
     SubmissionDetailSerializer,
     SubmissionGradeSerializer,
     SubmissionListSerializer,
+    TeacherAssignmentRowSerializer,
+    VerificationQueueSerializer,
+    VerificationSerializer,
+    VerificationWriteSerializer,
 )
 
 
@@ -241,6 +249,47 @@ class AssignmentListCreateView(APIView):
             AssignmentListSerializer(annotated).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class TeacherOverviewView(APIView):
+    """GET ringkasan agregat lintas kelas untuk layar depan dosen.
+
+    Satu panggilan, bukan satu per grafik. Tiga visual di layar itu membaca
+    kumpulan submission yang sama persis, dan memecahnya menjadi tiga endpoint
+    hanya membuka peluang ketiganya menampilkan angka yang berbeda karena
+    diambil pada saat yang berbeda.
+    """
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request):
+        owner_id = _owner_uuid(request)
+        classes = Class.objects.filter(owner_id=owner_id).order_by("name")
+        submissions = Submission.objects.filter(
+            assignment__class_ref__owner_id=owner_id
+        )
+        return Response({"classes": build_overview(classes, submissions)})
+
+
+class TeacherAssignmentListView(APIView):
+    """GET seluruh tugas milik dosen, lintas kelas, terbaru di atas.
+
+    Ada supaya halaman Daftar Tugas tidak perlu memanggil endpoint per kelas
+    satu per satu. Anotasi hitungannya sama persis dengan daftar per kelas agar
+    dua halaman tidak pernah menampilkan angka yang berbeda untuk tugas yang
+    sama.
+    """
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request):
+        assignments = (
+            Assignment.objects.filter(class_ref__owner_id=_owner_uuid(request))
+            .select_related("class_ref")
+            .annotate(**_assignment_annotations())
+            .order_by("-deadline")
+        )
+        return Response(TeacherAssignmentRowSerializer(assignments, many=True).data)
 
 
 class JoinClassView(APIView):
@@ -522,6 +571,122 @@ def _require_owned_submission(request, submission_id: str) -> Submission:
     if submission.assignment.class_ref.owner_id != _owner_uuid(request):
         raise NotFound()
     return submission
+
+
+class StudentCognitiveProfileView(APIView):
+    """GET profil kognitif satu mahasiswa, dilihat dosen pengampunya.
+
+    Cakupan dibatasi ke kelas milik dosen pemanggil. Dosen tidak boleh melihat
+    perkembangan mahasiswa di kelas dosen lain, meski mahasiswanya sama.
+    """
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request, student_id: str):
+        student = get_profile_by_sub(str(_parse_uuid_or_404(student_id)))
+        if student is None:
+            raise NotFound()
+
+        submissions = Submission.objects.filter(
+            student_profile_id=student.id,
+            assignment__class_ref__owner_id=_owner_uuid(request),
+        )
+        if not submissions.exists():
+            raise NotFound()
+
+        return Response(
+            {
+                "student": {
+                    "id": str(student.id),
+                    "display_name": student.display_name or student.email,
+                },
+                "classes": build_profile(submissions),
+            }
+        )
+
+
+class StudentOwnProgressView(APIView):
+    """GET perkembangan kognitif mahasiswa atas dirinya sendiri.
+
+    Memakai perhitungan yang sama persis dengan tampilan dosen. Yang berbeda
+    hanya cakupannya, dan skor AI tidak pernah ikut dikirim ke mahasiswa.
+    """
+
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        submissions = Submission.objects.filter(
+            student_profile_id=_owner_uuid(request)
+        )
+        classes = build_profile(submissions)
+        # Skor AI sengaja dibuang di sini. Mahasiswa melihat perkembangan
+        # berpikirnya, bukan dugaan sistem terhadap dirinya.
+        for entry in classes:
+            for point in entry["points"]:
+                point.pop("ai_band", None)
+        return Response({"classes": classes})
+
+
+class SubmissionVerificationView(APIView):
+    """PUT jadwalkan atau catat hasil verifikasi verbal satu submission.
+
+    Satu endpoint untuk kedua hal karena keduanya menulis baris yang sama.
+    Validasi urutannya ada di serializer: kesimpulan hanya boleh diisi setelah
+    sesi berlangsung, bukan saat baru dijadwalkan.
+    """
+
+    permission_classes = [IsTeacher]
+
+    def put(self, request, submission_id: str):
+        submission = _require_owned_submission(request, submission_id)
+        serializer = VerificationWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        defaults = {
+            "status": data["status"],
+            "scheduled_at": data.get("scheduled_at"),
+            "outcome": data.get("outcome") or "",
+            "notes": data.get("notes", ""),
+            "completed_at": (
+                timezone.now()
+                if data["status"] == VerificationStatus.COMPLETED
+                else None
+            ),
+        }
+        verification, _ = VerbalVerification.objects.update_or_create(
+            submission=submission, defaults=defaults
+        )
+        return Response(VerificationSerializer(verification).data)
+
+    def delete(self, request, submission_id: str):
+        submission = _require_owned_submission(request, submission_id)
+        VerbalVerification.objects.filter(submission=submission).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VerificationQueueView(APIView):
+    """GET antrean verifikasi lintas kelas milik dosen pemanggil.
+
+    Diurutkan supaya yang menuntut tindakan muncul lebih dulu: sesi terjadwal
+    di atas, lalu yang sudah selesai sebagai riwayat.
+    """
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request):
+        queue = (
+            VerbalVerification.objects.filter(
+                submission__assignment__class_ref__owner_id=_owner_uuid(request)
+            )
+            .select_related(
+                "submission__student_profile",
+                "submission__assignment__class_ref",
+                "submission__analysis",
+            )
+            .order_by("status", "scheduled_at")
+        )
+        return Response(VerificationQueueSerializer(queue, many=True).data)
 
 
 class SubmissionDetailView(APIView):

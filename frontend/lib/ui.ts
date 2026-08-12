@@ -44,19 +44,6 @@ export function submissionStatusMeta(status: SubmissionStatus): StatusMeta {
   return STATUS_META[status];
 }
 
-// Warna bar penguasaan konsep mengikuti ambang pada desain (merah, kuning, hijau).
-export function masteryBarClass(percent: number): string {
-  if (percent < 55) return "bg-danger";
-  if (percent < 70) return "bg-warning";
-  return "bg-primary";
-}
-
-export function masteryTextClass(percent: number): string {
-  if (percent < 55) return "text-danger";
-  if (percent < 70) return "text-warning";
-  return "text-primary";
-}
-
 export function initials(name: string | null | undefined): string {
   if (!name) return "?";
   const parts = name.trim().split(/\s+/).slice(0, 2);
