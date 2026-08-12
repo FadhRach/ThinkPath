@@ -29,6 +29,7 @@ from .llm import run_analysis
 from .cognitive import build_profile
 from .overview import build_overview
 from .process_signals import ProcessContext
+from .reports import build_report
 from .models import (
     AiBand,
     AnalysisResult,
@@ -165,6 +166,21 @@ def _assignment_annotations():
             distinct=True,
         ),
     }
+
+
+class ReportOverviewView(APIView):
+    """GET laporan agregat lintas kelas milik dosen pemanggil.
+
+    Cakupan sengaja ditentukan di sini, bukan di reports.py. Saat peran Kaprodi
+    dibangun nanti, cukup tambah view baru yang memberi queryset seluruh kelas
+    satu prodi ke build_report(), tanpa menyentuh perhitungannya.
+    """
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request):
+        classes = Class.objects.filter(owner_id=_owner_uuid(request))
+        return Response(build_report(classes))
 
 
 class ClassListCreateView(APIView):

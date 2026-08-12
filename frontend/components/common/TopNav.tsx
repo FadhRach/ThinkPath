@@ -29,7 +29,7 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
     { label: "Kelas", href: "/dashboard/classes" },
     { label: "Tugas", href: "/dashboard/tugas" },
     { label: "Verifikasi", href: "/dashboard/verifikasi" },
-    { label: "Laporan", href: "/dashboard/laporan", disabled: true },
+    { label: "Laporan", href: "/dashboard/laporan" },
   ],
   student: [
     { label: "Beranda", href: "/student" },

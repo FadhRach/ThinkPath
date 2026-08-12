@@ -3,16 +3,17 @@ import { cache } from "react";
 import { apiFetch } from "./api";
 import type {
   AssignmentSummary,
+  ClassSummary,
   CognitiveProfile,
   OwnProgress,
-  TeacherAssignmentRow,
-  TeacherOverview,
-  ClassSummary,
   Profile,
+  ReportPayload,
   StudentAssignmentDetail,
   StudentClassWithAssignments,
   SubmissionDetail,
   SubmissionRow,
+  TeacherAssignmentRow,
+  TeacherOverview,
   VerificationQueueRow,
 } from "./types";
 
@@ -22,6 +23,10 @@ export const getMe = cache(() => apiFetch<Profile>("/api/me"));
 
 export function getOverview() {
   return apiFetch<TeacherOverview>("/api/overview");
+}
+
+export function getReportOverview() {
+  return apiFetch<ReportPayload>("/api/reports/overview");
 }
 
 export function getAllAssignments() {
