@@ -117,6 +117,27 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "UNAUTHENTICATED_USER": None,
+    # Hanya endpoint auth yang dibatasi, lewat ScopedRateThrottle. Membatasi
+    # seluruh API secara global akan menghukum dosen yang membuka dashboard
+    # berisi banyak grafik, padahal yang perlu direm adalah tebak sandi dan
+    # spam pendaftaran di URL publik.
+    #
+    # Batas yang perlu diketahui: penghitungnya disimpan di cache Django, dan
+    # tanpa konfigurasi CACHES itu berarti LocMemCache yang terpisah per proses.
+    # Dengan gunicorn dua worker, batas efektifnya menjadi dua kali angka di
+    # bawah. Cukup untuk meredam tebak sandi otomatis, tetapi bukan penjaga yang
+    # ketat. Penjagaan sebenarnya menuntut cache bersama seperti Redis.
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        # Longgar terhadap satu kelas yang mendaftar bersamaan dari wifi kampus
+        # (satu IP ter-NAT), tetap ketat terhadap pendaftaran otomatis.
+        "auth_register": os.getenv("THROTTLE_REGISTER", "30/hour"),
+        # Cukup untuk manusia yang salah ketik beberapa kali, jauh terlalu
+        # lambat untuk menebak sandi secara sistematis.
+        "auth_login": os.getenv("THROTTLE_LOGIN", "20/min"),
+    },
 }
 
 AUTH_TOKEN_LIFETIME_DAYS = int(os.getenv("AUTH_TOKEN_LIFETIME_DAYS", "7"))

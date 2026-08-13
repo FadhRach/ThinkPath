@@ -21,7 +21,11 @@ logger = logging.getLogger(__name__)
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
-REQUEST_TIMEOUT_SECONDS = 30
+# Sengaja jauh di bawah timeout gunicorn (60 detik). Kalau keduanya sama,
+# gunicorn bisa membunuh worker tepat saat Groq hendak menjawab, dan request
+# mahasiswa hilang tanpa jejak. Jalur heuristik sudah ada sebagai cadangan,
+# jadi menyerah lebih cepat lebih baik daripada menahan worker lama lama.
+REQUEST_TIMEOUT_SECONDS = 12
 
 SYSTEM_PROMPT = """Kamu adalah ThinkPath, sistem analisis integritas akademik untuk pendidikan tinggi Indonesia.
 

@@ -16,4 +16,9 @@ COPY . .
 
 EXPOSE 7860
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn thinkpath.wsgi:application --bind 0.0.0.0:7860 --workers 2"]
+# --threads penting: analisis dijalankan sinkron di dalam request dan menunggu
+# Groq. Dengan 2 worker tanpa thread, dua pengumpulan bersamaan membekukan
+# seluruh aplikasi termasuk dashboard dosen. Menunggu jaringan itu IO, jadi
+# thread menyelesaikannya tanpa menambah beban CPU.
+# --timeout 60 memberi ruang di atas timeout Groq (12 detik) plus overhead.
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn thinkpath.wsgi:application --bind 0.0.0.0:7860 --workers 2 --threads 4 --timeout 60"]
