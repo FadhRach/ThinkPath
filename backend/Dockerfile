@@ -5,9 +5,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libpq-dev curl \
-    && rm -rf /var/lib/apt/lists/*
+# Sengaja tanpa apt-get sama sekali.
+#
+# Sebelumnya baris ini memasang build-essential, libpq-dev, dan curl. Ketiganya
+# tidak pernah terpakai: requirements.txt memakai psycopg[binary], yaitu wheel
+# yang sudah terkompilasi lengkap dengan libpq bawaannya, dan delapan paket
+# lainnya Python murni. curl dipasang tanpa satu pun HEALTHCHECK memakainya.
+# Akibatnya seluruh perkakas kompiler diunduh untuk sesuatu yang tidak pernah
+# dikompilasi, dan pada koneksi lambat langkah itu sendirian memakan lebih dari
+# setengah jam.
+#
+# Kalau suatu saat psycopg[binary] diganti psycopg biasa, atau ada dependensi
+# baru yang menuntut kompilasi, blok apt-get perlu dikembalikan bersama
+# build-essential dan libpq-dev.
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
