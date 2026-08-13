@@ -73,8 +73,9 @@ tidak membaca teks sama sekali, sehingga parafrase tidak menghapusnya. Bobotnya
 
 ### Status kalibrasi
 
-Sudah diukur pada gold set 921 sampel (500 abstrak manusia terbit sebelum
-November 2022, 421 teks AI dari tiga model berbeda). Reproduksi:
+Sudah diukur pada gold set 921 sampel: 500 abstrak manusia berbahasa Indonesia
+terbit sebelum November 2022, dan 421 teks AI dari tiga model berbeda.
+Reproduksi:
 
 ```bash
 cd ai_experiment
@@ -98,11 +99,21 @@ yang menjaga FPR di bawah 5 persen adalah **56**, dengan recall 0,461.
 
 **Tiga dari lima sinyal teks diam sepanjang pengukuran ini, dan itu artefak,
 bukan vonis.** `formulaic_phrasing`, `impersonality`, dan `flat_certainty`
-bekerja dengan daftar penanda berbahasa Indonesia, sedangkan gold set berisi
-abstrak berbahasa Inggris. Pada 921 teks Inggris penanda itu menyala 0,03
-sampai 0,18 kali per teks; pada satu paragraf Indonesia sepanjang itu, 3 sampai
-4 kali. Yang terukur bukan "sinyalnya buruk", melainkan "sinyalnya tidak
-diuji".
+mengandalkan penanda suara pribadi, keraguan, dan frasa khas LLM. Gold set ini
+berisi **abstrak akademik**, yang menurut konvensinya impersonal dan tegas,
+sedangkan produk ini menilai **esai mahasiswa**. Ketidakcocokannya soal jenis
+tulisan, bukan soal bahasa: gold set memang berbahasa Indonesia.
+
+Selisihnya besar, diukur pada gold set dibandingkan jawaban mahasiswa:
+
+| Penanda | Abstrak akademik | Esai mahasiswa |
+|---|---|---|
+| personal | 0,210 per teks | 1,859 per teks |
+| hedging | 0,040 per teks | 1,906 per teks |
+| llm_phrase | 0,035 per teks | 0,844 per teks |
+
+Abstrak nyaris tidak pernah menulis "menurut saya" atau "tampaknya". Yang
+terukur bukan "sinyalnya buruk", melainkan "sinyalnya tidak diuji".
 
 **Dua sinyal yang bebas bahasa memikul seluruh angka 0,861, dan keduanya sahih:**
 
@@ -123,14 +134,19 @@ menyimpang ke dua arah, persis seperti alasan yang ditulis di
 `_signal_lexical_uniformity`.
 
 **Yang TIDAK boleh diklaim dari angka ini.** ROC-AUC 0,861 berlaku untuk
-**abstrak akademik berbahasa Inggris dengan dua dari lima sinyal aktif**. Ia
-bukan akurasi ThinkPath pada esai mahasiswa berbahasa Indonesia. Karena itu
-ambang produksi sengaja **belum digeser ke 56**: FPR 0,838 itu pun terukur saat
-tiga sinyal diam, sehingga sebaran skor di produksi berbahasa Indonesia akan
-berbeda dan menyalin ambang dari sini justru menyesatkan.
+**abstrak akademik dengan dua dari lima sinyal aktif**. Ia bukan akurasi
+ThinkPath pada esai mahasiswa. Karena itu ambang produksi sengaja **belum
+digeser ke 56**: FPR 0,838 itu pun terukur saat tiga sinyal diam, sehingga
+sebaran skor pada esai mahasiswa akan berbeda dan menyalin ambang dari sini
+justru menyesatkan.
 
-Langkah yang benar berikutnya adalah **gold set berbahasa Indonesia**, bukan
-menyetel ulang ambang dari data Inggris.
+Bukti bahwa sebarannya memang berbeda: satu jawaban esai berbahasa Indonesia
+yang ditulis tangan mendapat skor 19, jauh di bawah ambang 35 yang pada gold
+set menuduh 84 persen teks manusia.
+
+Langkah yang benar berikutnya adalah gold set dengan **register esai
+mahasiswa**, bukan abstrak akademik. Menambah abstrak berapa pun banyaknya
+tidak akan pernah menguji ketiga sinyal yang diam itu.
 
 Perkakas untuk memperbaikinya ada di [`ai_experiment/`](./ai_experiment/README.md).
 
