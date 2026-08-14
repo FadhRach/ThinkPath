@@ -74,6 +74,13 @@ npx tsc --noEmit # type check (strict, tanpa any)
 | Var | Keterangan |
 |-----|------------|
 | `NEXT_PUBLIC_BACKEND_URL` | URL backend Django. Publik (dikirim ke browser), aman, hanya URL. |
+| `NEXT_PUBLIC_DISPLAY_TIME_ZONE` | Zona waktu tampilan. Kosong berarti `Asia/Jakarta`. |
+
+Zona waktu sengaja dipaku, bukan mengikuti mesin yang merender. Backend
+mengirim seluruh waktu dalam UTC, dan tanpa zona yang disebut hasilnya akan
+mengikuti proses yang kebetulan menjalankannya: benar di laptop ber-UTC+7,
+meleset tujuh jam di Vercel yang ber-UTC. Untuk produk ini itu bukan
+kosmetik, karena pembacaan forensik proses bergantung pada jam yang benar.
 
 Tidak ada secret di frontend. Analisis AI (Groq) hanya dipanggil server-side di
 backend, tidak pernah dari browser.
