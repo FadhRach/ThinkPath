@@ -6,6 +6,7 @@ permission dan view. List endpoints difilter ke pemilik (`user.sub`).
 """
 from __future__ import annotations
 
+from datetime import timedelta
 from uuid import UUID
 
 from django.db import transaction
@@ -28,7 +29,7 @@ from .join_codes import generate_unique_join_code
 from .llm import run_analysis
 from .cognitive import build_profile
 from .overview import build_overview
-from .process_signals import ProcessContext
+from .process_signals import ProcessContext, ProgressSample
 from .reports import build_report
 from .models import (
     AiBand,
@@ -120,11 +121,26 @@ def _require_member_assignment(request, assignment_id: str) -> Assignment:
     return assignment
 
 
+def _progress_samples(submission: Submission, started_at) -> tuple:
+    """Baca cuplikan pertumbuhan kata yang tersimpan sebagai ReasoningEvent."""
+    samples = []
+    for event in submission.reasoning_events.all():
+        if event.event_type != EventType.PROGRESS:
+            continue
+        count = (event.payload or {}).get("word_count")
+        if not isinstance(count, int):
+            continue
+        offset = int((event.occurred_at - started_at).total_seconds())
+        samples.append(ProgressSample(offset_seconds=max(0, offset), word_count=count))
+    return tuple(sorted(samples, key=lambda s: s.offset_seconds))
+
+
 def _build_process_context(
     text: str,
     duration_seconds: int | None,
     revision_count: int,
     paste_char_count: int = 0,
+    progress: tuple = (),
 ) -> ProcessContext:
     """Rakit metadata pengerjaan untuk sinyal forensik E1.
 
@@ -137,6 +153,7 @@ def _build_process_context(
         revision_count=revision_count,
         word_count=len(text.split()),
         char_count=len(text),
+        progress=progress,
         paste_char_count=paste_char_count,
     )
 
@@ -473,11 +490,29 @@ class SubmissionListView(APIView):
             started_at = submitted_at
         duration_seconds = int((submitted_at - started_at).total_seconds())
 
+        # Cuplikan di luar rentang mulai sampai kumpul dibuang. Klien yang
+        # mengarang jejak tidak dipercaya begitu saja, dan cap waktu di luar
+        # jendela pengerjaan pasti bukan hasil pengetikan yang nyata.
+        samples = [
+            s
+            for s in validated.get("progress") or []
+            if started_at <= s["at"] <= submitted_at
+        ]
+        progress = tuple(
+            ProgressSample(
+                offset_seconds=max(0, int((s["at"] - started_at).total_seconds())),
+                word_count=s["word_count"],
+            )
+            for s in sorted(samples, key=lambda s: s["at"])
+        )
+
         analysis = run_analysis(
             text_answer,
             assignment.class_ref.education_level,
             assignment.expected_bloom_level,
-            _build_process_context(text_answer, duration_seconds, revision_count=0),
+            _build_process_context(
+                text_answer, duration_seconds, revision_count=0, progress=progress
+            ),
         )
         with transaction.atomic():
             submission = Submission.objects.create(
@@ -504,6 +539,16 @@ class SubmissionListView(APIView):
                         payload={},
                         occurred_at=submitted_at,
                     ),
+                ]
+                + [
+                    ReasoningEvent(
+                        submission=submission,
+                        event_type=EventType.PROGRESS,
+                        payload={"word_count": sample.word_count},
+                        occurred_at=started_at
+                        + timedelta(seconds=sample.offset_seconds),
+                    )
+                    for sample in progress
                 ]
             )
             AnalysisResult.objects.create(submission=submission, **analysis)

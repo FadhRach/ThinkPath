@@ -3,7 +3,12 @@ export type EducationLevel = "D3" | "S1" | "S2" | "S3";
 export type AiBand = "low" | "mid" | "high";
 export type Confidence = "low" | "medium" | "high" | "";
 export type SubmissionStatus = "draft" | "submitted" | "reviewed";
-export type EventType = "started" | "revision" | "paste" | "submitted";
+export type EventType =
+  | "started"
+  | "revision"
+  | "paste"
+  | "submitted"
+  | "progress";
 export type AnalysisSource = "llm" | "heuristic" | "seed";
 export type VerificationStatus = "scheduled" | "completed" | "cancelled";
 /** Baris pada halaman Daftar Tugas dosen: sama seperti AssignmentSummary,

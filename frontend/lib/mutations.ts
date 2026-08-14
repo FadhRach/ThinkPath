@@ -45,9 +45,16 @@ export function createAssignment(classId: string, input: CreateAssignmentInput) 
   );
 }
 
+/** Satu cuplikan jumlah kata pada satu titik waktu selama pengerjaan. */
+export interface ProgressSample {
+  at: string;
+  word_count: number;
+}
+
 export interface SubmitAnswerInput {
   text_answer: string;
   started_at: string;
+  progress?: ProgressSample[];
 }
 
 export function submitAnswer(assignmentId: string, input: SubmitAnswerInput) {

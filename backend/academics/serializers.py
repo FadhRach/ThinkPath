@@ -206,9 +206,19 @@ class SubmissionListSerializer(serializers.ModelSerializer):
         return {"ai_band": analysis.ai_band, "bloom_level": analysis.bloom_level}
 
 
+class ProgressSampleSerializer(serializers.Serializer):
+    """Satu cuplikan jumlah kata pada satu titik waktu."""
+
+    at = serializers.DateTimeField()
+    word_count = serializers.IntegerField(min_value=0, max_value=100_000)
+
+
 class SubmissionCreateSerializer(serializers.Serializer):
     text_answer = serializers.CharField(min_length=50)
     started_at = serializers.DateTimeField(required=False)
+    # Dibatasi supaya satu permintaan tidak bisa membanjiri basis data. Dengan
+    # cuplikan tiap 30 detik, 240 sampel setara dua jam pengerjaan.
+    progress = ProgressSampleSerializer(many=True, required=False, max_length=240)
 
 
 class ReasoningEventSerializer(serializers.ModelSerializer):
