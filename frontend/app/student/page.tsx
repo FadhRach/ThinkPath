@@ -7,6 +7,7 @@ import { JoinCodeForm } from "@/components/student/JoinCodeForm";
 import { StudentClassCard } from "@/components/student/StudentClassCard";
 import { Card } from "@/components/ui/card";
 import { getMe, getStudentClasses } from "@/lib/data";
+import { formatDateLong } from "@/lib/formatting";
 import type { StudentClassWithAssignments } from "@/lib/types";
 
 interface Overview {
@@ -48,23 +49,20 @@ function deriveOverview(classes: StudentClassWithAssignments[]): Overview {
   };
 }
 
-const TODAY = new Date().toLocaleDateString("id-ID", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
 export default async function StudentPage() {
   const [me, classes] = await Promise.all([getMe(), getStudentClasses()]);
   const overview = deriveOverview(classes);
+  // Dihitung per render, bukan sekali saat modul dimuat. Sebagai konstanta
+  // modul, tanggalnya membeku pada saat server dinyalakan dan besok masih
+  // menampilkan hari kemarin.
+  const today = formatDateLong();
   const firstName = (me.display_name || me.email).split(" ")[0];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={`Selamat datang, ${firstName}`}
-        subtitle={`${TODAY} · ${overview.activeCount} tugas menunggu diselesaikan`}
+        subtitle={`${today} · ${overview.activeCount} tugas menunggu diselesaikan`}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

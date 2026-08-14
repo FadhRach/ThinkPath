@@ -9,7 +9,11 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getApiErrorMessage } from "@/lib/api-shared";
-import { formatClockHHMM } from "@/lib/formatting";
+import {
+  formatClockHHMM,
+  formatDateTimeInput,
+  parseDateTimeInput,
+} from "@/lib/formatting";
 import { cancelVerification, saveVerification } from "@/lib/mutations";
 import type { VerificationOutcome, VerificationView } from "@/lib/types";
 import {
@@ -32,13 +36,6 @@ const OUTCOMES: Exclude<VerificationOutcome, "">[] = [
   "inconclusive",
 ];
 
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 /**
  * Tindak lanjut dari rekomendasi sistem.
  *
@@ -52,7 +49,7 @@ function toLocalInput(iso: string | null): string {
 export function VerificationPanel({ submissionId, verification }: Props) {
   const router = useRouter();
   const [scheduledAt, setScheduledAt] = useState(
-    toLocalInput(verification?.scheduled_at ?? null),
+    formatDateTimeInput(verification?.scheduled_at ?? null),
   );
   const [notes, setNotes] = useState(verification?.notes ?? "");
   const [outcome, setOutcome] = useState<VerificationOutcome>(
@@ -192,7 +189,7 @@ export function VerificationPanel({ submissionId, verification }: Props) {
             run(() =>
               saveVerification(submissionId, {
                 status: "scheduled",
-                scheduled_at: new Date(scheduledAt).toISOString(),
+                scheduled_at: parseDateTimeInput(scheduledAt),
                 notes,
               }),
             )

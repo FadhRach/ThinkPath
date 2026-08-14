@@ -2,7 +2,7 @@ import { ClipboardPaste, Flag, PenLine, Send } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import type { EventType, ReasoningEventView } from "@/lib/types";
-import { formatClockHHMM } from "@/lib/formatting";
+import { DISPLAY_TIME_ZONE, formatClockHHMM } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -140,9 +140,9 @@ export function ProcessTimeline({ events, startedAt, submittedAt }: Props) {
       </ul>
 
       <p className="text-caption text-muted-foreground">
-        Jam dirender di server dan mengikuti zona waktunya, sama seperti waktu
-        mulai dan kumpul di atas. Pola di sini bahan tanya, bukan bukti:
-        menempel kutipan panjang adalah hal biasa dalam menulis akademik.
+        Seluruh jam ditampilkan dalam {DISPLAY_TIME_ZONE.replace("_", " ")}.
+        Pola di sini bahan tanya, bukan bukti: menempel kutipan panjang adalah
+        hal biasa dalam menulis akademik.
       </p>
     </div>
   );
