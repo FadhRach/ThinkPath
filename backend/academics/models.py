@@ -43,6 +43,11 @@ class EventType(models.TextChoices):
     REVISION = "revision", "Revision"
     PASTE = "paste", "Paste"
     SUBMITTED = "submitted", "Submitted"
+    # Cuplikan jumlah kata berkala selama mahasiswa mengerjakan. Inilah satu
+    # satunya masukan proses yang tidak bisa dikalahkan hanya dengan menunggu:
+    # menempel lalu diam meninggalkan garis datar yang tidak mungkin tertukar
+    # dengan menulis sungguhan.
+    PROGRESS = "progress", "Progress"
 
 
 class SubmissionStatus(models.TextChoices):

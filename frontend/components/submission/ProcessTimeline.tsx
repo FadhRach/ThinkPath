@@ -23,6 +23,9 @@ const EVENT_META: Record<EventType, { icon: LucideIcon; tone: string; label: str
   revision: { icon: PenLine, tone: "text-primary", label: "Revisi" },
   paste: { icon: ClipboardPaste, tone: "text-danger", label: "Tempel" },
   submitted: { icon: Send, tone: "text-muted-foreground", label: "Kumpul" },
+  // Cuplikan berkala tidak digambar sebagai penanda: jumlahnya puluhan dan
+  // akan menutupi linimasa. Ia punya kurvanya sendiri di bawah.
+  progress: { icon: PenLine, tone: "text-muted-foreground", label: "Cuplikan" },
 };
 
 function detailFor(event: ReasoningEventView): string {
@@ -40,6 +43,7 @@ function detailFor(event: ReasoningEventView): string {
 
 function toMarkers(events: ReasoningEventView[]): Marker[] {
   return [...events]
+    .filter((event) => event.event_type !== "progress")
     .sort(
       (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime(),
     )
@@ -49,6 +53,72 @@ function toMarkers(events: ReasoningEventView[]): Marker[] {
       label: EVENT_META[event.event_type]?.label ?? event.event_type,
       detail: detailFor(event),
     }));
+}
+
+interface GrowthPoint {
+  offset: number;
+  words: number;
+}
+
+function toGrowth(events: ReasoningEventView[], startedAt: string): GrowthPoint[] {
+  const start = new Date(startedAt).getTime();
+  return events
+    .filter((event) => event.event_type === "progress")
+    .map((event) => ({
+      offset: new Date(event.occurred_at).getTime() - start,
+      words: typeof event.payload?.word_count === "number" ? event.payload.word_count : 0,
+    }))
+    .sort((a, b) => a.offset - b.offset);
+}
+
+/**
+ * Kurva pertumbuhan kata sepanjang pengerjaan.
+ *
+ * Bentuknya yang bercerita, bukan angkanya. Menulis sungguhan menanjak
+ * bertahap; menempel lalu menunggu menghasilkan satu dinding tegak diikuti
+ * dataran panjang. Dosen tidak perlu membaca satu angka pun untuk melihat
+ * bedanya, dan itu sengaja: layar ini menyodorkan bukti, bukan vonis.
+ */
+function GrowthCurve({ points }: { points: GrowthPoint[] }) {
+  const last = points[points.length - 1];
+  const maxWords = Math.max(...points.map((p) => p.words), 1);
+  const span = Math.max(last.offset, 1);
+
+  const path = points
+    .map((point, index) => {
+      const x = (point.offset / span) * 100;
+      const y = 100 - (point.words / maxWords) * 100;
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-caption text-muted-foreground">
+        Pertumbuhan kata, {points.length} cuplikan sampai {maxWords} kata
+      </p>
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="h-20 w-full rounded-lg bg-muted/40"
+        role="img"
+        aria-label={`Kurva pertumbuhan kata dari ${points.length} cuplikan`}
+      >
+        <path
+          d={`${path} L 100 100 L 0 100 Z`}
+          fill="hsl(var(--brand-teal) / 0.14)"
+          stroke="none"
+        />
+        <path
+          d={path}
+          fill="none"
+          stroke="hsl(var(--brand-teal))"
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
+  );
 }
 
 /**
@@ -66,6 +136,7 @@ function toMarkers(events: ReasoningEventView[]): Marker[] {
  */
 export function ProcessTimeline({ events, startedAt, submittedAt }: Props) {
   const markers = toMarkers(events);
+  const growth = toGrowth(events, startedAt);
 
   if (markers.length === 0) {
     return (
@@ -114,6 +185,8 @@ export function ProcessTimeline({ events, startedAt, submittedAt }: Props) {
           );
         })}
       </div>
+
+      {growth.length >= 2 ? <GrowthCurve points={growth} /> : null}
 
       <ul className="space-y-2 border-t border-border pt-3">
         {markers.map((marker, index) => {

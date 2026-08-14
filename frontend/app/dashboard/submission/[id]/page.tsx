@@ -12,6 +12,7 @@ import {
 } from "@/components/submission/AnalysisSourceBadge";
 import { ConfidenceBadge } from "@/components/submission/ConfidenceBadge";
 import { ProcessTimeline } from "@/components/submission/ProcessTimeline";
+import { SentenceRhythm } from "@/components/submission/SentenceRhythm";
 import { SignalBreakdown } from "@/components/submission/SignalBreakdown";
 import { EvidenceNotVerdictBanner } from "@/components/submission/EvidenceNotVerdictBanner";
 import { EvidenceStrip } from "@/components/submission/EvidenceStrip";
@@ -139,9 +140,13 @@ export default async function SubmissionDetailPage({
 
           <Card className="space-y-3 p-5 shadow-soft">
             <p className="caption-eyebrow text-primary">Jawaban Mahasiswa</p>
-            <p className="whitespace-pre-wrap text-body text-foreground">
-              {detail.text_answer || "Belum ada teks jawaban."}
-            </p>
+            {detail.text_answer ? (
+              <SentenceRhythm text={detail.text_answer} />
+            ) : (
+              <p className="text-body text-muted-foreground">
+                Belum ada teks jawaban.
+              </p>
+            )}
           </Card>
 
           <GradingForm
