@@ -28,6 +28,9 @@ export default async function LaporanPage() {
   }
 
   const belowRatio = analysed > 0 ? overview.cognitive_gap.below / analysed : 0;
+  // Detektor eksternal sengaja tidak ikut dihitung di sini. Yang dimaksud
+  // "belum terverifikasi" adalah angka yang berasal dari hitungan cadangan atau
+  // data contoh, bukan angka yang berasal dari jalur analisis nyata.
   const unverified = overview.provenance.heuristic + overview.provenance.seed;
 
   return (

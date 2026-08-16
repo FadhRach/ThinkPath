@@ -25,7 +25,6 @@ from academics.models import (
     Assignment,
     Class,
     ClassMembership,
-    Confidence,
     EventType,
     ReasoningEvent,
     Submission,

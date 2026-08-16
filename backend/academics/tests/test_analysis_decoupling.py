@@ -19,6 +19,7 @@ from django.test import SimpleTestCase
 
 from academics import ai_score as ai_score_module
 from academics import bloom as bloom_module
+from academics import detector as detector_module
 from academics.ai_score import (
     PROCESS_WEIGHT,
     TEXT_WEIGHTS,
@@ -219,6 +220,20 @@ class NoCircularImportTest(SimpleTestCase):
             name for name in _code_identifiers(ai_score_module) if "bloom" in name
         }
         self.assertEqual(offenders, set(), f"ai_score.py menyentuh E2 lewat: {offenders}")
+
+    def test_detector_module_never_references_bloom(self):
+        """Detektor eksternal masuk lewat E1, jadi ia tunduk pada aturan yang sama.
+
+        Detektor hanya memberi skor AI. Kalau suatu saat ada yang tergoda
+        memakai keluarannya untuk menaksir level kognitif, tes ini yang gagal
+        lebih dulu.
+        """
+        offenders = {
+            name for name in _code_identifiers(detector_module) if "bloom" in name
+        }
+        self.assertEqual(
+            offenders, set(), f"detector.py menyentuh E2 lewat: {offenders}"
+        )
 
     def test_band_to_bloom_no_longer_exists(self):
         from academics import analysis

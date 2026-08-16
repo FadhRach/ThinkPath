@@ -59,6 +59,9 @@ def build_overview(classes: QuerySet[Class]) -> dict:
             "id", filter=Q(analysis__analysis_source=AnalysisSource.HEURISTIC)
         ),
         seed=Count("id", filter=Q(analysis__analysis_source=AnalysisSource.SEED)),
+        detector=Count(
+            "id", filter=Q(analysis__analysis_source=AnalysisSource.DETECTOR)
+        ),
     )
 
     return {

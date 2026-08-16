@@ -9,7 +9,7 @@ export type EventType =
   | "paste"
   | "submitted"
   | "progress";
-export type AnalysisSource = "llm" | "heuristic" | "seed";
+export type AnalysisSource = "llm" | "detector" | "heuristic" | "seed";
 export type VerificationStatus = "scheduled" | "completed" | "cancelled";
 /** Baris pada halaman Daftar Tugas dosen: sama seperti AssignmentSummary,
  *  ditambah asal kelasnya karena di sana tugas lintas kelas bercampur. */
@@ -185,8 +185,9 @@ export interface ReportOverview {
   analysed_count: number;
   cognitive_gap: { below: number; on_target: number; above: number };
   ai_band: { low: number; mid: number; high: number };
-  /** Berapa banyak angka berasal dari analisis penuh, cadangan, atau data demo. */
-  provenance: { llm: number; heuristic: number; seed: number };
+  /** Berapa banyak angka berasal dari detektor eksternal, analisis penuh,
+   *  cadangan, atau data demo. */
+  provenance: { llm: number; detector: number; heuristic: number; seed: number };
 }
 
 export interface ReportPayload {

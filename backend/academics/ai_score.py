@@ -216,10 +216,42 @@ def _signal_lexical_uniformity(features: TextFeatures) -> SignalScore:
     )
 
 
+# Ambang band heuristik. Yang bawah HASIL UKUR, yang atas belum.
+#
+# MID 56 berasal dari ai_experiment/src/evaluate_baseline.py pada gold set 999
+# sampel: itulah ambang terendah yang menjaga false positive rate di bawah 5
+# persen (terukur 0,036, yaitu 18 dari 500 tulisan manusia). Nilai sebelumnya 35
+# ditulis dari penalaran, bukan dari pengukuran, dan pada 35 FPR-nya 0,838 -
+# 84 persen tulisan manusia ikut tertuduh, dengan presisi setara lempar koin.
+#
+# Kenapa angka dari gold set beregister salah tetap dipakai. Gold setnya berisi
+# abstrak akademik sedangkan produk ini menilai esai mahasiswa, dan itu memang
+# ketidakcocokan yang nyata. Tetapi ARAH biasnya bisa diketahui: abstrak
+# akademik menurut konvensinya lebih formal, lebih impersonal, dan lebih seragam
+# daripada esai mahasiswa, sehingga tulisan manusia di gold set mendapat skor
+# LEBIH TINGGI daripada tulisan manusia yang sebenarnya dinilai produk ini.
+# Ambang yang menahan FPR pada korpus yang lebih sulit itu akan lebih longgar,
+# bukan lebih ketat, ketika dipakai pada esai mahasiswa. Kesalahannya jatuh ke
+# arah tidak menuduh, dan itu arah yang benar untuk produk yang berpegang pada
+# "bukti, bukan vonis".
+#
+# Harganya recall: 0,489 pada 56, turun dari 0,986 pada 35. Itu pertukaran yang
+# disengaja. Sistem ini tidak memvonis, ia mengurutkan siapa yang paling layak
+# diajak bicara lebih dulu, dan daftar yang memuat 84 persen kelas tidak
+# mengurutkan apa pun.
+#
+# HIGH 70 SENGAJA TIDAK DIGESER dan masih belum terukur. Pada gold set tidak ada
+# satu pun sampel yang mencapainya, jadi tidak ada data untuk menempatkannya.
+# Band tinggi praktis tidak pernah aktif, dan itu lebih baik daripada band
+# tinggi yang aktif berdasarkan angka karangan.
+MID_THRESHOLD = 56
+HIGH_THRESHOLD = 70
+
+
 def score_to_band(ai_score: int) -> str:
-    if ai_score < 35:
+    if ai_score < MID_THRESHOLD:
         return AiBand.LOW
-    if ai_score < 70:
+    if ai_score < HIGH_THRESHOLD:
         return AiBand.MID
     return AiBand.HIGH
 

@@ -1,16 +1,25 @@
 import type { AnalysisSource } from "@/lib/types";
 
 /**
- * Menandai mesin yang menghasilkan satu hasil analisis.
+ * Menandai mesin yang menghasilkan SKOR AI pada satu hasil analisis.
  *
  * Tanpa penanda ini, hasil heuristik dangkal tampil identik dengan hasil LLM di
  * layar dosen. Dosen berhak tahu bahwa angka yang sedang dilihatnya berasal dari
  * hitungan cadangan, bukan dari analisis penuh.
+ *
+ * Cakupannya sengaja sempit: yang ditandai hanya asal skor AI, bukan asal
+ * seluruh baris. Level Bloom bisa datang dari mesin yang berbeda pada
+ * submission yang sama, dan keyakinannya punya penandanya sendiri.
  */
 const SOURCE_COPY: Record<AnalysisSource, { label: string; hint: string; tone: string }> = {
   llm: {
     label: "Analisis penuh",
     hint: "Dihitung oleh model bahasa.",
+    tone: "bg-muted text-muted-foreground",
+  },
+  detector: {
+    label: "Detektor eksternal",
+    hint: "Skor AI berasal dari detektor khusus, bukan dari sinyal teks internal. Penyedianya mencantumkan bahasa Indonesia, tetapi ketepatannya belum kami ukur sendiri, jadi angkanya tetap bahan tinjau, bukan kesimpulan. Nama penyedia dan versi modelnya tercatat di panel Asal Skor AI.",
     tone: "bg-muted text-muted-foreground",
   },
   heuristic: {

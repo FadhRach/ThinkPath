@@ -23,6 +23,9 @@ anotator sama sekali.
 |---|---|
 | `src/build_gold_set.py` | membangun set uji manusia vs AI tanpa anotator |
 | `src/evaluate_baseline.py` | mengukur heuristik produksi terhadap set itu |
+| `src/evaluate_groq.py` | mengukur lapisan kedua rantai, `ai_probability` Groq |
+| `src/evaluate_detector.py` | membandingkan detektor berbayar terhadap heuristik itu |
+| `src/evaluation.py` | kerangka bersama keduanya: cache skor, sampel seimbang, laporan |
 | `src/metrics.py` | ROC-AUC, FPR, korelasi per sinyal |
 
 **E2, level Bloom.** Tidak ada trik seperti itu. Level kognitif tidak tercatat di
@@ -72,7 +75,19 @@ Aman dihentikan di tengah jalan. Hasil sementara ditulis sebagai JSONL di
 | `--human-only` | hanya unduh sisi manusia, lewati LLM |
 | `--include-mixed` | tambah kelas campuran, teks manusia dipoles AI |
 | `--models a,b,c` | daftar model Groq, default tiga model |
+| `--sleep S` | jeda antar generasi, default 1.0 |
 | `--split-by work\|field` | strategi pemisahan train dan test |
+
+`--sleep` bukan kesopanan. Batas laju Groq dihitung **per menit dan per model**,
+dan model terbesar punya jatah paling sempit. Tanpa jeda, permintaan menumpuk
+sampai model besar menjawab 429 sementara dua model kecil tetap lolos, sehingga
+yang hilang selalu generator yang sama. Uji jalan penuh yang pertama kehilangan
+30 sampel dengan cara ini, seluruhnya dari `llama-3.3-70b-versatile`, dan
+sebarannya menjadi 136 berbanding 167 dan 167. Kehilangan acak hanya mengurangi
+jumlah sampel; kehilangan yang selalu jatuh pada satu generator membuat sisi AI
+condong ke gaya dua model saja. **Selalu baca sebaran generator di ringkasan
+akhir**, karena di situlah ketimpangan ini terlihat, dan naikkan `--sleep` lalu
+jalankan ulang kalau timpang. Cache membuat pengulangan itu murah.
 
 ## Mengukur heuristik yang sudah dipakai produksi
 
@@ -101,6 +116,124 @@ Jalankan tes metriknya lebih dulu kalau ragu:
 ```bash
 python -m unittest discover -s tests
 ```
+
+## Mengukur lapisan kedua rantai, Groq
+
+```bash
+python -m src.evaluate_groq --limit 64 --sleep 1.0
+```
+
+Subsetnya diambil **berselang seling** manusia dan AI, bukan berurutan. Itu
+bukan kerapian: gold set tersimpan manusia dulu baru AI, dan kedua skrip
+evaluasi pasti berhenti di tengah jalan karena kredit atau kuota. Dengan urutan
+asli, potongan yang terkumpul seluruhnya satu kelas, ROC-AUC tidak terdefinisi,
+dan cache yang terlihat penuh tetap tidak bisa menghasilkan satu angka pun.
+Kejadian itu sudah pernah terjadi: 26 skor pertama ternyata 25 manusia dan 1 AI.
+
+Jalankan perintah yang sama **sekali sehari** sampai jumlah sampelnya memadai.
+Groq membatasi `llama-3.3-70b-versatile` di 100.000 token per hari, sedangkan
+satu penilaian memakan sekitar 1.550 token karena prompt sistem produksi ikut
+terkirim setiap kali. Jadi jatah sehari sekitar 64 sampel, dan 200 sampel butuh
+sekitar tiga hari. Skrip berhenti sendiri dengan pesan yang jelas begitu jatah
+habis, bukan dengan traceback, dan skor yang sudah terambil tersimpan di cache
+sehingga hari berikutnya melanjutkan.
+
+Naikkan `--limit` hanya kalau jatah hariannya sudah dinaikkan. `--limit 0`
+berarti seluruh gold set, dan pada jatah gratis itu berarti belasan hari.
+
+Rantai E1 di produksi punya tiga lapis, dan sampai skrip ini ada hanya dua yang
+pernah diukur:
+
+```
+detektor eksternal   -> evaluate_detector.py, terukur
+  ai_probability Groq -> BELUM PERNAH DIUKUR
+    heuristik ai_score -> evaluate_baseline.py, terukur
+```
+
+Lapisan tengah inilah yang menanggung seluruh beban begitu kredit detektor
+habis, dan itu bukan kemungkinan yang jauh karena kreditnya terpakai per kata.
+Selama ini ia dianggap lebih baik daripada heuristik tanpa satu pun angka.
+Kalau ternyata tidak, jaring pengaman yang diasumsikan sebenarnya tidak ada,
+dan yang benar benar menangkap adalah heuristik dengan FPR 0,838.
+
+Kerjakan ini **sebelum** menambah kredit detektor: pengukurannya gratis,
+memakai gold set penuh, dan hasilnya yang menentukan apakah membayar detektor
+eksternal masih masuk akal.
+
+Tiga hal yang membentuk rancangan skrip ini:
+
+- **Fungsi produksi dipanggil langsung, bukan disalin.** Prompt, model,
+  temperatur, dan pembatasan nilai diambil dari `backend/academics/llm.py`.
+  Kalau prompt produksi berubah, angka di sini ikut berubah.
+- **Kunci cache memuat nama model.** `data/cache/groq_scores.jsonl` berkunci
+  SHA-256 dari `model|teks`. Tanpa nama model di kunci, mengganti `GROQ_MODEL`
+  akan membaca skor model lama dan melaporkannya sebagai hasil model baru.
+- **Yang diulang hanya kegagalan sementara.** Groq memakai 429 untuk dua hal
+  yang penanganannya berlawanan: batas **per menit** yang pulih dalam hitungan
+  detik dan memang layak ditunggu, dan batas **per hari** yang tidak akan pulih
+  berapa kali pun diulang. Keduanya terlihat identik kalau yang dibaca cuma kode
+  statusnya, jadi skrip membaca isi pesannya: yang per menit dicoba ulang dengan
+  backoff, yang per hari berhenti seketika. Kunci ditolak juga dilempar
+  langsung. Kunci Groq yang kedaluwarsa pernah menyamar sebagai kegagalan biasa
+  selama lima percobaan, dan itu tidak perlu terjadi dua kali.
+
+Satu ketidakcocokan tambahan yang khas skrip ini dan dicetak di keluarannya:
+prompt produksi meminta model menilai **jawaban mahasiswa**, sedangkan yang
+diberikan di sini abstrak jurnal yang ditulis peneliti terlatih. Tulisan rapi
+cenderung dinilai lebih mirip AI, jadi angka Groq di sini condong **pesimis**,
+bukan optimis.
+
+## Membandingkan detektor berbayar terhadap heuristik itu
+
+```bash
+python -m src.evaluate_detector --limit 40
+python -m src.evaluate_detector --limit 200 --sleep 0.5
+```
+
+Butuh `WINSTON_API_KEY` di `.env`. Skrip ini menilai **kedua** detektor pada
+subset yang sama persis, lalu melaporkan ROC-AUC-nya berdampingan. Perbandingan
+pada subset identik itu bukan kerapian: mengukur detektor di 40 sampel lalu
+membandingkannya dengan angka heuristik di 921 sampel yang sudah tercatat di
+README utama adalah perbandingan yang tidak sah, dan godaannya besar justru
+karena angka itu sudah ada.
+
+Kenapa berkas ini ada sama sekali. Integrasi detektor eksternal yang pertama
+memakai **Sapling** dan dibatalkan sebelum sempat diukur, setelah ketahuan
+detektornya **English-only** sementara produk ini menilai esai berbahasa
+Indonesia. Winston mencantumkan `id` di daftar bahasa API-nya, tetapi itu tetap
+klaim penyedia. Klaim penyedia bukan hasil ukur, dan skrip inilah yang
+mengubahnya jadi angka.
+
+Empat hal yang membentuk rancangan skrip ini:
+
+- **Kredit terpakai per kata.** Winston menghitung satu kredit per kata, bukan
+  per permintaan, dan pendaftaran baru hanya memberi 2.500 kredit sedangkan gold
+  set penuh sekitar 170.000 kata. Karena itu `--limit` defaultnya 40, sampelnya
+  diseimbangkan manusia dan AI supaya limit kecil pun tetap bisa dihitung
+  ROC-AUC-nya, dan setiap skor yang pernah dibayar disimpan ke
+  `data/cache/detector_scores.jsonl` berkunci SHA-256 teks. Menjalankan ulang
+  skrip tidak membayar dua kali. Kalau kredit habis di tengah jalan, skrip
+  berhenti dengan pesan 402 dan skor yang sudah terambil tetap tersimpan, jadi
+  setelah saldo diisi ia melanjutkan alih alih mengulang.
+- **Arah skornya terbalik.** Winston mengembalikan *human score*: 0 berarti
+  hampir pasti AI, 100 berarti hampir pasti manusia. Yang disimpan ke cache
+  selalu probabilitas AI yang sudah dibalik, dan konvensi itu dikunci tes.
+  URL, versi model, dan kode bahasa diimpor dari `backend/academics/detector.py`,
+  bukan disalin, supaya kalibrasi tidak pernah mengukur konfigurasi yang berbeda
+  dari yang benar benar jalan di produksi.
+- **Teks di luar rentang panjang dibuang lebih dulu.** Winston menolak di bawah
+  300 karakter. Kalau ditolak satu per satu di tengah proses, sampel yang
+  tersisa jadi condong ke teks panjang tanpa ada yang menyadarinya, dan angkanya
+  ikut condong.
+- **Ambang produksi detektor masih kosong.** Angka "ambang yang menjaga FPR di
+  bawah 5 persen" untuk baris detektor adalah yang mengisi `MID_THRESHOLD` di
+  `backend/academics/detector.py`. Jangan menyalin ambang heuristik ke sana:
+  kedua sebaran skor bentuknya berbeda, dan ambang pinjaman terdengar masuk akal
+  sambil menyesatkan tanpa suara.
+
+Kalau hasilnya menunjukkan detektor berbayar tidak mengungguli heuristik,
+jawabannya adalah mencabut integrasinya, bukan menggeser ambang sampai angkanya
+terlihat bagus.
 
 ## Memvalidasi E2 level Bloom
 
@@ -245,6 +378,35 @@ Tiga penjaga umum bekerja terlepas dari model mana yang dipakai: keluaran yang
 didominasi kata fungsi bahasa Inggris ditolak, keluaran di bawah 50 kata
 ditolak, dan sampel yang panjangnya tetap meleset lebih dari dua kali toleransi
 setelah satu koreksi akan dibuang.
+
+### Kenapa pembersih label dipecah jadi dua pola
+
+Pembangunan sisi AI pernah berhenti karena pembersih label pembuka menghapus
+seluruh abstrak. Satu pola menangani `Judul:` dan `Abstrak:` sekaligus dan
+ditutup dengan `(?::[ \t]*.*)?$`. Ketika model membalas seluruh abstrak dalam
+**satu baris** yang diawali `Abstrak: `, bagian `.*` melahap sampai akhir baris,
+yaitu seluruh teks, sehingga hasil bersihnya nol kata dan kelima percobaan
+habis.
+
+Kegagalannya bukan acak. Seluruhnya jatuh pada kombinasi
+`llama-3.3-70b-versatile` dengan varian prompt `structured`, karena kombinasi
+itulah yang membuat model konsisten memberi awalan `Abstrak: `. Artinya satu sel
+penuh rancangan eksperimen hilang, sekitar 8 persen sampel, dan hilangnya
+sistematis. Kehilangan acak hanya mengurangi jumlah sampel; kehilangan
+sistematis membuat detektor tidak pernah melihat satu gaya prompt dari satu
+model.
+
+Perbaikannya memisahkan dua label karena nasib isinya memang berbeda. Isi
+setelah `Judul:` adalah metadata dan harus ikut dibuang, sedangkan isi setelah
+`Abstrak:` **adalah abstraknya** sehingga hanya labelnya yang boleh dibuang.
+Pola judul juga mensyaratkan baris baru di akhir, sehingga keluaran yang
+seluruhnya satu baris tidak mungkin terhapus habis. Ketiga kasusnya dikunci tes
+di `tests/test_generate.py`.
+
+Pelajaran operasionalnya sudah dimasukkan ke pesan galat: ketika keluaran
+bersih terlalu pendek, jumlah kata **mentah** ikut dilaporkan. Tanpa itu, bug
+di pembersih menyamar sebagai "model membalas pendek" padahal modelnya membalas
+124 kata dengan rapi.
 
 ## Batasan yang harus ditulis di naskah
 
