@@ -99,6 +99,17 @@ def build_profile(submissions: QuerySet[Submission]) -> list[dict]:
     analysed = (
         submissions.filter(analysis__isnull=False)
         .select_related("analysis", "assignment", "assignment__class_ref")
+        # Profil kognitif hanya membaca angka kecil; esai dan kolom teks
+        # analisis tidak perlu ikut terangkut dari database remote.
+        .defer(
+            "text_answer",
+            "teacher_feedback",
+            "assignment__instructions",
+            "analysis__signals",
+            "analysis__signal_breakdown",
+            "analysis__summary",
+            "analysis__recommendation",
+        )
         .order_by("submitted_at")
     )
 

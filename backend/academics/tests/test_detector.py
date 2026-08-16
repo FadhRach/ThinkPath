@@ -154,11 +154,12 @@ class HappyPathTest(TestCase):
         self.assertEqual(result["analysis_source"], AnalysisSource.DETECTOR)
         self.assertGreater(result["ai_score"], 50)
 
-    def test_breakdown_names_detector_and_process(self):
+    def test_breakdown_names_detector_and_process_first(self):
+        """Dua baris penyumbang skor di depan, baris pembanding di belakang."""
         with _with_key(), _winston_says(30):
             result = _analyse()
         keys = [row["key"] for row in result["signal_breakdown"]]
-        self.assertEqual(keys, ["external_detector", "process_forensics"])
+        self.assertEqual(keys[:2], ["external_detector", "process_forensics"])
 
     def test_evidence_records_provider_and_version(self):
         """analysis_source hanya mencatat "detector", jadi jejak auditnya di sini."""
@@ -185,8 +186,8 @@ class HappyPathTest(TestCase):
         """Angka tanpa alasannya adalah persis yang produk ini tolak."""
         with _with_key(), _winston_says(39):
             result = _analyse(process=None)
-        self.assertEqual(len(result["signal_breakdown"]), 1)
         self.assertEqual(result["signal_breakdown"][0]["key"], "external_detector")
+        self.assertEqual(result["signal_breakdown"][0]["weight"], 1.0)
         self.assertEqual(result["ai_score"], 61)
 
     def test_prose_follows_the_number(self):
@@ -209,6 +210,63 @@ class HappyPathTest(TestCase):
             with self.subTest(human_score=human_score):
                 with _with_key(), _winston_says(human_score):
                     self.assertNotEqual(_analyse()["confidence"], "high")
+
+
+class HeuristicContextRowsTest(TestCase):
+    """Baris pembanding S1-S5 pada jalur detektor: tampil, tapi tidak menilai.
+
+    Dosen ingin tetap bisa membedah gaya teks meski angkanya dari detektor.
+    Yang dijaga di sini: baris tambahan itu TIDAK pernah menyumbang skor,
+    karena detektor dan kelima sinyal membaca teks yang sama dan menjumlahkan
+    keduanya berarti menghitung ganda bukti yang sama.
+    """
+
+    HEURISTIC_KEYS = {
+        "uniformity",
+        "formulaic_phrasing",
+        "impersonality",
+        "flat_certainty",
+        "lexical_uniformity",
+    }
+
+    def test_detector_path_includes_all_five_context_rows(self):
+        with _with_key(), _winston_says(30):
+            result = _analyse()
+        keys = {row["key"] for row in result["signal_breakdown"]}
+        self.assertTrue(self.HEURISTIC_KEYS.issubset(keys))
+
+    def test_context_rows_carry_zero_weight_and_zero_contribution(self):
+        with _with_key(), _winston_says(30):
+            result = _analyse()
+        for row in result["signal_breakdown"]:
+            if row["key"] in self.HEURISTIC_KEYS:
+                with self.subTest(key=row["key"]):
+                    self.assertEqual(row["weight"], 0.0)
+                    self.assertEqual(row["contribution"], 0.0)
+
+    def test_score_is_identical_with_and_without_context_rows(self):
+        """Baris pembanding murni tampilan; angka akhirnya tidak boleh bergeser.
+
+        Skor direkonstruksi dari baris berbobot saja dan harus tetap sama
+        dengan ai_score, membuktikan baris nol benar benar menyumbang nol.
+        """
+        with _with_key(), _winston_says(39):
+            result = _analyse()
+        weighted_total = sum(
+            row["contribution"] for row in result["signal_breakdown"]
+        )
+        self.assertAlmostEqual(weighted_total, result["ai_score"], delta=1.0)
+
+    def test_heuristic_path_has_no_zero_weight_duplicates(self):
+        """Jalur heuristik sudah menampilkan kelimanya sebagai penyumbang skor;
+        menambahkan salinan berbobot nol akan menampilkan sinyal yang sama dua
+        kali dengan dua angka bobot berbeda."""
+        with patch.dict("os.environ", {"WINSTON_API_KEY": "", "GROQ_API_KEY": ""}):
+            result = _analyse()
+        self.assertEqual(result["analysis_source"], AnalysisSource.HEURISTIC)
+        for row in result["signal_breakdown"]:
+            with self.subTest(key=row["key"]):
+                self.assertGreater(row["weight"], 0.0)
 
 
 class LengthGuardTest(TestCase):

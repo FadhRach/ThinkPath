@@ -1,5 +1,4 @@
 from rest_framework import status
-from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,7 +10,11 @@ from .serializers import (
     ProfileSerializer,
     RegisterSerializer,
 )
-from .services import authenticate_credentials, get_profile_by_sub, register_profile
+from .services import (
+    authenticate_credentials,
+    get_request_profile,
+    register_profile,
+)
 
 
 class HealthView(APIView):
@@ -67,18 +70,12 @@ class LoginView(APIView):
 class MeView(APIView):
     """GET profil dari token aktif, PATCH update field yang diizinkan."""
 
-    def _get_profile(self, request):
-        profile = get_profile_by_sub(request.user.sub)
-        if profile is None:
-            raise AuthenticationFailed("Akun tidak ditemukan.")
-        return profile
-
     def get(self, request):
-        profile = self._get_profile(request)
+        profile = get_request_profile(request)
         return Response(ProfileSerializer(profile).data)
 
     def patch(self, request):
-        profile = self._get_profile(request)
+        profile = get_request_profile(request)
         serializer = ProfilePatchSerializer(profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         updated = serializer.save()

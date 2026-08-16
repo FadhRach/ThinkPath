@@ -1,14 +1,12 @@
 "use client";
 
 import { CalendarClock, CheckCircle2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getApiErrorMessage } from "@/lib/api-shared";
 import {
   formatClockHHMM,
   formatDateTimeInput,
@@ -16,6 +14,7 @@ import {
 } from "@/lib/formatting";
 import { cancelVerification, saveVerification } from "@/lib/mutations";
 import type { VerificationOutcome, VerificationView } from "@/lib/types";
+import { useAction } from "@/lib/use-action";
 import {
   OUTCOME_HINT,
   OUTCOME_LABEL,
@@ -47,7 +46,6 @@ const OUTCOMES: Exclude<VerificationOutcome, "">[] = [
  * menyimpulkan saat baru menjadwalkan berarti menyimpulkan sebelum berbicara.
  */
 export function VerificationPanel({ submissionId, verification }: Props) {
-  const router = useRouter();
   const [scheduledAt, setScheduledAt] = useState(
     formatDateTimeInput(verification?.scheduled_at ?? null),
   );
@@ -55,24 +53,10 @@ export function VerificationPanel({ submissionId, verification }: Props) {
   const [outcome, setOutcome] = useState<VerificationOutcome>(
     verification?.outcome ?? "",
   );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { pending: loading, error, run } = useAction("Gagal menyimpan. Coba lagi.");
 
   const status = verification?.status ?? null;
   const isCompleted = status === "completed";
-
-  async function run(action: () => Promise<unknown>) {
-    setError(null);
-    setLoading(true);
-    try {
-      await action();
-      router.refresh();
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Gagal menyimpan. Coba lagi."));
-    } finally {
-      setLoading(false);
-    }
-  }
 
   if (isCompleted) {
     return (

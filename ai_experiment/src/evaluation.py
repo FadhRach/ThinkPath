@@ -31,10 +31,11 @@ from pathlib import Path
 from .config import ensure_dirs
 from .metrics import confusion_at, pearson, roc_auc, threshold_at_max_fpr
 
-# Ambang yang dipakai produksi sekarang. Dicetak untuk kedua mesin supaya
-# terlihat apakah ambang yang sama masuk akal untuk keduanya. Hampir pasti
-# tidak, dan itulah yang ingin ditunjukkan.
-CURRENT_MID_THRESHOLD = 35
+# Ambang yang dipakai produksi sekarang (backend/academics/ai_score.py, satu
+# paket dengan bobot terukur dari tune_weights.py). Dicetak untuk kedua mesin
+# supaya terlihat apakah ambang yang sama masuk akal untuk keduanya. Hampir
+# pasti tidak, dan itulah yang ingin ditunjukkan.
+CURRENT_MID_THRESHOLD = 42
 CURRENT_HIGH_THRESHOLD = 70
 
 MAX_ACCEPTABLE_FPR = 0.05

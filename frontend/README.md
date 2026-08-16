@@ -30,24 +30,31 @@ frontend/
 ├── app/
 │   ├── page.tsx                 # landing
 │   ├── login, register/         # auth (split-screen + role selector)
-│   ├── dashboard/               # GURU
-│   │   ├── page.tsx             # daftar kelas (kartu)
+│   ├── dashboard/               # DOSEN (tiap rute punya loading.tsx skeleton)
+│   │   ├── page.tsx             # overview: peta kelas dua sumbu
 │   │   ├── classes/[classId]/   # detail kelas: tugas + tabel submission
 │   │   └── submission/[id]/     # detail submission + penilaian
-│   └── student/                 # SISWA
+│   └── student/                 # MAHASISWA
 │       ├── page.tsx             # beranda: ringkasan + kelas
 │       └── submit/[assignmentId]/  # kerjakan / revisi jawaban
 ├── components/
-│   ├── common/                  # kit reusable: AppShell, TopNav, StatCard, BloomStepper, ...
+│   ├── charts/                  # SEMUA chart Recharts, dimuat malas (next/dynamic)
+│   ├── common/                  # kit reusable: AppShell, TopNav, PageSkeleton,
+│   │                            #   SectionCard, DataTable, BackLink, StatCard, ...
 │   ├── ui/                      # primitives shadcn
 │   ├── dashboard/, student/, submission/   # fitur per-peran
 ├── lib/
-│   ├── api.ts / api-browser.ts  # fetch server / client (Bearer token dari cookie)
+│   ├── api.ts / api-browser.ts  # fetch server / client; intinya di api-shared.ts
+│   ├── auth-claims.ts           # baca role/email dari JWT cookie tanpa network
+│   ├── use-action.ts            # hook mutasi: pending sampai data baru tampil
 │   ├── data.ts                  # getter data (server), getMe dibungkus React cache()
 │   ├── mutations.ts             # aksi tulis (client)
 │   └── types.ts                 # tipe bersama
 └── middleware.ts                # guard rute /dashboard & /student (cek token)
 ```
+
+Keputusan performa (loading.tsx, layout non-blocking, staleTimes, lazy chart)
+didokumentasikan di [README root bab Performa](../README.md#performa).
 
 ## Menjalankan lokal
 

@@ -157,6 +157,22 @@ class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
         ]
 
 
+class StudentSubmissionStatusListSerializer(StudentSubmissionStatusSerializer):
+    """Varian listing: tanpa text_answer.
+
+    Daftar kelas mahasiswa tidak menampilkan isi esai, jadi mengirimnya berarti
+    mengangkut seluruh tulisan yang pernah dibuat mahasiswa pada setiap buka
+    halaman. Teks tetap tersedia lewat endpoint detail tugas.
+    """
+
+    class Meta(StudentSubmissionStatusSerializer.Meta):
+        fields = [
+            field
+            for field in StudentSubmissionStatusSerializer.Meta.fields
+            if field != "text_answer"
+        ]
+
+
 class SubmissionGradeSerializer(serializers.Serializer):
     grade = serializers.IntegerField(min_value=0, max_value=100)
     teacher_feedback = serializers.CharField(
@@ -165,16 +181,6 @@ class SubmissionGradeSerializer(serializers.Serializer):
 
 
 # --- Submissions -----------------------------------------------------------
-
-
-class StudentMiniSerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    display_name = serializers.CharField()
-
-
-class AnalysisMiniSerializer(serializers.Serializer):
-    ai_band = serializers.CharField()
-    bloom_level = serializers.IntegerField()
 
 
 class SubmissionListSerializer(serializers.ModelSerializer):
@@ -197,7 +203,7 @@ class SubmissionListSerializer(serializers.ModelSerializer):
 
     def get_student(self, obj: Submission) -> dict:
         profile = obj.student_profile
-        return {"id": str(profile.id), "display_name": profile.display_name or profile.email}
+        return {"id": str(profile.id), "display_name": profile.label}
 
     def get_analysis(self, obj: Submission) -> dict | None:
         analysis = getattr(obj, "analysis", None)
@@ -325,8 +331,7 @@ class VerificationQueueSerializer(serializers.ModelSerializer):
         ]
 
     def get_student_name(self, obj) -> str:
-        profile = obj.submission.student_profile
-        return profile.display_name or profile.email
+        return obj.submission.student_profile.label
 
     def get_ai_band(self, obj) -> str:
         analysis = getattr(obj.submission, "analysis", None)
@@ -382,10 +387,12 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
 
     def get_student(self, obj: Submission) -> dict:
         profile = obj.student_profile
-        return {"id": str(profile.id), "display_name": profile.display_name or profile.email}
+        return {"id": str(profile.id), "display_name": profile.label}
 
     def get_reasoning_events(self, obj: Submission) -> list:
-        events = obj.reasoning_events.order_by("occurred_at")
+        # Urutan occurred_at berasal dari Prefetch di views. .order_by() di
+        # sini akan membuang hasil prefetch dan memicu query baru per baris.
+        events = obj.reasoning_events.all()
         return ReasoningEventSerializer(events, many=True).data
 
     def get_analysis(self, obj: Submission) -> dict | None:

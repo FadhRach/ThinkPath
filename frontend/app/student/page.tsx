@@ -1,6 +1,6 @@
 import { BookOpen, CheckCircle2, GraduationCap, Star } from "lucide-react";
 
-import { GradeBarChart, type GradePoint } from "@/components/common/GradeBarChart";
+import { GradeBarChart, type GradePoint } from "@/components/charts";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { JoinCodeForm } from "@/components/student/JoinCodeForm";

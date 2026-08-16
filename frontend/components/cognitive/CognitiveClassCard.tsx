@@ -1,7 +1,8 @@
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
-import { BloomTrendChart } from "@/components/common/BloomTrendChart";
+import { BloomTrendChart } from "@/components/charts";
+import { DataTable, DataTableRow } from "@/components/common/DataTable";
 import { Card } from "@/components/ui/card";
 import { bloomShortLabel } from "@/lib/bloom";
 import { TREND_LABEL, TREND_TONE, gapToTarget, toChartPoints, trendNarrative } from "@/lib/cognitive";
@@ -84,68 +85,64 @@ export function CognitiveClassCard({ series, showBand = false, linkSubmissions =
         {trendNarrative(series)}
       </p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[30rem] border-collapse text-body-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-muted-foreground">
-              <th className="py-2 pr-4 font-medium">Tugas</th>
-              <th className="py-2 pr-4 font-medium">Level</th>
-              <th className="py-2 pr-4 font-medium">Target</th>
-              <th className="py-2 pr-4 font-medium">Dikumpulkan</th>
-              {showBand ? <th className="py-2 font-medium">Indikasi AI</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {series.points.map((point, index) => (
-              <tr key={point.submission_id} className="border-b border-border/60 last:border-0">
-                <td className="py-2.5 pr-4">
-                  <span className="mr-2 text-caption text-muted-foreground">T{index + 1}</span>
-                  {linkSubmissions ? (
-                    <Link
-                      href={`/dashboard/submission/${point.submission_id}`}
-                      className="font-medium text-foreground hover:text-primary"
-                    >
-                      {point.label}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-foreground">{point.label}</span>
-                  )}
-                </td>
-                <td className="py-2.5 pr-4">
+      <DataTable
+        minWidthClass="min-w-[30rem]"
+        headers={[
+          "Tugas",
+          "Level",
+          "Target",
+          "Dikumpulkan",
+          ...(showBand ? ["Indikasi AI"] : []),
+        ]}
+      >
+        {series.points.map((point, index) => (
+          <DataTableRow key={point.submission_id}>
+            <td className="py-2.5 pr-4">
+              <span className="mr-2 text-caption text-muted-foreground">T{index + 1}</span>
+              {linkSubmissions ? (
+                <Link
+                  href={`/dashboard/submission/${point.submission_id}`}
+                  className="font-medium text-foreground hover:text-primary"
+                >
+                  {point.label}
+                </Link>
+              ) : (
+                <span className="font-medium text-foreground">{point.label}</span>
+              )}
+            </td>
+            <td className="py-2.5 pr-4">
+              <span
+                className={cn(
+                  "font-medium",
+                  point.level < point.expected ? "text-warning" : "text-foreground",
+                )}
+              >
+                L{point.level}
+              </span>
+            </td>
+            <td className="py-2.5 pr-4 text-muted-foreground">L{point.expected}</td>
+            <td className="py-2.5 pr-4 text-muted-foreground">
+              {formatDate(point.submitted_at)}
+            </td>
+            {showBand ? (
+              <td className="py-2.5">
+                {point.ai_band ? (
                   <span
                     className={cn(
-                      "font-medium",
-                      point.level < point.expected ? "text-warning" : "text-foreground",
+                      "inline-flex rounded-full px-2 py-0.5 text-caption font-medium",
+                      aiBandBadgeClass(point.ai_band),
                     )}
                   >
-                    L{point.level}
+                    {aiBandLabel(point.ai_band)}
                   </span>
-                </td>
-                <td className="py-2.5 pr-4 text-muted-foreground">L{point.expected}</td>
-                <td className="py-2.5 pr-4 text-muted-foreground">
-                  {formatDate(point.submitted_at)}
-                </td>
-                {showBand ? (
-                  <td className="py-2.5">
-                    {point.ai_band ? (
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2 py-0.5 text-caption font-medium",
-                          aiBandBadgeClass(point.ai_band),
-                        )}
-                      >
-                        {aiBandLabel(point.ai_band)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </td>
+            ) : null}
+          </DataTableRow>
+        ))}
+      </DataTable>
     </Card>
   );
 }

@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from dataclasses import replace
 
 import requests
 
@@ -34,9 +35,16 @@ from .analysis import (
     build_summary,
     overall_confidence,
 )
-from .ai_score import PROCESS_WEIGHT, SignalScore, build_process_signal, score_to_band
+from .ai_score import (
+    PROCESS_WEIGHT,
+    SignalScore,
+    build_process_signal,
+    score_to_band,
+    text_signal_scores,
+)
 from .models import AnalysisSource, Confidence
 from .process_signals import ProcessContext
+from .text_features import extract_features
 
 logger = logging.getLogger(__name__)
 
@@ -373,6 +381,24 @@ def _overlay_detector(
     }
 
 
+def _heuristic_context_rows(text: str) -> list[dict]:
+    """Baris pembanding S1-S5 ketika skornya datang dari Groq atau detektor.
+
+    Berbobot NOL dengan sengaja, dan itu bukan pilihan gaya. Penilai eksternal
+    dan kelima sinyal ini membaca teks yang sama, sehingga memberi keduanya
+    bobot berarti menghitung ganda bukti yang sama. Ambang band 56 juga diukur
+    untuk ensemble heuristik murni; mencampur bobot membatalkan pengukurannya.
+
+    Dosen tetap bisa membedah gaya teksnya, dan jumlah kontribusi panel "Asal
+    Skor AI" tetap merekonstruksi skor akhir karena baris ini menyumbang 0.
+    """
+    features = extract_features(text)
+    return [
+        replace(signal, weight=0.0).as_dict()
+        for signal in text_signal_scores(features)
+    ]
+
+
 def run_analysis(
     text: str,
     education_level: str,
@@ -392,7 +418,18 @@ def run_analysis(
     # dosen, sehingga satu tempat ini cukup untuk memastikan teks yang sama
     # tidak pernah dibayar dua kali.
     result = detector_cache.detect_cached(text)
-    if result is None:
-        return base
+    final = (
+        base
+        if result is None
+        else _overlay_detector(base, result, text, expected_bloom_level, process)
+    )
 
-    return _overlay_detector(base, result, text, expected_bloom_level, process)
+    # Jalur heuristik sudah menampilkan kelima sinyal sebagai penyumbang skor;
+    # hanya jalur Groq/detektor yang butuh baris pembanding.
+    if final["analysis_source"] != AnalysisSource.HEURISTIC:
+        final = {
+            **final,
+            "signal_breakdown": final["signal_breakdown"]
+            + _heuristic_context_rows(text),
+        }
+    return final

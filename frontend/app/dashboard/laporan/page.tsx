@@ -2,11 +2,11 @@ import { GraduationCap, LayoutGrid, TrendingDown } from "lucide-react";
 
 import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
+import { SectionCard } from "@/components/common/SectionCard";
 import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DistributionBar } from "@/components/report/DistributionBar";
 import { GroupTable } from "@/components/report/GroupTable";
-import { Card } from "@/components/ui/card";
 import { academicLabel } from "@/lib/academic";
 import { getReportOverview } from "@/lib/data";
 
@@ -77,8 +77,7 @@ export default async function LaporanPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="space-y-3 p-5 shadow-soft">
-          <p className="caption-eyebrow text-primary">Kesenjangan Kognitif</p>
+        <SectionCard eyebrow="Kesenjangan Kognitif">
           <DistributionBar
             total={analysed}
             segments={[
@@ -99,10 +98,9 @@ export default async function LaporanPage() {
               },
             ]}
           />
-        </Card>
+        </SectionCard>
 
-        <Card className="space-y-3 p-5 shadow-soft">
-          <p className="caption-eyebrow text-primary">Sebaran Indikasi AI</p>
+        <SectionCard eyebrow="Sebaran Indikasi AI">
           <DistributionBar
             total={analysed}
             segments={[
@@ -114,11 +112,10 @@ export default async function LaporanPage() {
           <p className="text-caption text-muted-foreground">
             Bahan tinjau, bukan vonis. Selalu gabungkan dengan konteks pengerjaan.
           </p>
-        </Card>
+        </SectionCard>
       </div>
 
-      <Card className="space-y-3 p-5 shadow-soft">
-        <p className="caption-eyebrow text-primary">Per Kelas</p>
+      <SectionCard eyebrow="Per Kelas">
         <GroupTable
           firstColumn="Kelas"
           emptyMessage="Belum ada kelas."
@@ -129,11 +126,10 @@ export default async function LaporanPage() {
             sublabel: `${row.subject} · ${academicLabel(row)} · ${row.assignment_count} tugas`,
           }))}
         />
-      </Card>
+      </SectionCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="space-y-3 p-5 shadow-soft">
-          <p className="caption-eyebrow text-primary">Per Program Studi</p>
+        <SectionCard eyebrow="Per Program Studi">
           <GroupTable
             firstColumn="Program studi"
             emptyMessage="Belum ada data."
@@ -143,10 +139,9 @@ export default async function LaporanPage() {
               label: row.program_studi || "Tanpa prodi",
             }))}
           />
-        </Card>
+        </SectionCard>
 
-        <Card className="space-y-3 p-5 shadow-soft">
-          <p className="caption-eyebrow text-primary">Per Semester</p>
+        <SectionCard eyebrow="Per Semester">
           <GroupTable
             firstColumn="Semester"
             emptyMessage="Belum ada data."
@@ -157,7 +152,7 @@ export default async function LaporanPage() {
                 row.semester === null ? "Tidak ditentukan" : `Semester ${row.semester}`,
             }))}
           />
-        </Card>
+        </SectionCard>
       </div>
     </div>
   );

@@ -1,14 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getApiErrorMessage } from "@/lib/api-shared";
 import { createClass } from "@/lib/mutations";
 import type { EducationLevel } from "@/lib/types";
+import { useAction } from "@/lib/use-action";
 
 const EDUCATION_LEVELS: EducationLevel[] = ["D3", "S1", "S2", "S3"];
 
@@ -20,38 +19,33 @@ const SELECT_CLASS =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-body shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring";
 
 export function CreateClassForm() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [educationLevel, setEducationLevel] = useState<EducationLevel>("S1");
   const [programStudi, setProgramStudi] = useState("");
   const [semester, setSemester] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, run, router } = useAction(
+    "Gagal menyimpan kelas. Periksa isian lalu coba lagi.",
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const created = await createClass({
-        name: name.trim(),
-        subject: subject.trim(),
-        education_level: educationLevel,
-        program_studi: programStudi.trim(),
-        // Kosong dikirim sebagai null, bukan 0, karena kelas lintas semester
-        // memang boleh tidak punya semester.
-        semester: semester === "" ? null : Number(semester),
-      });
-      router.push(`/dashboard/classes/${created.id}`);
-      router.refresh();
-    } catch (err) {
-      setError(
-        getApiErrorMessage(err, "Gagal menyimpan kelas. Periksa isian lalu coba lagi."),
-      );
-      setLoading(false);
-    }
+    await run(
+      () =>
+        createClass({
+          name: name.trim(),
+          subject: subject.trim(),
+          education_level: educationLevel,
+          program_studi: programStudi.trim(),
+          // Kosong dikirim sebagai null, bukan 0, karena kelas lintas semester
+          // memang boleh tidak punya semester.
+          semester: semester === "" ? null : Number(semester),
+        }),
+      (created) => {
+        router.push(`/dashboard/classes/${created.id}`);
+        router.refresh();
+      },
+    );
   }
 
   return (
@@ -128,8 +122,8 @@ export function CreateClassForm() {
         </div>
       </div>
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
-      <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-        {loading ? "Menyimpan..." : "Buat kelas"}
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+        {pending ? "Menyimpan..." : "Buat kelas"}
       </Button>
     </form>
   );

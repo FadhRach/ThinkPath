@@ -61,5 +61,10 @@ class Profile(models.Model):
     def check_password(self, raw_password: str) -> bool:
         return check_password(raw_password, self.password)
 
-    def __str__(self) -> str:
+    @property
+    def label(self) -> str:
+        """Nama untuk ditampilkan; email menjadi cadangan bila nama kosong."""
         return self.display_name or self.email
+
+    def __str__(self) -> str:
+        return self.label

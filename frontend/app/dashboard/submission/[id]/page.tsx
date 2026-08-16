@@ -1,11 +1,11 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AiScoreRing } from "@/components/common/AiScoreRing";
+import { BackLink } from "@/components/common/BackLink";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { BloomStepper } from "@/components/common/BloomStepper";
 import { Callout } from "@/components/common/Callout";
+import { SectionCard } from "@/components/common/SectionCard";
 import {
   AnalysisSourceBadge,
   AnalysisSourceNote,
@@ -61,13 +61,7 @@ export default async function SubmissionDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-body-sm text-muted-foreground transition hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Kembali ke dashboard
-      </Link>
+      <BackLink href="/dashboard" label="Kembali ke dashboard" />
 
       <Card className="flex flex-wrap items-center gap-4 p-5 shadow-soft">
         <AvatarInitials name={detail.student.display_name} size="lg" />
@@ -138,8 +132,7 @@ export default async function SubmissionDetailPage({
             verification={detail.verification}
           />
 
-          <Card className="space-y-3 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Jawaban Mahasiswa</p>
+          <SectionCard eyebrow="Jawaban Mahasiswa">
             {detail.text_answer ? (
               <SentenceRhythm text={detail.text_answer} />
             ) : (
@@ -147,7 +140,7 @@ export default async function SubmissionDetailPage({
                 Belum ada teks jawaban.
               </p>
             )}
-          </Card>
+          </SectionCard>
 
           <GradingForm
             submissionId={detail.id}
@@ -171,36 +164,31 @@ export default async function SubmissionDetailPage({
             </Card>
           ) : null}
 
-          <Card className="space-y-3 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Sinyal Teks</p>
+          <SectionCard eyebrow="Sinyal Teks">
             <SignalList signals={analysis?.signals ?? null} />
-          </Card>
+          </SectionCard>
 
           {analysis?.signal_breakdown?.length ? (
-            <Card className="space-y-3 p-5 shadow-soft">
-              <p className="caption-eyebrow text-primary">Asal Skor AI</p>
+            <SectionCard eyebrow="Asal Skor AI">
               <SignalBreakdown breakdown={analysis.signal_breakdown} />
-            </Card>
+            </SectionCard>
           ) : null}
 
-          <Card className="space-y-3 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Evidence Strip</p>
+          <SectionCard eyebrow="Evidence Strip">
             <EvidenceStrip rows={evidenceRows} />
-          </Card>
+          </SectionCard>
 
-          <Card className="space-y-3 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Linimasa Pengerjaan</p>
+          <SectionCard eyebrow="Linimasa Pengerjaan">
             <ProcessTimeline
               events={detail.reasoning_events}
               startedAt={detail.started_at}
               submittedAt={detail.submitted_at}
             />
-          </Card>
+          </SectionCard>
 
-          <Card className="space-y-2 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Ringkasan Proses</p>
+          <SectionCard eyebrow="Ringkasan Proses" className="space-y-2">
             <ReasoningSummary detail={detail} />
-          </Card>
+          </SectionCard>
 
           <ReanalyzeButton submissionId={detail.id} />
         </aside>

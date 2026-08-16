@@ -1,34 +1,35 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { AppShell } from "@/components/common/AppShell";
-import { ApiError } from "@/lib/api";
-import { getMe } from "@/lib/data";
+import { NavUserSection, NavUserSkeleton } from "@/components/common/NavUserSection";
+import { readAuthClaims } from "@/lib/auth-claims";
 
 // Halaman mahasiswa bergantung pada cookie auth per-request, jadi tidak boleh
 // di-prerender statis saat build.
 export const dynamic = "force-dynamic";
 
-export default async function StudentLayout({
+// Peran dibaca dari klaim JWT tanpa panggilan jaringan, sehingga shell dan
+// skeleton halaman tampil seketika; /api/me di-stream lewat NavUserSection
+// dan berjalan paralel dengan fetch halaman.
+export default function StudentLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  let me;
-  try {
-    me = await getMe();
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
-      redirect("/login");
-    }
-    throw error;
-  }
-
-  if (me.role !== "student") {
-    redirect("/dashboard");
-  }
+  const claims = readAuthClaims();
+  if (!claims) redirect("/login");
+  if (claims.role !== "student") redirect("/dashboard");
 
   return (
-    <AppShell role="student" displayName={me.display_name ?? ""} email={me.email}>
+    <AppShell
+      role="student"
+      userMenu={
+        <Suspense fallback={<NavUserSkeleton />}>
+          <NavUserSection role="student" fallbackEmail={claims.email} />
+        </Suspense>
+      }
+    >
       {children}
     </AppShell>
   );

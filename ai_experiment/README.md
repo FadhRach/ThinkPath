@@ -23,6 +23,7 @@ anotator sama sekali.
 |---|---|
 | `src/build_gold_set.py` | membangun set uji manusia vs AI tanpa anotator |
 | `src/evaluate_baseline.py` | mengukur heuristik produksi terhadap set itu |
+| `src/tune_weights.py` | mencari bobot sinyal teks dari data: grid search di split train, diverifikasi di split test |
 | `src/evaluate_groq.py` | mengukur lapisan kedua rantai, `ai_probability` Groq |
 | `src/evaluate_detector.py` | membandingkan detektor berbayar terhadap heuristik itu |
 | `src/evaluation.py` | kerangka bersama keduanya: cache skor, sampel seimbang, laporan |
@@ -103,7 +104,7 @@ Yang dilaporkan:
 
 - **ROC-AUC.** Di bawah 0,6 berarti nyaris menebak. Di bawah 0,5 berarti arahnya
   terbalik.
-- **FPR pada ambang produksi sekarang** (35 dan 70), yaitu berapa banyak
+- **FPR pada ambang produksi sekarang** (42 dan 70), yaitu berapa banyak
   mahasiswa jujur yang tertuduh.
 - **Ambang yang menjaga FPR di bawah 5 persen.** Inilah cara memilih ambang yang
   bisa dipertanggungjawabkan di depan juri. Memilih 70 karena angkanya bulat
@@ -116,6 +117,32 @@ Jalankan tes metriknya lebih dulu kalau ragu:
 ```bash
 python -m unittest discover -s tests
 ```
+
+## Mencari bobot sinyal, bukan mengarangnya
+
+```bash
+python -m src.tune_weights
+```
+
+Bobot kelima sinyal teks dulu ditulis dari penalaran sebelum ada satu pun
+pengukuran. Skrip ini menggantinya dengan angka yang dicari dari data, dan
+protokolnya yang membuat angkanya layak dipercaya:
+
+1. **Pencarian hanya melihat split train** (774 sampel). Split test (225 sampel)
+   tidak pernah disentuh selama pencarian, sehingga angka test benar benar
+   menguji, bukan mengulang apa yang sudah dihafal.
+2. **Ada lantai bobot 0,05** untuk tiga sinyal yang diam di register abstrak.
+   Diam di register yang salah bukan bukti buruk di register esai mahasiswa
+   yang sebenarnya dinilai produk ini; menolkannya berarti membuang sinyal
+   yang belum pernah diuji.
+3. **Ambang band ikut diturunkan ulang.** Ambang diukur untuk sebaran skor yang
+   dihasilkan satu set bobot tertentu. Mengganti bobot tanpa mengulang
+   pencarian ambang meninggalkan angka yang kehilangan dasar ukurnya.
+
+Hasil 17 Agustus 2026: AUC test naik 0,884 ke **0,912** (set penuh 0,869 ke
+0,901), ambang `mid` turun 56 ke **42**, recall naik 0,489 ke 0,607 sementara
+FPR tetap di bawah 5 persen. Bobot terpilih sudah dipakai produksi di
+`backend/academics/ai_score.py`.
 
 ## Mengukur lapisan kedua rantai, Groq
 
@@ -193,7 +220,7 @@ python -m src.evaluate_detector --limit 200 --sleep 0.5
 Butuh `WINSTON_API_KEY` di `.env`. Skrip ini menilai **kedua** detektor pada
 subset yang sama persis, lalu melaporkan ROC-AUC-nya berdampingan. Perbandingan
 pada subset identik itu bukan kerapian: mengukur detektor di 40 sampel lalu
-membandingkannya dengan angka heuristik di 921 sampel yang sudah tercatat di
+membandingkannya dengan angka heuristik di 999 sampel yang sudah tercatat di
 README utama adalah perbandingan yang tidak sah, dan godaannya besar justru
 karena angka itu sudah ada.
 

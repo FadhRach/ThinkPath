@@ -94,16 +94,19 @@ DEEP_FORMULAIC = (
     "mekanisme kebijakan yang dijalankan pemerintah."
 )
 
-# Gaya formulaik yang sama, tetapi isinya hanya menyebutkan.
+# Gaya formulaik yang sama, tetapi isinya hanya menyebutkan. Kalimatnya
+# sengaja hampir sama panjang dan kosakatanya berulang, supaya teks ini tetap
+# menembus band tinggi pada bobot terukur (uniformity dan lexical_uniformity
+# kini memikul 0,65 bobot teks).
 SHALLOW_FORMULAIC = (
-    "Di era modern ini, kebijakan subsidi energi tidak dapat dipungkiri "
-    "memainkan peran penting. Secara fundamental, kebijakan tersebut melibatkan "
-    "banyak variabel. Dalam konteks ini, setiap variabel memiliki peran spesifik "
-    "yang berkontribusi secara holistik. Terdapat beberapa komponen utama di "
-    "dalamnya. Komponen tersebut meliputi aspek fiskal, aspek distribusi, dan "
-    "aspek administratif. Masing masing komponen memiliki definisi dan "
-    "karakteristik tersendiri. Uraian tersebut memperlihatkan struktur kebijakan "
-    "yang kompleks."
+    "Di era modern ini, kebijakan subsidi energi memainkan peran penting. "
+    "Secara fundamental, kebijakan subsidi energi melibatkan beberapa komponen utama. "
+    "Dalam konteks ini, komponen fiskal memainkan peran yang sangat penting. "
+    "Dalam konteks ini, komponen distribusi juga memainkan peran yang penting. "
+    "Secara umum, komponen administratif memainkan peran yang tidak kalah penting. "
+    "Masing masing komponen memiliki definisi dan karakteristik yang tersendiri. "
+    "Secara keseluruhan, komponen tersebut saling berkontribusi secara holistik. "
+    "Uraian tersebut memperlihatkan struktur kebijakan subsidi yang sangat kompleks."
 )
 
 

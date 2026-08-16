@@ -1,8 +1,7 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CognitiveClassCard } from "@/components/cognitive/CognitiveClassCard";
+import { BackLink } from "@/components/common/BackLink";
 import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -25,13 +24,7 @@ export default async function StudentProfilePage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-body-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Kembali ke overview
-      </Link>
+      <BackLink href="/dashboard" label="Kembali ke overview" />
 
       <PageHeader
         title={profile.student.display_name}

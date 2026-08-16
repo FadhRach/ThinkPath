@@ -1,7 +1,8 @@
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
+import { BackLink } from "@/components/common/BackLink";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AssignmentSelector } from "@/components/dashboard/AssignmentSelector";
 import { AssignmentSummary } from "@/components/dashboard/AssignmentSummary";
@@ -9,6 +10,7 @@ import { CreateLinkChip } from "@/components/dashboard/CreateLinkChip";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { SubmissionTable } from "@/components/dashboard/SubmissionTable";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getAssignments, getClasses, getSubmissions } from "@/lib/data";
 import { academicLabel } from "@/lib/academic";
 
@@ -37,13 +39,7 @@ export default async function ClassDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard/classes"
-        className="inline-flex items-center gap-1.5 text-body-sm text-muted-foreground transition hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Kembali ke daftar kelas
-      </Link>
+      <BackLink href="/dashboard/classes" label="Kembali ke daftar kelas" />
 
       <PageHeader
         title={currentClass.name}
@@ -69,12 +65,24 @@ export default async function ClassDetailPage({
           }
         />
       ) : (
-        <ClassAssignments
-          classId={currentClass.id}
-          assignments={assignments}
-          selectedAssignmentId={searchParams.assignment}
-          newAssignmentHref={newAssignmentHref}
-        />
+        // Suspense membuat fetch submissions di-stream: kartu kelas tampil
+        // dulu, tabel menyusul — bukan halaman kosong menunggu semuanya.
+        <Suspense
+          fallback={
+            <div className="space-y-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          }
+        >
+          <ClassAssignments
+            classId={currentClass.id}
+            assignments={assignments}
+            selectedAssignmentId={searchParams.assignment}
+            newAssignmentHref={newAssignmentHref}
+          />
+        </Suspense>
       )}
     </div>
   );

@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from rest_framework.exceptions import AuthenticationFailed
+
 from .models import Profile
 
 
@@ -41,3 +43,11 @@ def get_profile_by_sub(sub: str) -> Profile | None:
     except (ValueError, TypeError):
         return None
     return Profile.objects.filter(id=profile_id).first()
+
+
+def get_request_profile(request) -> Profile:
+    """Profil pemilik token, atau 401 bila akunnya sudah tidak ada."""
+    profile = get_profile_by_sub(request.user.sub)
+    if profile is None:
+        raise AuthenticationFailed("Akun tidak ditemukan.")
+    return profile

@@ -231,14 +231,20 @@ export interface StudentAssignment {
   education_level: EducationLevel;
 }
 
+// Varian listing dari backend sengaja tanpa text_answer supaya daftar kelas
+// tidak ikut mengangkut seluruh esai; teks lengkap hanya ada di endpoint
+// detail tugas (StudentSubmissionWithText).
 export interface StudentSubmissionStatus {
   id: string;
   status: SubmissionStatus;
   submitted_at: string | null;
   grade: number | null;
   teacher_feedback: string;
-  text_answer: string;
   revision_count: number;
+}
+
+export interface StudentSubmissionWithText extends StudentSubmissionStatus {
+  text_answer: string;
 }
 
 export interface StudentClassWithAssignments extends ClassPublic {
@@ -252,7 +258,7 @@ export interface StudentClassWithAssignments extends ClassPublic {
 export interface StudentAssignmentDetail {
   class: ClassPublic;
   assignment: StudentAssignment;
-  submission: StudentSubmissionStatus | null;
+  submission: StudentSubmissionWithText | null;
 }
 
 export interface JoinClassResult {

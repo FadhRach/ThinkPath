@@ -2,12 +2,6 @@
 
 Platform integritas akademik untuk dosen di perguruan tinggi Indonesia. Berbeda dari Turnitin/ZeroGPT yang hanya memberi satu skor "AI atau bukan", ThinkPath merekam proses berpikir mahasiswa dan menyajikan beberapa sinyal sebagai **bukti yang dapat ditinjau dosen, bukan vonis**.
 
-Status: **Perangkat lunak lengkap, model belum tervalidasi.** Auth, kelas dan
-tugas, pengumpulan dan revisi, analisis, verifikasi verbal, profil kognitif,
-laporan agregat, serta layar Overview berbasis grafik sudah jalan end-to-end
-untuk dua peran. Yang belum ada adalah angka akurasi: lihat
-[Status kalibrasi](#status-kalibrasi) sebelum mengutip klaim apa pun.
-
 Kalau Anda meninjau proyek ini dan hanya punya waktu untuk satu layar, buka
 **Overview dosen**. Peta kelas di sana memetakan tiap mahasiswa pada dua sumbu,
 dugaan AI dan selisih level Bloom terhadap target. Pemisahan dua sumbu itulah
@@ -15,7 +9,38 @@ seluruh argumen produk ini: himpunan "perlu bantuan" dan himpunan "dicurigai"
 sering tidak beririsan, dan alat yang hanya memberi satu skor kecurigaan tidak
 akan pernah menunjukkannya.
 
-## Struktur monorepo
+## Status sekilas
+
+| Aspek | Status |
+|---|---|
+| Fitur end-to-end dua peran | ✅ Auth, kelas, tugas, pengumpulan + revisi, analisis, verifikasi verbal, profil kognitif, laporan, Overview grafik |
+| Kalibrasi E1 heuristik | ✅ Terukur: gold set 999 sampel, ROC-AUC 0,900, bobot sinyal DAN ambang (42) hasil ukur — [detail](#status-kalibrasi) |
+| Detektor eksternal (Winston) | ⚠️ Tersambung, **belum diukur** — [detail](#status-kalibrasi-detektor-eksternal) |
+| Level Bloom (E2) | ⚠️ Berjalan, belum tervalidasi penilai manusia |
+| Tes otomatis | ✅ 122 tes backend + 68 tes ai_experiment, semuanya hijau |
+
+Angka akurasi yang boleh dikutip hanya yang ada di
+[Status kalibrasi](#status-kalibrasi); selebihnya belum diukur dan README ini
+mengatakannya terang-terangan.
+
+**Daftar isi:**
+[Arsitektur](#arsitektur) ·
+[Lapisan analisis](#lapisan-analisis) ·
+[Status kalibrasi](#status-kalibrasi) ·
+[Detektor eksternal](#status-kalibrasi-detektor-eksternal) ·
+[Cara menjalankan lokal](#cara-menjalankan-lokal) ·
+[Deploy produksi](#deploy-produksi) ·
+[Performa](#performa) ·
+[Filosofi produk](#filosofi-produk-jangan-dilanggar)
+
+## Arsitektur
+
+```
+Browser ──► Next.js 14 (Vercel) ──► Django 5 + DRF (HF Spaces) ──► Postgres (Supabase)
+                                          │
+                                          └─► Rantai E1: Winston ─► Groq ─► heuristik
+                                              (E2 Bloom: hanya Groq ─► heuristik)
+```
 
 ```
 thinkpath/
@@ -92,7 +117,7 @@ ratanya sepanjang semester": yang naik dari C1 ke C4 tidak sedang berada di C2.
 Arah tren tidak disebut sebelum ada tiga titik, karena dua titik hanya membentuk
 garis antara dua titik.
 
-Tiga aturan yang tidak boleh dilanggar, dijaga oleh 113 tes di
+Tiga aturan yang tidak boleh dilanggar, dijaga oleh 122 tes di
 `backend/academics/tests/`. Uji dekopling membacanya lewat AST, bukan lewat
 pencocokan teks, supaya menambahkan `import ai_score` ke dalam `bloom.py` akan
 langsung menggagalkan tes alih alih lolos diam diam:
@@ -121,24 +146,36 @@ Reproduksi:
 cd ai_experiment
 python -m src.build_gold_set --target 500
 python -m src.evaluate_baseline --gold data/gold/gold_set.csv
+python -m src.tune_weights          # pencarian bobot sinyal
 ```
 
-**ROC-AUC 0,869.** Ensemble sinyalnya memang membedakan, jauh di atas tebakan
+**ROC-AUC 0,900 dengan bobot terukur** (0,869 dengan bobot lama yang ditulis
+dari penalaran). Ensemble sinyalnya memang membedakan, jauh di atas tebakan
 acak.
 
-**Ambang produksi sekarang meleset jauh di dua arah, dan ini terkonfirmasi:**
+**Bobot sinyal kini hasil ukur, bukan karangan** (`src/tune_weights.py`,
+17 Agustus 2026). Protokolnya: grid search hanya melihat split train (774
+sampel), lalu diverifikasi pada split test (225 sampel) yang tidak pernah
+dilihat pencarian — AUC test naik 0,884 → **0,912**. Dua sinyal yang diam di
+register abstrak (`impersonality`, `flat_certainty`) dipatok pada lantai bobot
+0,05, bukan nol: diam di register yang salah bukan bukti buruk di register
+esai yang sebenarnya dinilai. Bobot terpilih: uniformity 0,40; formulaic
+0,25; lexical_uniformity 0,25; impersonality 0,05; flat_certainty 0,05.
 
-| Ambang | Presisi | Recall | FPR |
-|---|---|---|---|
-| `mid` skor >= 35 (lama) | 0,540 | 0,986 | **0,838** |
-| `mid` skor >= 56 (dipakai sekarang) | 0,932 | 0,489 | 0,036 |
-| `high` skor >= 70 | 1,000 | **0,006** | 0,000 |
+**Riwayat ambang band `mid`, ketiganya satu cerita:**
 
-Pada 35, **84 persen tulisan manusia ikut tertuduh** dan presisinya setara
-lempar koin. Pada 70, praktis tidak ada teks yang pernah mencapainya. Ambang
-yang menjaga FPR di bawah 5 persen adalah **56**, dengan recall 0,489 dan FPR
-0,036 — 18 dari 500 tulisan manusia tetap tertuduh. **Sejak 16 Agustus 2026
-angka itulah yang dipakai produksi**, lihat alasannya di bawah.
+| Ambang | Status | Presisi | Recall | FPR |
+|---|---|---|---|---|
+| 35 (asli) | karangan, bobot lama | 0,540 | 0,986 | **0,838** |
+| 56 (16 Agu) | terukur, bobot lama | 0,932 | 0,489 | 0,036 |
+| **42 (dipakai sekarang)** | **terukur, satu paket dengan bobot baru** | 0,932 | **0,607** | 0,044 |
+
+Mengubah bobot wajib menurunkan ulang ambangnya — 56 adalah ambang untuk
+sebaran skor bobot lama dan kehilangan dasar ukurnya begitu bobot berubah.
+Dengan bobot + ambang baru: FPR tetap di bawah 5 persen (22 dari 500 tulisan
+manusia tertuduh) sementara recall naik dari 0,489 ke 0,607. `high` 70 tetap
+tidak tersentuh: dengan bobot baru pun tidak ada sampel yang mencapainya
+(skor maksimum 68).
 
 **Tiga dari lima sinyal teks diam sepanjang pengukuran ini, dan itu artefak,
 bukan vonis.** `formulaic_phrasing`, `impersonality`, dan `flat_certainty`
@@ -158,7 +195,7 @@ Selisihnya besar, diukur pada gold set dibandingkan jawaban mahasiswa:
 Abstrak nyaris tidak pernah menulis "menurut saya" atau "tampaknya". Yang
 terukur bukan "sinyalnya buruk", melainkan "sinyalnya tidak diuji".
 
-**Dua sinyal yang bebas bahasa memikul seluruh angka 0,869, dan keduanya sahih:**
+**Dua sinyal yang bebas bahasa memikul sebagian besar AUC, dan keduanya sahih:**
 
 | Sinyal | Korelasi | Manusia | AI |
 |---|---|---|---|
@@ -176,15 +213,15 @@ berkorelasi +0,440. Teks manusia berkerumun di sekitar 0,62 sementara teks AI
 menyimpang ke dua arah, persis seperti alasan yang ditulis di
 `_signal_lexical_uniformity`.
 
-**Yang TIDAK boleh diklaim dari angka ini.** ROC-AUC 0,869 berlaku untuk
-**abstrak akademik dengan dua dari lima sinyal aktif**. Ia bukan akurasi
-ThinkPath pada esai mahasiswa.
+**Yang TIDAK boleh diklaim dari angka ini.** ROC-AUC 0,900 berlaku untuk
+**abstrak akademik**, dan bobotnya di-fit pada register itu pula. Ia bukan
+akurasi ThinkPath pada esai mahasiswa.
 
 Bukti bahwa sebarannya memang berbeda: satu jawaban esai berbahasa Indonesia
 yang ditulis tangan mendapat skor 19, jauh di bawah ambang mana pun yang dibahas
 di sini.
 
-#### Kenapa ambang akhirnya digeser 35 ke 56
+#### Kenapa ambang karangan akhirnya diganti angka terukur (35 → 56 → 42)
 
 Keputusan ini sempat berbunyi sebaliknya, dan alasan pembalikannya layak
 ditulis lengkap.
@@ -206,10 +243,13 @@ Ambang yang menahan FPR pada korpus yang lebih sulit akan bersikap lebih
 longgar, bukan lebih ketat, ketika dipakai pada esai mahasiswa. Kesalahannya
 jatuh ke arah tidak menuduh.
 
-Harganya recall: **0,489 pada 56, turun dari 0,986 pada 35.** Pertukaran itu
-disengaja. Sistem ini tidak memvonis, ia mengurutkan siapa yang paling layak
-diajak bicara lebih dulu, dan daftar yang memuat 84 persen kelas tidak
-mengurutkan apa pun.
+Harganya recall — pada 56 dengan bobot lama, recall turun dari 0,986 ke 0,489.
+Pertukaran itu disengaja: sistem ini tidak memvonis, ia mengurutkan siapa yang
+paling layak diajak bicara lebih dulu, dan daftar yang memuat 84 persen kelas
+tidak mengurutkan apa pun. Langkah berikutnya (17 Agustus) mengembalikan
+sebagian recall itu lewat jalur yang benar: bobot sinyal dicari terhadap data
+(`tune_weights.py`), lalu ambangnya diturunkan ulang menjadi 42 untuk sebaran
+skor yang baru — recall naik ke 0,607 tanpa melepas batas FPR 5 persen.
 
 `HIGH_THRESHOLD` 70 **tidak** ikut digeser dan masih belum terukur: tidak ada
 satu pun sampel gold set yang mencapainya, jadi tidak ada data untuk
@@ -257,7 +297,7 @@ python -m src.evaluate_detector --limit 40
 
 Skrip itu menilai detektor dan heuristik pada **subset yang sama persis**, lalu
 melaporkan ROC-AUC keduanya berdampingan dan ambang yang menjaga FPR di bawah
-5 persen. Membandingkan angka detektor pada 40 sampel terhadap angka 0,869 di
+5 persen. Membandingkan angka detektor pada 40 sampel terhadap angka 0,900 di
 atas tidak sah, dan godaannya besar karena angkanya sudah ada.
 
 Kalau hasilnya menunjukkan detektor **tidak** mengungguli heuristik, langkah
@@ -466,7 +506,7 @@ Baca berurutan sebelum kontribusi besar:
 python manage.py migrate              # apply skema
 python manage.py seed_demo_data       # isi data demo (idempotent)
 python manage.py runserver 0.0.0.0:7860
-python manage.py test academics       # 104 tes lapisan analisis
+python manage.py test                 # 122 tes backend (analisis + auth)
 
 # Frontend
 npm run dev      # dev server di port 3000
@@ -496,6 +536,7 @@ dan `backend/.dockerignore` mencegah `.env` ikut ke image.
 | `DATABASE_URL` | connection string Supabase |
 | `GROQ_API_KEY` | kunci Groq |
 | `WINSTON_API_KEY` | kunci detektor eksternal, opsional. Kosong berarti skor AI memakai jalur Groq lalu heuristik |
+| `DB_CONN_MAX_AGE` | `60` — pakai ulang koneksi Postgres. `0` berarti tiap request membayar handshake TCP+TLS baru ke Supabase (~150-400 ms), lihat [Performa](#performa) |
 
 Saat `DEBUG=0`, flag keamanan (HTTPS redirect, HSTS, secure cookie, proxy SSL
 header) aktif otomatis. Detail di [`backend/README.md`](./backend/README.md).
@@ -533,6 +574,56 @@ python manage.py seed_demo_data
 ```
 
 Perintah itu idempotent, jadi menjalankannya dua kali tidak menggandakan apa pun.
+
+## Performa
+
+Keputusan performa di bawah ini disengaja dan saling terkait; jangan dicabut
+sebagian tanpa memahami pasangannya.
+
+**Frontend: umpan balik dulu, data menyusul.**
+
+- Setiap rute dasbor punya `loading.tsx` (skeleton lewat
+  `components/common/PageSkeleton`). Selain menghilangkan layar beku saat
+  navigasi, loading boundary inilah yang membuat prefetch `<Link>` bekerja pada
+  rute `force-dynamic` — tanpanya prefetch tidak menghasilkan apa pun.
+- Layout **tidak lagi menunggu `/api/me`**. Peran dan email dibaca dari klaim
+  JWT di cookie tanpa panggilan jaringan (`lib/auth-claims.ts`, decode tanpa
+  verifikasi — hanya untuk tampilan; backend tetap memverifikasi tanda tangan),
+  dan nama pengguna di-stream lewat Suspense. Fetch halaman berjalan paralel
+  dengan `/api/me`, bukan setelahnya.
+- Login tidak lagi me-render dashboard dua kali: `router.refresh()` setelah
+  `router.replace()` dihapus, karena cookie token sudah terpasang sebelum
+  navigasi.
+- Semua tombol mutasi memakai `lib/use-action.ts`: `router.refresh()` berjalan
+  di dalam `useTransition`, jadi tombol tetap pending sampai data baru
+  benar-benar tampil, bukan idle di atas data basi.
+- Recharts (beserta seluruh keluarga d3) dimuat malas lewat
+  `components/charts/index.tsx`; halaman tanpa grafik tidak ikut membayarnya.
+- `next.config.mjs`: `optimizePackageImports` untuk lucide-react/recharts dan
+  `staleTimes.dynamic: 30` — navigasi ulang dalam 30 detik instan, dan tetap
+  aman karena semua mutasi memanggil `router.refresh()` yang membatalkan cache.
+
+**Backend: pangkas round trip ke database remote.**
+
+- `DB_CONN_MAX_AGE=60`: koneksi Postgres dipakai ulang. Database ada di
+  Supabase Sydney; tanpa ini tiap request membayar handshake TCP+TLS+auth baru
+  (~150-400 ms) sebelum query pertama.
+- `/api/overview` dan profil kognitif memakai `.defer()` pada kolom teks besar
+  (`text_answer`, `instructions`, empat kolom teks analisis). Layar itu hanya
+  membaca angka kecil; tanpa defer, seluruh esai kelas ikut terangkut dari
+  Sydney hanya untuk dirata-ratakan.
+- `/api/reports/overview` merangkum semua hitungan dalam **satu** `aggregate`
+  ber-`Count(filter=...)`, bukan enam query terpisah.
+- Listing kelas mahasiswa tidak lagi mengirim `text_answer`
+  (`StudentSubmissionStatusListSerializer`); teks lengkap tetap ada di endpoint
+  detail tugas.
+- Skor detektor eksternal di-cache di tabel `detector_scores` supaya teks yang
+  sama tidak pernah dibayar dua kali (penyedia menagih per kata).
+
+**Yang sengaja belum dikerjakan** (tercatat, bukan terlupa): pagination
+endpoint list, analisis AI async (submit masih blocking sampai ±20 detik,
+terdokumentasi di `Dockerfile`), indeks fungsi `LOWER(email)` untuk login, dan
+penurunan iterasi PBKDF2 (~300 ms per login adalah harga keamanan, bukan bug).
 
 ## Filosofi produk (jangan dilanggar)
 

@@ -2,10 +2,11 @@ import { CheckCircle2, Clock, FileText } from "lucide-react";
 import Link from "next/link";
 
 import { BloomBadge } from "@/components/common/BloomBadge";
+import { DataTable, DataTableRow } from "@/components/common/DataTable";
 import { PageHeader } from "@/components/common/PageHeader";
+import { SectionCard } from "@/components/common/SectionCard";
 import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { Card } from "@/components/ui/card";
 import { getStudentClasses } from "@/lib/data";
 import { formatDate } from "@/lib/formatting";
 import type { StudentClassWithAssignments } from "@/lib/types";
@@ -82,15 +83,13 @@ export default async function StudentTugasPage() {
         />
       ) : (
         <>
-          <Card className="space-y-3 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Perlu Dikerjakan</p>
+          <SectionCard eyebrow="Perlu Dikerjakan">
             <TaskTable rows={pending} emptyMessage="Semua tugas sudah kamu kumpulkan." />
-          </Card>
+          </SectionCard>
 
-          <Card className="space-y-3 p-5 shadow-soft">
-            <p className="caption-eyebrow text-primary">Sudah Dikumpulkan</p>
+          <SectionCard eyebrow="Sudah Dikumpulkan">
             <TaskTable rows={done} emptyMessage="Belum ada tugas yang dikumpulkan." />
-          </Card>
+          </SectionCard>
         </>
       )}
     </div>
@@ -103,70 +102,59 @@ function TaskTable({ rows, emptyMessage }: { rows: Row[]; emptyMessage: string }
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[36rem] border-collapse text-body-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-muted-foreground">
-            <th className="py-2 pr-4 font-medium">Tugas</th>
-            <th className="py-2 pr-4 font-medium">Kelas</th>
-            <th className="py-2 pr-4 font-medium">Target</th>
-            <th className="py-2 pr-4 font-medium">Tenggat</th>
-            <th className="py-2 pr-4 font-medium">Status</th>
-            <th className="py-2 font-medium">Nilai</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const overdue =
-              row.deadline != null &&
-              new Date(row.deadline).getTime() < Date.now() &&
-              !isDone(row);
+    <DataTable
+      minWidthClass="min-w-[36rem]"
+      headers={["Tugas", "Kelas", "Target", "Tenggat", "Status", "Nilai"]}
+    >
+      {rows.map((row) => {
+        const overdue =
+          row.deadline != null &&
+          new Date(row.deadline).getTime() < Date.now() &&
+          !isDone(row);
 
-            return (
-              <tr key={row.assignmentId} className="border-b border-border/60 last:border-0">
-                <td className="py-2.5 pr-4">
-                  <Link
-                    href={`/student/submit/${row.assignmentId}`}
-                    className="font-medium text-foreground hover:text-primary"
-                  >
-                    {row.title}
-                  </Link>
-                </td>
-                <td className="py-2.5 pr-4">
-                  <span className="block text-foreground">{row.className}</span>
-                  <span className="block text-caption text-muted-foreground">
-                    {row.subject}
-                  </span>
-                </td>
-                <td className="py-2.5 pr-4">
-                  <BloomBadge level={row.expectedLevel} />
-                </td>
-                <td className={cn("py-2.5 pr-4", overdue ? "text-danger" : "text-muted-foreground")}>
-                  {formatDate(row.deadline)}
-                  {overdue ? <span className="block text-caption">Lewat tenggat</span> : null}
-                </td>
-                <td className="py-2.5 pr-4">
-                  {row.submission ? (
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full px-2 py-0.5 text-caption font-medium",
-                        submissionStatusMeta(row.submission.status).badgeClass,
-                      )}
-                    >
-                      {submissionStatusMeta(row.submission.status).label}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">Belum dimulai</span>
+        return (
+          <DataTableRow key={row.assignmentId}>
+            <td className="py-2.5 pr-4">
+              <Link
+                href={`/student/submit/${row.assignmentId}`}
+                className="font-medium text-foreground hover:text-primary"
+              >
+                {row.title}
+              </Link>
+            </td>
+            <td className="py-2.5 pr-4">
+              <span className="block text-foreground">{row.className}</span>
+              <span className="block text-caption text-muted-foreground">
+                {row.subject}
+              </span>
+            </td>
+            <td className="py-2.5 pr-4">
+              <BloomBadge level={row.expectedLevel} />
+            </td>
+            <td className={cn("py-2.5 pr-4", overdue ? "text-danger" : "text-muted-foreground")}>
+              {formatDate(row.deadline)}
+              {overdue ? <span className="block text-caption">Lewat tenggat</span> : null}
+            </td>
+            <td className="py-2.5 pr-4">
+              {row.submission ? (
+                <span
+                  className={cn(
+                    "inline-flex rounded-full px-2 py-0.5 text-caption font-medium",
+                    submissionStatusMeta(row.submission.status).badgeClass,
                   )}
-                </td>
-                <td className="py-2.5 font-medium text-foreground">
-                  {row.submission?.grade ?? "-"}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                >
+                  {submissionStatusMeta(row.submission.status).label}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">Belum dimulai</span>
+              )}
+            </td>
+            <td className="py-2.5 font-medium text-foreground">
+              {row.submission?.grade ?? "-"}
+            </td>
+          </DataTableRow>
+        );
+      })}
+    </DataTable>
   );
 }
