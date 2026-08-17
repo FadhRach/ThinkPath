@@ -29,10 +29,8 @@ import sys
 from pathlib import Path
 
 from .config import BASE_DIR, GOLD_DIR
+from .evaluation import CURRENT_HIGH_THRESHOLD, CURRENT_MID_THRESHOLD
 from .metrics import confusion_at, pearson, roc_auc, threshold_at_max_fpr
-
-CURRENT_MID_THRESHOLD = 35
-CURRENT_HIGH_THRESHOLD = 70
 
 
 def bootstrap_backend() -> None:

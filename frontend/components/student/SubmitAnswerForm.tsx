@@ -2,14 +2,13 @@
 
 import { CheckCircle2, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { getApiErrorMessage } from "@/lib/api-shared";
 import { submitAnswer, type ProgressSample } from "@/lib/mutations";
+import { useAction } from "@/lib/use-action";
 
 const MIN_LENGTH = 50;
 
@@ -52,16 +51,14 @@ export function SubmitAnswerForm({
   mode = "create",
   initialText = "",
 }: Props) {
-  const router = useRouter();
   // Waktu mulai direkam sekali saat form dirender, dikirim sebagai started_at.
   const startedAtRef = useRef(new Date().toISOString());
   // Jejak pertumbuhan kata. Disimpan di ref, bukan state, karena tidak pernah
   // dirender dan tidak boleh memicu render ulang tiap tiga puluh detik.
   const progressRef = useRef<ProgressSample[]>([]);
   const [text, setText] = useState(initialText);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const { pending, error, run } = useAction("Gagal menyimpan jawaban. Coba lagi.");
   const copy = COPY[mode];
 
   // Teks terbaru disimpan di ref supaya pewaktu di bawah tidak perlu dipasang
@@ -89,11 +86,8 @@ export function SubmitAnswerForm({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      await submitAnswer(assignmentId, {
+    const { ok } = await run(() =>
+      submitAnswer(assignmentId, {
         text_answer: text.trim(),
         started_at: startedAtRef.current,
         // Hanya dikirim saat mengarang dari nol. Pada mode revisi kotak sudah
@@ -111,13 +105,9 @@ export function SubmitAnswerForm({
                 { at: new Date().toISOString(), word_count: countWords(text) },
               ].slice(0, MAX_SAMPLES)
             : undefined,
-      });
-      setSubmitted(true);
-      router.refresh();
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Gagal menyimpan jawaban. Coba lagi."));
-      setLoading(false);
-    }
+      }),
+    );
+    if (ok) setSubmitted(true);
   }
 
   if (submitted) {
@@ -154,9 +144,9 @@ export function SubmitAnswerForm({
         </div>
       </Card>
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
-      <Button type="submit" disabled={loading || tooShort} size="lg" className="w-full sm:w-auto">
+      <Button type="submit" disabled={pending || tooShort} size="lg" className="w-full sm:w-auto">
         <Sparkles className="h-4 w-4" />
-        {loading ? copy.loading : copy.submit}
+        {pending ? copy.loading : copy.submit}
       </Button>
     </form>
   );

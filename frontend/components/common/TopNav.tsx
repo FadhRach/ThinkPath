@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 
 import { Brandmark } from "@/components/common/Brandmark";
 import { NavSearch } from "@/components/common/NavSearch";
-import { NavUser } from "@/components/common/NavUser";
 import {
   Sheet,
   SheetContent,
@@ -40,15 +39,10 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
   ],
 };
 
-const ROLE_LABEL: Record<Role, string> = {
-  teacher: "Dosen",
-  student: "Mahasiswa",
-};
-
 interface Props {
   role: Role;
-  displayName: string;
-  email: string;
+  /** Chip pengguna (server component yang di-stream), dirender apa adanya. */
+  userMenu: React.ReactNode;
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -56,7 +50,7 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function TopNav({ role, displayName, email }: Props) {
+export function TopNav({ role, userMenu }: Props) {
   const pathname = usePathname();
   const items = NAV_ITEMS[role];
   const homeHref = role === "teacher" ? "/dashboard" : "/student";
@@ -107,14 +101,7 @@ export function TopNav({ role, displayName, email }: Props) {
           >
             <Bell className="h-5 w-5" />
           </span>
-          <NavUser
-            displayName={displayName}
-            email={email}
-            roleLabel={ROLE_LABEL[role]}
-            settingsHref={
-              role === "teacher" ? "/dashboard/pengaturan" : "/student/pengaturan"
-            }
-          />
+          {userMenu}
         </div>
       </div>
     </header>

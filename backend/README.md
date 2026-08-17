@@ -13,9 +13,16 @@ menyentuh database langsung, semua lewat endpoint di sini.
   `email`, `role`.
 - **Dua app:** `core` (auth + profil) dan `academics` (kelas, tugas, submission,
   analisis). `thinkpath` adalah package settings/urls.
-- **Analisis AI** dijalankan sinkron saat submit lewat `academics.llm.run_analysis`.
-  Provider: **Groq** (`llama-3.3-70b-versatile`, OpenAI-compatible). Kalau
-  `GROQ_API_KEY` kosong, otomatis pakai heuristik lokal (`academics.analysis`).
+- **Analisis** dijalankan sinkron saat submit lewat `academics.llm.run_analysis`.
+  Skor AI punya rantai tiga lapis: **detektor eksternal** (`academics.detector`,
+  penyedia sekarang Winston AI), lalu `ai_probability` dari **Groq**
+  (`llama-3.3-70b-versatile`, OpenAI-compatible), lalu heuristik lokal
+  (`academics.analysis`). Kunci yang kosong atau API yang gagal cukup
+  menjatuhkan ke lapisan berikutnya, tidak pernah menggagalkan pengumpulan tugas.
+  **Level Bloom tidak ikut rantai itu**: hanya Groq lalu heuristik, dan detektor
+  tidak pernah menyentuhnya.
+  Winston mengembalikan **human score** (0 = AI, 100 = manusia); pembalikannya
+  dikerjakan satu kali di `detector.py` dan dikunci tes.
 
 ## Model utama (`academics/models.py`, `core/models.py`)
 
@@ -96,6 +103,7 @@ SQLite lokal (`db.sqlite3`).
 | `DB_CONN_MAX_AGE` | - | `0` | naikkan ke `60` untuk reuse koneksi (worker sedikit) |
 | `GROQ_API_KEY` | - | kosong = heuristik | kunci analisis LLM |
 | `GROQ_MODEL` | - | `llama-3.3-70b-versatile` | model Groq |
+| `WINSTON_API_KEY` | - | kosong = jalur lama | kunci detektor AI eksternal, skor AI saja |
 | `AUTH_TOKEN_LIFETIME_DAYS` | - | `7` | umur token |
 
 ## Deploy: Hugging Face Spaces (Docker)
@@ -110,7 +118,7 @@ Checklist produksi:
    `DJANGO_SECRET_KEY` (string acak 50+ char), `DJANGO_DEBUG=0`,
    `DJANGO_ALLOWED_HOSTS=<nama-space>.hf.space`,
    `CORS_ALLOWED_ORIGINS=https://<app>.vercel.app`,
-   `DATABASE_URL`, `GROQ_API_KEY`.
+   `DATABASE_URL`, `GROQ_API_KEY`, `WINSTON_API_KEY`.
 3. Saat `DEBUG=False`: `DJANGO_SECRET_KEY` wajib (boot gagal keras kalau kosong),
    dan flag keamanan (SSL redirect, HSTS, secure cookie, proxy SSL header) aktif
    otomatis.

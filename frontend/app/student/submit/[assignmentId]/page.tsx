@@ -1,7 +1,6 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BackLink } from "@/components/common/BackLink";
 import { BloomStepper } from "@/components/common/BloomStepper";
 import { Callout } from "@/components/common/Callout";
 import { SubjectTag } from "@/components/common/SubjectTag";
@@ -12,7 +11,7 @@ import { ApiError } from "@/lib/api";
 import { bloomCode } from "@/lib/bloom";
 import { getStudentAssignment } from "@/lib/data";
 import { formatRelativeTime } from "@/lib/formatting";
-import type { StudentSubmissionStatus } from "@/lib/types";
+import type { StudentSubmissionWithText } from "@/lib/types";
 
 export default async function SubmitAssignmentPage({
   params,
@@ -37,13 +36,7 @@ export default async function SubmitAssignmentPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Link
-        href="/student"
-        className="inline-flex items-center gap-1.5 text-body-sm text-muted-foreground transition hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Kembali ke beranda
-      </Link>
+      <BackLink href="/student" label="Kembali ke beranda" />
 
       <div className="space-y-2">
         <SubjectTag
@@ -89,7 +82,7 @@ export default async function SubmitAssignmentPage({
 }
 
 interface SectionProps {
-  submission: StudentSubmissionStatus | null;
+  submission: StudentSubmissionWithText | null;
   canRevise: boolean;
   isPastDeadline: boolean;
   isReviewed: boolean;

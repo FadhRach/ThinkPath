@@ -50,7 +50,7 @@ def _student_points(submissions: QuerySet[Submission]) -> dict:
             key,
             {
                 "student_id": str(profile.id),
-                "display_name": profile.display_name or profile.email,
+                "display_name": profile.label,
                 "levels": [],
                 "targets": [],
                 "ai_scores": [],
@@ -154,7 +154,9 @@ def _class_average_target(trend: list[dict]) -> float | None:
     return round(sum(point["expected"] for point in trend) / len(trend), 2)
 
 
-def build_overview(classes: QuerySet, submissions: QuerySet[Submission]) -> list[dict]:
+def build_teacher_overview(
+    classes: QuerySet, submissions: QuerySet[Submission]
+) -> list[dict]:
     """Rakit satu blok ringkasan per kelas.
 
     Kelas tanpa submission teranalisis tetap dikembalikan dengan deret kosong,
@@ -165,6 +167,19 @@ def build_overview(classes: QuerySet, submissions: QuerySet[Submission]) -> list
         submissions.filter(analysis__isnull=False)
         .select_related(
             "analysis", "assignment", "assignment__class_ref", "student_profile"
+        )
+        # Layar overview hanya membaca beberapa angka kecil; tanpa defer,
+        # seluruh esai kelas plus empat kolom teks analisis ikut terangkut
+        # dari database remote hanya untuk dirata-ratakan. defer (bukan only)
+        # supaya kolom kecil baru tidak diam-diam memicu query susulan.
+        .defer(
+            "text_answer",
+            "teacher_feedback",
+            "assignment__instructions",
+            "analysis__signals",
+            "analysis__signal_breakdown",
+            "analysis__summary",
+            "analysis__recommendation",
         )
         .order_by("submitted_at")
     )

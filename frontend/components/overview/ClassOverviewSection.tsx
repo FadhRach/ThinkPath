@@ -1,9 +1,12 @@
 import Link from "next/link";
 
-import { AiBloomScatter } from "@/components/overview/AiBloomScatter";
-import { BloomDistributionChart } from "@/components/overview/BloomDistributionChart";
-import { CohortTrendChart } from "@/components/overview/CohortTrendChart";
-import { Card } from "@/components/ui/card";
+import {
+  AiBloomScatter,
+  BloomDistributionChart,
+  CohortTrendChart,
+} from "@/components/charts";
+import { DataTable, DataTableRow } from "@/components/common/DataTable";
+import { SectionCard } from "@/components/common/SectionCard";
 import { TREND_LABEL, bloomAxisCaption } from "@/lib/cognitive";
 import type { OverviewClass } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -51,15 +54,12 @@ export function ClassOverviewSection({ data }: { data: OverviewClass }) {
         </Link>
       </div>
 
-      <Card className="space-y-4 p-5 shadow-soft">
-        <div>
-          <p className="caption-eyebrow text-primary">Peta Kelas</p>
-          <p className="text-body-sm text-muted-foreground">
-            Setiap titik satu mahasiswa. Sumbu tegak selisih level Bloom terhadap
-            target tugas, sumbu datar rata-rata dugaan AI. Klik titik untuk
-            membuka profil kognitifnya.
-          </p>
-        </div>
+      <SectionCard eyebrow="Peta Kelas" className="space-y-4">
+        <p className="text-body-sm text-muted-foreground">
+          Setiap titik satu mahasiswa. Sumbu tegak selisih level Bloom terhadap
+          target tugas, sumbu datar rata-rata dugaan AI. Klik titik untuk
+          membuka profil kognitifnya.
+        </p>
 
         <AiBloomScatter students={data.students} />
 
@@ -93,11 +93,10 @@ export function ClassOverviewSection({ data }: { data: OverviewClass }) {
             . Mereka mengerjakan sendiri, tetapi belum sampai ke level yang diminta.
           </p>
         ) : null}
-      </Card>
+      </SectionCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="space-y-2 p-5 shadow-soft">
-          <p className="caption-eyebrow text-primary">Sebaran Level</p>
+        <SectionCard eyebrow="Sebaran Level" className="space-y-2">
           <p className="text-body-sm text-muted-foreground">
             {bloomAxisCaption(data.bloom_distribution) ||
               "Seluruh submission yang sudah dianalisis"}
@@ -108,70 +107,55 @@ export function ClassOverviewSection({ data }: { data: OverviewClass }) {
               target={data.average_target}
             />
           </div>
-        </Card>
+        </SectionCard>
 
-        <Card className="space-y-2 p-5 shadow-soft">
-          <p className="caption-eyebrow text-primary">Tren Kelas</p>
+        <SectionCard eyebrow="Tren Kelas" className="space-y-2">
           <p className="text-body-sm text-muted-foreground">
             Rata-rata kelas terhadap target yang menanjak, tugas demi tugas
           </p>
           <div className="pt-2">
             <CohortTrendChart points={data.cohort_trend} />
           </div>
-        </Card>
+        </SectionCard>
       </div>
 
       {attention.length > 0 ? (
-        <Card className="space-y-3 p-5 shadow-soft">
-          <p className="caption-eyebrow text-primary">Perlu Perhatian Pengajaran</p>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[32rem] border-collapse text-body-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="py-2 pr-4 font-medium">Mahasiswa</th>
-                  <th className="py-2 pr-4 font-medium">Level</th>
-                  <th className="py-2 pr-4 font-medium">Selisih</th>
-                  <th className="py-2 pr-4 font-medium">Arah</th>
-                  <th className="py-2 font-medium">Rata-rata AI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attention.map((student) => (
-                  <tr
-                    key={student.student_id}
-                    className="border-b border-border/60 last:border-0"
+        <SectionCard eyebrow="Perlu Perhatian Pengajaran">
+          <DataTable
+            minWidthClass="min-w-[32rem]"
+            headers={["Mahasiswa", "Level", "Selisih", "Arah", "Rata-rata AI"]}
+          >
+            {attention.map((student) => (
+              <DataTableRow key={student.student_id}>
+                <td className="py-2.5 pr-4">
+                  <Link
+                    href={`/dashboard/students/${student.student_id}`}
+                    className="font-medium text-foreground hover:text-primary"
                   >
-                    <td className="py-2.5 pr-4">
-                      <Link
-                        href={`/dashboard/students/${student.student_id}`}
-                        className="font-medium text-foreground hover:text-primary"
-                      >
-                        {student.display_name}
-                      </Link>
-                    </td>
-                    <td className="py-2.5 pr-4 text-muted-foreground">
-                      L{student.current_level}
-                    </td>
-                    <td className="py-2.5 pr-4 font-medium text-warning">
-                      {student.gap}
-                    </td>
-                    <td className="py-2.5 pr-4 text-muted-foreground">
-                      {TREND_LABEL[student.direction]}
-                    </td>
-                    <td
-                      className={cn(
-                        "py-2.5",
-                        student.high_count > 0 ? "text-danger" : "text-muted-foreground",
-                      )}
-                    >
-                      {student.ai_mean}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                    {student.display_name}
+                  </Link>
+                </td>
+                <td className="py-2.5 pr-4 text-muted-foreground">
+                  L{student.current_level}
+                </td>
+                <td className="py-2.5 pr-4 font-medium text-warning">
+                  {student.gap}
+                </td>
+                <td className="py-2.5 pr-4 text-muted-foreground">
+                  {TREND_LABEL[student.direction]}
+                </td>
+                <td
+                  className={cn(
+                    "py-2.5",
+                    student.high_count > 0 ? "text-danger" : "text-muted-foreground",
+                  )}
+                >
+                  {student.ai_mean}
+                </td>
+              </DataTableRow>
+            ))}
+          </DataTable>
+        </SectionCard>
       ) : null}
     </section>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,8 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getApiErrorMessage } from "@/lib/api-shared";
 import { gradeSubmission } from "@/lib/mutations";
+import { useAction } from "@/lib/use-action";
 
 interface Props {
   submissionId: string;
@@ -18,29 +17,22 @@ interface Props {
 }
 
 export function GradingForm({ submissionId, initialGrade, initialFeedback }: Props) {
-  const router = useRouter();
   const [grade, setGrade] = useState(initialGrade !== null ? String(initialGrade) : "");
   const [feedback, setFeedback] = useState(initialFeedback);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, run } = useAction("Gagal menyimpan nilai. Coba lagi.");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setMessage(null);
-    setError(null);
-    try {
-      await gradeSubmission(submissionId, {
+    const { ok } = await run(() =>
+      gradeSubmission(submissionId, {
         grade: Number(grade),
         teacher_feedback: feedback.trim(),
-      });
+      }),
+    );
+    if (ok) {
       setMessage("Nilai tersimpan. Mahasiswa dapat melihatnya di halaman tugas.");
-      router.refresh();
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Gagal menyimpan nilai. Coba lagi."));
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -71,8 +63,8 @@ export function GradingForm({ submissionId, initialGrade, initialFeedback }: Pro
         </div>
         {message ? <p className="text-body-sm text-primary">{message}</p> : null}
         {error ? <p className="text-body-sm text-danger">{error}</p> : null}
-        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-          {loading ? "Menyimpan..." : "Simpan nilai"}
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+          {pending ? "Menyimpan..." : "Simpan nilai"}
         </Button>
       </form>
     </Card>

@@ -17,6 +17,7 @@ import hashlib
 import json
 import random
 import sys
+import time
 from pathlib import Path
 
 from .config import (
@@ -30,6 +31,7 @@ from .config import (
 )
 from .generate import (
     PROMPT_VARIANTS,
+    DailyQuotaExceeded,
     GenerationError,
     available_models,
     generate_ai_counterpart,
@@ -114,7 +116,11 @@ def validate_models(models: list[str]) -> list[str]:
 
 
 def collect_ai(
-    human_rows: list[dict], models: list[str], include_mixed: bool, seed: int
+    human_rows: list[dict],
+    models: list[str],
+    include_mixed: bool,
+    seed: int,
+    sleep_seconds: float = 0.0,
 ) -> list[dict]:
     existing = load_jsonl(AI_CACHE)
     done = {(row["openalex_id"], row["label"]) for row in existing}
@@ -145,6 +151,20 @@ def collect_ai(
                     row = generate_ai_counterpart(human, model, variant, rng)
                 else:
                     row = generate_mixed_counterpart(human, model)
+            except DailyQuotaExceeded as exc:
+                # Bukan sampel yang buruk, melainkan tembok. Seluruh sampel
+                # berikutnya untuk model ini akan gagal juga, jadi meneruskannya
+                # hanya memiringkan sebaran generator: dua model kecil terisi
+                # penuh sementara model besar tertinggal, dan ketimpangan itu
+                # hanya terlihat di sebaran generator pada ringkasan akhir.
+                print(f"\n[ai] {exc}")
+                print(
+                    "[ai] berhenti. Jatah dihitung per model dan per hari, jadi\n"
+                    "     menjalankan ulang sekarang tidak akan menolong.\n"
+                    f"     Jalankan lagi besok; {len(existing)} baris yang sudah\n"
+                    "     ada tersimpan di cache dan tidak akan dibuat ulang."
+                )
+                return existing
             except GenerationError as exc:
                 failures += 1
                 print(f"[ai] lewati {human['openalex_id']} ({label}): {exc}")
@@ -156,6 +176,18 @@ def collect_ai(
             append_jsonl(AI_CACHE, row)
             existing.append(row)
             done.add((human["openalex_id"], label))
+
+            # Jeda ini bukan kesopanan, melainkan penjaga keseimbangan dataset.
+            # Batas laju Groq dihitung per menit dan per model, dan model
+            # terbesar punya jatah paling sempit. Tanpa jeda, permintaan
+            # menumpuk sampai model besar itu menjawab 429 sementara dua model
+            # kecil tetap lolos, sehingga yang hilang selalu model yang sama.
+            # Kehilangan acak hanya mengurangi jumlah sampel; kehilangan yang
+            # selalu jatuh pada satu generator membuat sisi AI condong ke gaya
+            # dua model saja tanpa terlihat di mana pun kecuali di sebaran
+            # generator pada ringkasan akhir.
+            if sleep_seconds > 0:
+                time.sleep(sleep_seconds)
 
         if index % 20 == 0:
             print(f"[ai] {index}/{len(human_rows)} judul diproses")
@@ -314,6 +346,16 @@ def main() -> int:
             "sisi. field menguji generalisasi lintas bidang ilmu, lebih keras"
         ),
     )
+    parser.add_argument(
+        "--sleep",
+        type=float,
+        default=1.0,
+        help=(
+            "jeda detik antar generasi. Bawaannya 1.0 karena batas laju Groq "
+            "per menit berbeda tiap model, dan tanpa jeda yang gagal selalu "
+            "model terbesar sehingga sebaran generator jadi timpang"
+        ),
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out", default=str(GOLD_DIR / "gold_set.csv"))
     args = parser.parse_args()
@@ -338,7 +380,9 @@ def main() -> int:
         models = validate_models(models)
         if not models:
             return 1
-        rows += collect_ai(human_rows, models, args.include_mixed, args.seed)
+        rows += collect_ai(
+            human_rows, models, args.include_mixed, args.seed, args.sleep
+        )
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

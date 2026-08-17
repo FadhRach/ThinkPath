@@ -1,15 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getApiErrorMessage } from "@/lib/api-shared";
 import { BLOOM_LEVELS, bloomCode, bloomShortLabel } from "@/lib/bloom";
 import { createAssignment } from "@/lib/mutations";
+import { useAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 
 // Jenjang tidak lagi diminta di sini. Tugas mewarisinya dari kelas, sehingga
@@ -19,34 +18,29 @@ interface Props {
 }
 
 export function CreateAssignmentForm({ classId }: Props) {
-  const router = useRouter();
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [deadline, setDeadline] = useState("");
   const [expectedBloomLevel, setExpectedBloomLevel] = useState(4);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, run, router } = useAction(
+    "Gagal menyimpan tugas. Periksa isian lalu coba lagi.",
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const created = await createAssignment(classId, {
-        title: title.trim(),
-        instructions: instructions.trim(),
-        deadline: new Date(deadline).toISOString(),
-        expected_bloom_level: expectedBloomLevel,
-      });
-      router.push(`/dashboard/classes/${classId}?assignment=${created.id}`);
-      router.refresh();
-    } catch (err) {
-      setError(
-        getApiErrorMessage(err, "Gagal menyimpan tugas. Periksa isian lalu coba lagi."),
-      );
-      setLoading(false);
-    }
+    await run(
+      () =>
+        createAssignment(classId, {
+          title: title.trim(),
+          instructions: instructions.trim(),
+          deadline: new Date(deadline).toISOString(),
+          expected_bloom_level: expectedBloomLevel,
+        }),
+      (created) => {
+        router.push(`/dashboard/classes/${classId}?assignment=${created.id}`);
+        router.refresh();
+      },
+    );
   }
 
   return (
@@ -114,8 +108,8 @@ export function CreateAssignmentForm({ classId }: Props) {
       </div>
 
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
-      <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-        {loading ? "Menyimpan..." : "Terbitkan tugas"}
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+        {pending ? "Menyimpan..." : "Terbitkan tugas"}
       </Button>
     </form>
   );

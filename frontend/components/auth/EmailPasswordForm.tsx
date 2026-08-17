@@ -1,16 +1,15 @@
 "use client";
 
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { RoleSelector } from "@/components/auth/RoleSelector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getApiErrorMessage } from "@/lib/api-shared";
 import { homePathForRole, login, register } from "@/lib/auth";
 import type { Role } from "@/lib/types";
+import { useAction } from "@/lib/use-action";
 
 type Mode = "login" | "register";
 
@@ -24,38 +23,31 @@ const ROLE_LABEL: Record<Role, string> = {
 };
 
 export function EmailPasswordForm({ mode }: Props) {
-  const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<Role>("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, run, router } = useAction(
+    "Gagal memproses. Periksa isian lalu coba lagi.",
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const result =
+    // Cookie token sudah ditulis sebelum navigasi, jadi render pertama tujuan
+    // sudah login — tidak perlu router.refresh() yang me-render dua kali.
+    await run(
+      () =>
         mode === "login"
-          ? await login(email, password)
-          : await register({
+          ? login(email, password)
+          : register({
               email,
               password,
               display_name: displayName.trim(),
               role,
-            });
-      router.replace(homePathForRole(result.profile.role));
-      router.refresh();
-    } catch (err) {
-      setError(
-        getApiErrorMessage(err, "Gagal memproses. Periksa isian lalu coba lagi."),
-      );
-      setLoading(false);
-    }
+            }),
+      (result) => router.replace(homePathForRole(result.profile.role)),
+    );
   }
 
   const submitLabel =
@@ -136,8 +128,8 @@ export function EmailPasswordForm({ mode }: Props) {
 
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
 
-      <Button type="submit" disabled={loading} className="w-full" size="lg">
-        {loading ? "Memproses..." : submitLabel}
+      <Button type="submit" disabled={pending} className="w-full" size="lg">
+        {pending ? "Memproses..." : submitLabel}
       </Button>
     </form>
   );

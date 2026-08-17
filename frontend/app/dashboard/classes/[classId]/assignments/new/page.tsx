@@ -1,7 +1,7 @@
-import { ArrowLeft, ShieldCheck } from "lucide-react";
-import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { BackLink } from "@/components/common/BackLink";
 import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
 import { CreateAssignmentForm } from "@/components/dashboard/CreateAssignmentForm";
@@ -23,13 +23,10 @@ export default async function NewAssignmentPage({
 
   return (
     <div className="space-y-6">
-      <Link
+      <BackLink
         href={`/dashboard/classes/${targetClass.id}`}
-        className="inline-flex items-center gap-1.5 text-body-sm text-muted-foreground transition hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Kembali ke dashboard
-      </Link>
+        label="Kembali ke dashboard"
+      />
       <PageHeader
         title="Buat Tugas Baru"
         subtitle={`${targetClass.name} · ${targetClass.subject}`}

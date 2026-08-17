@@ -9,7 +9,7 @@ export type EventType =
   | "paste"
   | "submitted"
   | "progress";
-export type AnalysisSource = "llm" | "heuristic" | "seed";
+export type AnalysisSource = "llm" | "detector" | "heuristic" | "seed";
 export type VerificationStatus = "scheduled" | "completed" | "cancelled";
 /** Baris pada halaman Daftar Tugas dosen: sama seperti AssignmentSummary,
  *  ditambah asal kelasnya karena di sana tugas lintas kelas bercampur. */
@@ -185,8 +185,9 @@ export interface ReportOverview {
   analysed_count: number;
   cognitive_gap: { below: number; on_target: number; above: number };
   ai_band: { low: number; mid: number; high: number };
-  /** Berapa banyak angka berasal dari analisis penuh, cadangan, atau data demo. */
-  provenance: { llm: number; heuristic: number; seed: number };
+  /** Berapa banyak angka berasal dari detektor eksternal, analisis penuh,
+   *  cadangan, atau data demo. */
+  provenance: { llm: number; detector: number; heuristic: number; seed: number };
 }
 
 export interface ReportPayload {
@@ -230,14 +231,20 @@ export interface StudentAssignment {
   education_level: EducationLevel;
 }
 
+// Varian listing dari backend sengaja tanpa text_answer supaya daftar kelas
+// tidak ikut mengangkut seluruh esai; teks lengkap hanya ada di endpoint
+// detail tugas (StudentSubmissionWithText).
 export interface StudentSubmissionStatus {
   id: string;
   status: SubmissionStatus;
   submitted_at: string | null;
   grade: number | null;
   teacher_feedback: string;
-  text_answer: string;
   revision_count: number;
+}
+
+export interface StudentSubmissionWithText extends StudentSubmissionStatus {
+  text_answer: string;
 }
 
 export interface StudentClassWithAssignments extends ClassPublic {
@@ -251,7 +258,7 @@ export interface StudentClassWithAssignments extends ClassPublic {
 export interface StudentAssignmentDetail {
   class: ClassPublic;
   assignment: StudentAssignment;
-  submission: StudentSubmissionStatus | null;
+  submission: StudentSubmissionWithText | null;
 }
 
 export interface JoinClassResult {

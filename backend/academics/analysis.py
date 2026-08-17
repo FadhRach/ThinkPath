@@ -24,6 +24,8 @@ __all__ = [
     "score_to_band",
     "band_to_recommendation",
     "build_recommendation",
+    "build_summary",
+    "overall_confidence",
 ]
 
 
@@ -99,10 +101,16 @@ def build_summary(band: str, bloom_level: int, bloom_confidence: str) -> str:
     return f"{integrity} {cognitive}."
 
 
-def _overall_confidence(word_count: int) -> str:
-    """Jalur heuristik tidak pernah mencapai keyakinan tinggi.
+def overall_confidence(word_count: int) -> str:
+    """Keyakinan terhadap skor AI untuk jalur yang tidak melaporkan keyakinannya.
 
-    Sinyalnya terlalu dangkal. Menaikkannya ke high akan menyesatkan dosen.
+    Jalur heuristik tidak pernah mencapai keyakinan tinggi: sinyalnya terlalu
+    dangkal, dan menaikkannya ke high akan menyesatkan dosen.
+
+    Dipakai juga oleh jalur detektor eksternal di llm.py, yang punya alasan
+    berbeda dengan kesimpulan sama. Detektor memang tidak mengembalikan
+    keyakinan sama sekali, dan ketepatannya pada teks berbahasa Indonesia belum
+    pernah diukur.
     """
     return Confidence.LOW if word_count < 80 else Confidence.MEDIUM
 
@@ -132,7 +140,7 @@ def analyze_text(
         "ai_score": ai.score,
         "ai_band": ai.band,
         "bloom_level": bloom.level,
-        "confidence": _overall_confidence(features.word_count),
+        "confidence": overall_confidence(features.word_count),
         "bloom_confidence": bloom.confidence,
         "signals": signals[:4],
         "summary": build_summary(ai.band, bloom.level, bloom.confidence),

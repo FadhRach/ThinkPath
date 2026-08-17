@@ -34,40 +34,67 @@ def submissions_for_classes(classes: QuerySet[Class]) -> QuerySet[Submission]:
 
 
 def build_overview(classes: QuerySet[Class]) -> dict:
-    """Ringkasan seluruh kelas dalam cakupan."""
+    """Ringkasan seluruh kelas dalam cakupan.
+
+    Seluruh hitungan dirangkum dalam SATU aggregate, bukan enam query terpisah.
+    Ke database remote, biaya endpoint ini hampir seluruhnya jumlah round trip,
+    bukan berat query-nya. Filter ANALYSED hanya perlu di analysed_count:
+    perbandingan kolom analysis pada baris tanpa analisis bernilai NULL dan
+    otomatis tidak terhitung.
+    """
     submissions = submissions_for_classes(classes)
-    analysed = submissions.filter(ANALYSED)
 
-    gap_buckets = analysed.aggregate(
-        below=Count("id", filter=Q(analysis__bloom_level__lt=F("assignment__expected_bloom_level"))),
-        on_target=Count("id", filter=Q(analysis__bloom_level=F("assignment__expected_bloom_level"))),
-        above=Count("id", filter=Q(analysis__bloom_level__gt=F("assignment__expected_bloom_level"))),
-    )
-
-    band_buckets = analysed.aggregate(
-        low=Count("id", filter=Q(analysis__ai_band=AiBand.LOW)),
-        mid=Count("id", filter=Q(analysis__ai_band=AiBand.MID)),
-        high=Count("id", filter=Q(analysis__ai_band=AiBand.HIGH)),
-    )
-
-    # Berapa banyak angka yang sebenarnya berasal dari hitungan cadangan atau
-    # data contoh. Tanpa ini, laporan terbaca seolah semuanya hasil analisis
-    # penuh.
-    provenance = analysed.aggregate(
-        llm=Count("id", filter=Q(analysis__analysis_source=AnalysisSource.LLM)),
-        heuristic=Count(
+    stats = submissions.aggregate(
+        submission_count=Count("id"),
+        analysed_count=Count("id", filter=ANALYSED),
+        gap_below=Count(
+            "id",
+            filter=Q(analysis__bloom_level__lt=F("assignment__expected_bloom_level")),
+        ),
+        gap_on_target=Count(
+            "id",
+            filter=Q(analysis__bloom_level=F("assignment__expected_bloom_level")),
+        ),
+        gap_above=Count(
+            "id",
+            filter=Q(analysis__bloom_level__gt=F("assignment__expected_bloom_level")),
+        ),
+        band_low=Count("id", filter=Q(analysis__ai_band=AiBand.LOW)),
+        band_mid=Count("id", filter=Q(analysis__ai_band=AiBand.MID)),
+        band_high=Count("id", filter=Q(analysis__ai_band=AiBand.HIGH)),
+        # Berapa banyak angka yang sebenarnya berasal dari hitungan cadangan
+        # atau data contoh. Tanpa ini, laporan terbaca seolah semuanya hasil
+        # analisis penuh.
+        src_llm=Count("id", filter=Q(analysis__analysis_source=AnalysisSource.LLM)),
+        src_heuristic=Count(
             "id", filter=Q(analysis__analysis_source=AnalysisSource.HEURISTIC)
         ),
-        seed=Count("id", filter=Q(analysis__analysis_source=AnalysisSource.SEED)),
+        src_seed=Count("id", filter=Q(analysis__analysis_source=AnalysisSource.SEED)),
+        src_detector=Count(
+            "id", filter=Q(analysis__analysis_source=AnalysisSource.DETECTOR)
+        ),
     )
 
     return {
         "class_count": classes.count(),
-        "submission_count": submissions.count(),
-        "analysed_count": analysed.count(),
-        "cognitive_gap": gap_buckets,
-        "ai_band": band_buckets,
-        "provenance": provenance,
+        "submission_count": stats["submission_count"],
+        "analysed_count": stats["analysed_count"],
+        "cognitive_gap": {
+            "below": stats["gap_below"],
+            "on_target": stats["gap_on_target"],
+            "above": stats["gap_above"],
+        },
+        "ai_band": {
+            "low": stats["band_low"],
+            "mid": stats["band_mid"],
+            "high": stats["band_high"],
+        },
+        "provenance": {
+            "llm": stats["src_llm"],
+            "heuristic": stats["src_heuristic"],
+            "seed": stats["src_seed"],
+            "detector": stats["src_detector"],
+        },
     }
 
 
@@ -107,15 +134,10 @@ def build_per_class(classes: QuerySet[Class]) -> list[dict]:
     analysed = submissions_for_classes(classes).filter(ANALYSED)
     metrics = _metrics_by(analysed, "assignment__class_ref_id")
 
-    assignment_counts = {
-        item["id"]: item["assignment_count"]
-        for item in classes.annotate(assignment_count=Count("assignments")).values(
-            "id", "assignment_count"
-        )
-    }
-
     rows = []
-    for item in classes:
+    # Anotasi jumlah tugas menumpang pada query daftar kelas yang memang sudah
+    # dibutuhkan, alih-alih menjadi round trip kedua.
+    for item in classes.annotate(assignment_count=Count("assignments")):
         stat = metrics.get(item.id, {})
         total = stat.get("analysed_count", 0)
         below = stat.get("below_target_count", 0)
@@ -128,7 +150,7 @@ def build_per_class(classes: QuerySet[Class]) -> list[dict]:
                 "education_level": item.education_level,
                 "program_studi": item.program_studi,
                 "semester": item.semester,
-                "assignment_count": assignment_counts.get(item.id, 0),
+                "assignment_count": item.assignment_count,
                 "analysed_count": total,
                 "below_target_count": below,
                 "below_target_ratio": _ratio(below, total),

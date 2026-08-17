@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,16 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateProfile } from "@/lib/mutations";
 import type { EducationLevel, Profile } from "@/lib/types";
+import { useAction } from "@/lib/use-action";
 
 const LEVELS: EducationLevel[] = ["D3", "S1", "S2", "S3"];
 
 export function ProfileForm({ profile }: { profile: Profile }) {
-  const router = useRouter();
   const [displayName, setDisplayName] = useState(profile.display_name ?? "");
   const [level, setLevel] = useState<string>(profile.education_level ?? "");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const { pending, error, setError, run } = useAction("Gagal menyimpan perubahan.");
 
   const dirty =
     displayName !== (profile.display_name ?? "") ||
@@ -31,23 +29,16 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       return;
     }
 
-    setPending(true);
-    setError(null);
     setSaved(false);
-    try {
-      await updateProfile({
+    // Nama tampil dipakai di TopNav dan tabel submission; refresh bawaan run()
+    // mengambil ulang semua segmen server yang menampilkannya.
+    const { ok } = await run(() =>
+      updateProfile({
         display_name: trimmed,
         ...(level ? { education_level: level as EducationLevel } : {}),
-      });
-      setSaved(true);
-      // Nama tampil dipakai di TopNav dan tabel submission, jadi seluruh
-      // segmen yang sudah dirender di server perlu diambil ulang.
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menyimpan perubahan.");
-    } finally {
-      setPending(false);
-    }
+      }),
+    );
+    if (ok) setSaved(true);
   }
 
   return (

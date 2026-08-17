@@ -26,16 +26,32 @@ class Confidence(models.TextChoices):
 
 
 class AnalysisSource(models.TextChoices):
-    """Mesin yang menghasilkan satu baris AnalysisResult.
+    """Mesin yang menghasilkan SKOR AI pada satu baris AnalysisResult.
 
     Wajib disimpan. Tanpa ini, hasil heuristik dangkal dan hasil LLM tersimpan
     identik di database, sehingga grafik tren dan laporan agregat tidak bisa
     membedakan mana yang layak dipercaya.
+
+    Perhatikan cakupannya: field ini menerangkan asal SKOR AI, bukan asal
+    seluruh baris. Sejak detektor eksternal dipakai, skor AI dan level Bloom
+    bisa datang dari mesin yang berbeda pada satu submission yang sama -
+    detektor memberi skor AI sementara level Bloom tetap dari LLM atau dari
+    heuristik. Cakupan sempit ini disengaja dan cocok dengan tempatnya di layar
+    dosen, tepat di sebelah cincin skor AI. Keyakinan taksiran Bloom punya
+    fieldnya sendiri di bloom_confidence.
+
+    DETECTOR sengaja tidak menyebut nama penyedia. Penyedia sudah terbukti bisa
+    gugur: integrasi pertama memakai Sapling dan dibatalkan setelah ketahuan
+    English-only. Kalau nilainya "sapling" atau "winston", tiap pergantian
+    penyedia menuntut migrasi dan perubahan frontend, dan baris lama jadi
+    membingungkan. Nama penyedia beserta versi modelnya tercatat per baris di
+    dalam signal_breakdown, jadi jejak auditnya tetap ada tanpa mengubah skema.
     """
 
     LLM = "llm", "LLM"
     HEURISTIC = "heuristic", "Heuristic"
     SEED = "seed", "Seed demo"
+    DETECTOR = "detector", "External detector"
 
 
 class EventType(models.TextChoices):
@@ -335,3 +351,55 @@ class AnalysisResult(models.Model):
 
     class Meta:
         db_table = "analysis_results"
+
+
+class DetectorScore(models.Model):
+    """Skor detektor eksternal yang pernah dibayar, disimpan agar tidak dibayar dua kali.
+
+    Detektor menagih per kata, bukan per permintaan. Tanpa tabel ini, setiap
+    penekanan tombol "Analisis Ulang" pada jawaban yang teksnya tidak berubah
+    membayar penuh lagi untuk teks yang sama. Dosen menekan tombol itu justru
+    ketika ia ragu pada angkanya, yaitu saat skor itu paling penting, sehingga
+    pemborosannya terjadi tepat di kasus yang paling sering.
+
+    Ini cache basis data, bukan cache Django. `locmem` tidak dibagi antar worker
+    gunicorn dan hilang setiap restart, jadi ia tidak menyelesaikan apa pun yang
+    sedang diselesaikan di sini.
+
+    Teks jawabannya sendiri TIDAK ikut disimpan, hanya SHA-256 nya. Jawabannya
+    sudah ada di Submission.text_answer, dan menyalinnya ke tabel kedua hanya
+    menggandakan data pribadi mahasiswa tanpa menambah apa pun.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    text_hash = models.CharField(max_length=64)
+    # Tiga kolom di bawah ikut menjadi kunci, bukan sekadar catatan.
+    #
+    # detector.py sengaja memaku MODEL_VERSION supaya skor yang tersimpan hari
+    # ini masih bisa dijelaskan enam bulan lagi. Kalau versinya dinaikkan, skor
+    # lama tidak boleh dipakai ulang karena ia berasal dari model yang berbeda.
+    # Dengan versi ikut di dalam kunci, menaikkannya otomatis membatalkan
+    # seluruh cache lama tanpa ada yang perlu ingat menghapusnya. Alasan yang
+    # sama berlaku untuk provider dan language.
+    provider = models.CharField(max_length=32)
+    model_version = models.CharField(max_length=16)
+    language = models.CharField(max_length=8)
+    # SUDAH dibalik menjadi probabilitas AI 0..1, konvensi yang sama dengan
+    # cache kalibrasi di ai_experiment. Menyimpan "human score" mentah di kolom
+    # ini akan membuat seluruh baris lama terbaca terbalik tanpa satu pun gejala:
+    # angkanya tetap masuk akal, hanya menuduh orang yang salah.
+    ai_probability = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    )
+    reliable = models.BooleanField()
+    attack_kinds = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "detector_scores"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["text_hash", "provider", "model_version", "language"],
+                name="detector_score_unique_key",
+            ),
+        ]

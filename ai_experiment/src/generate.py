@@ -73,8 +73,31 @@ class GenerationError(RuntimeError):
     pass
 
 
+class DailyQuotaExceeded(GenerationError):
+    """Jatah token harian model itu habis.
+
+    Dipisahkan dari GenerationError biasa karena penanganannya berbeda secara
+    mendasar. Sampel yang gagal karena keluaran buruk layak dilewati lalu
+    dilanjutkan; jatah harian yang habis membuat SELURUH sampel berikutnya untuk
+    model itu ikut gagal, jadi meneruskannya hanya membuang waktu dan
+    memiringkan sebaran generator tanpa terlihat.
+    """
+
+
 class _Retryable(Exception):
     """Galat sementara yang layak dicoba lagi."""
+
+
+def is_daily_quota(body: str) -> bool:
+    """Bedakan batas harian dari batas per menit, keduanya dijawab 429.
+
+    Batas per menit pulih dalam hitungan detik dan layak ditunggu dengan
+    backoff. Batas harian tidak akan pulih berapa kali pun diulang, jadi
+    mengulangnya lima kali hanya membuang waktu dan menyamarkan penyebabnya.
+    Pesan Groq menyebut "tokens per day (TPD)" untuk kasus kedua.
+    """
+    lowered = body.lower()
+    return "tokens per day" in lowered or "tpd" in lowered
 
 
 def available_models() -> set[str]:
@@ -117,8 +140,20 @@ def _chat(prompt: str, model: str, temperature: float) -> str:
                 },
                 timeout=REQUEST_TIMEOUT,
             )
+            if response.status_code == 429 and is_daily_quota(response.text):
+                # Berhenti seketika, tanpa backoff. Jatah harian tidak pulih
+                # dalam hitungan detik berapa pun, jadi lima percobaan
+                # berbackoff hanya membuang waktu lalu gagal juga.
+                raise DailyQuotaExceeded(
+                    f"jatah token harian {model} habis: {response.text[:220]}"
+                )
             if response.status_code in (429, 500, 502, 503, 504):
-                raise _Retryable(f"status {response.status_code}")
+                # Isi pesannya ikut dibawa, bukan hanya kodenya. Tanpa itu,
+                # tembok harian dan batas per menit terlihat identik di log,
+                # padahal yang satu layak ditunggu dan yang lain tidak.
+                raise _Retryable(
+                    f"status {response.status_code}: {response.text[:200]}"
+                )
             if response.status_code >= 400:
                 # Galat klien seperti model tidak dikenal atau kunci ditolak.
                 # Mengulanginya tidak akan mengubah apa pun, hanya membuang
@@ -128,11 +163,17 @@ def _chat(prompt: str, model: str, temperature: float) -> str:
                     f"{response.text[:200]}"
                 )
             content = response.json()["choices"][0]["message"]["content"]
-            cleaned = clean_generated(content or "")
+            content = content or ""
+            cleaned = clean_generated(content)
             if len(cleaned.split()) < MIN_GENERATED_WORDS:
+                # Jumlah kata mentah ikut dilaporkan karena tanpa itu, bug di
+                # clean_generated menyamar sebagai "model membalas pendek".
+                # Kalau mentahnya panjang tapi bersihnya nol, yang rusak adalah
+                # pembersihannya, bukan modelnya.
                 raise _Retryable(
                     f"keluaran terlalu pendek setelah dibersihkan "
-                    f"({len(cleaned.split())} kata)"
+                    f"({len(cleaned.split())} kata, mentah "
+                    f"{len(content.split())} kata)"
                 )
             if is_mostly_english(cleaned):
                 raise _Retryable("keluaran didominasi bahasa Inggris")
@@ -152,17 +193,37 @@ UNCLOSED_THINK = re.compile(r"^.*?<think(?:ing)?>", re.DOTALL | re.IGNORECASE)
 
 # Label pembuka yang disisipkan model meski diminta hanya mengeluarkan isinya.
 #
-# Dua hal yang harus dijaga di pola ini. Pertama, hanya spasi mendatar yang
+# Dua label ini sengaja dipisah karena nasib isinya berbeda. "Judul: ..."
+# adalah metadata, jadi seluruh barisnya dibuang berikut isinya. Sedangkan pada
+# "Abstrak: ...", isi setelah titik dua ADALAH abstraknya, jadi yang boleh
+# dibuang hanya labelnya.
+#
+# Tiga hal yang harus dijaga di kedua pola. Pertama, hanya spasi mendatar yang
 # boleh dilewati, bukan \s, karena \s ikut menelan baris baru sehingga seluruh
 # teks termakan. Kedua, kata label baru dianggap label kalau diikuti titik dua
 # atau langsung berakhir baris. Tanpa syarat itu, abstrak yang kebetulan diawali
-# kata "Ringkasan penelitian ini ..." ikut terpotong.
-LEAD_LABEL = re.compile(
-    r"^[ \t]*(?:#{1,6}[ \t]*)?\*{0,2}[ \t]*"
-    r"(?:judul|title|abstrak|abstract|ringkasan|summary)"
-    r"[ \t]*\*{0,2}[ \t]*"
-    r"(?::[ \t]*.*)?$",
-    re.IGNORECASE | re.MULTILINE,
+# kata "Ringkasan penelitian ini ..." ikut terpotong. Ketiga, jangkarnya \A dan
+# bukan ^ dengan MULTILINE: yang dicari label PEMBUKA, dan pola beranjangkar ^
+# bisa mencocok di awal baris mana pun sehingga sub(count=1) berpotensi
+# memotong bagian tengah abstrak.
+#
+# Syarat \n di akhir TITLE_LINE itu yang menjaga keamanannya. Versi sebelumnya
+# menutup dengan (?::[ \t]*.*)?$ untuk kedua label sekaligus, dan karena model
+# kerap membalas seluruh abstrak dalam satu baris yang diawali "Abstrak: ",
+# .* melahap sampai akhir baris — yaitu seluruh teks — sehingga hasil
+# bersihnya kosong. Kegagalannya sistematis, selalu pada kombinasi model dan
+# varian prompt yang sama, jadi satu sel penuh rancangan eksperimen hilang.
+TITLE_LINE = re.compile(
+    r"\A[ \t]*(?:#{1,6}[ \t]*)?\*{0,2}[ \t]*"
+    r"(?:judul|title)"
+    r"[ \t]*\*{0,2}[ \t]*:[ \t]*[^\n]*\n",
+    re.IGNORECASE,
+)
+ABSTRACT_LABEL = re.compile(
+    r"\A[ \t]*(?:#{1,6}[ \t]*)?\*{0,2}[ \t]*"
+    r"(?:abstrak|abstract|ringkasan|summary)"
+    r"[ \t]*\*{0,2}[ \t]*(?::[ \t]*|[ \t]*\n)",
+    re.IGNORECASE,
 )
 MARKDOWN_MARKS = re.compile(r"[*_`#]+")
 WHITESPACE = re.compile(r"\s+")
@@ -207,9 +268,12 @@ def clean_generated(text: str) -> str:
         text = re.sub(r"</?think(?:ing)?>", " ", text, flags=re.IGNORECASE)
 
     # Buang label pembuka berulang kali, karena model kerap menumpuk
-    # "Judul: ..." lalu "Abstrak:" di baris berikutnya.
+    # "Judul: ..." lalu "Abstrak:" di baris berikutnya. Karena polanya
+    # berjangkar \A, .strip() tiap putaran itulah yang membuat label bertumpuk
+    # tetap terjangkau.
     for _ in range(4):
-        stripped = LEAD_LABEL.sub("", text, count=1).strip()
+        stripped = TITLE_LINE.sub("", text, count=1)
+        stripped = ABSTRACT_LABEL.sub("", stripped, count=1).strip()
         if stripped == text.strip():
             break
         text = stripped

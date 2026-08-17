@@ -74,13 +74,28 @@ class AiScoreResult:
 
 
 # Bobot sinyal berbasis teks. Jumlahnya harus 1.0, dijaga oleh test.
-# Angka ini adalah titik awal yang harus dikalibrasi ulang begitu gold set ada.
+#
+# HASIL UKUR, bukan lagi karangan. Dicari lewat grid search pada split train
+# gold set 999 sampel (ai_experiment/src/tune_weights.py) dan diverifikasi pada
+# split test yang tidak pernah dilihat pencarian: ROC-AUC test naik dari 0,884
+# (bobot lama 0,30/0,25/0,20/0,15/0,10) menjadi 0,912; pada set penuh 0,869
+# menjadi 0,901.
+#
+# impersonality dan flat_certainty dipatok pada lantai 0,05, bukan nol, dan itu
+# disengaja: keduanya diam pada register abstrak akademik gold set, tetapi diam
+# di register yang salah bukan bukti buruk di register esai mahasiswa yang
+# sebenarnya dinilai produk ini. Menolkan bobot berdasarkan register yang salah
+# berarti membuang sinyal yang belum pernah diuji.
+#
+# Mengubah bobot WAJIB menurunkan ulang MID_THRESHOLD di bawah: ambang diukur
+# untuk sebaran skor yang dihasilkan bobot ini, bukan properti yang bertahan
+# sendiri.
 TEXT_WEIGHTS = {
-    "uniformity": 0.30,
+    "uniformity": 0.40,
     "formulaic_phrasing": 0.25,
-    "impersonality": 0.20,
-    "flat_certainty": 0.15,
-    "lexical_uniformity": 0.10,
+    "impersonality": 0.05,
+    "flat_certainty": 0.05,
+    "lexical_uniformity": 0.25,
 }
 
 # Porsi sinyal forensik proses ketika metadata pengerjaan tersedia. Sisa bobot
@@ -216,12 +231,57 @@ def _signal_lexical_uniformity(features: TextFeatures) -> SignalScore:
     )
 
 
+# Ambang band heuristik. Yang bawah HASIL UKUR, yang atas belum.
+#
+# MID 42 diturunkan BERSAMA bobot terukur di atas (keduanya satu paket): itulah
+# ambang terendah yang menjaga false positive rate di bawah 5 persen pada gold
+# set 999 sampel dengan bobot baru - terukur 0,044, yaitu 22 dari 500 tulisan
+# manusia, dengan recall 0,607 dan presisi 0,932. Riwayat angkanya: 35 asli
+# ditulis dari penalaran (FPR terukur 0,838); 56 adalah ambang terukur untuk
+# bobot LAMA; begitu bobotnya berubah, 56 kehilangan dasar ukurnya dan harus
+# diturunkan ulang. Reproduksi: ai_experiment/src/tune_weights.py.
+#
+# Kenapa angka dari gold set beregister salah tetap dipakai. Gold setnya berisi
+# abstrak akademik sedangkan produk ini menilai esai mahasiswa, dan itu memang
+# ketidakcocokan yang nyata. Tetapi ARAH biasnya bisa diketahui: abstrak
+# akademik menurut konvensinya lebih formal, lebih impersonal, dan lebih seragam
+# daripada esai mahasiswa, sehingga tulisan manusia di gold set mendapat skor
+# LEBIH TINGGI daripada tulisan manusia yang sebenarnya dinilai produk ini.
+# Ambang yang menahan FPR pada korpus yang lebih sulit itu akan lebih longgar,
+# bukan lebih ketat, ketika dipakai pada esai mahasiswa. Kesalahannya jatuh ke
+# arah tidak menuduh, dan itu arah yang benar untuk produk yang berpegang pada
+# "bukti, bukan vonis".
+#
+# HIGH 70 SENGAJA TIDAK DIGESER dan masih belum terukur. Dengan bobot baru pun
+# tidak ada satu pun sampel gold set yang mencapainya (skor maksimum 68), jadi
+# tetap tidak ada data untuk menempatkannya. Band tinggi praktis tidak pernah
+# aktif, dan itu lebih baik daripada band tinggi yang aktif berdasarkan angka
+# karangan.
+MID_THRESHOLD = 42
+HIGH_THRESHOLD = 70
+
+
 def score_to_band(ai_score: int) -> str:
-    if ai_score < 35:
+    if ai_score < MID_THRESHOLD:
         return AiBand.LOW
-    if ai_score < 70:
+    if ai_score < HIGH_THRESHOLD:
         return AiBand.MID
     return AiBand.HIGH
+
+
+def text_signal_scores(features: TextFeatures) -> list[SignalScore]:
+    """Kelima sinyal teks heuristik, tanpa penciutan bobot apa pun.
+
+    Dipakai dua tempat: score_ai_probability (menyumbang skor), dan panel
+    pembanding di llm.py ketika skor datang dari Groq/detektor (bobot nol).
+    """
+    return [
+        _signal_uniformity(features),
+        _signal_formulaic_phrasing(features),
+        _signal_impersonality(features),
+        _signal_flat_certainty(features),
+        _signal_lexical_uniformity(features),
+    ]
 
 
 def build_process_signal(context: ProcessContext) -> SignalScore:  # noqa: D401
@@ -249,13 +309,7 @@ def score_ai_probability(
     punya metadata akan otomatis lebih tinggi daripada yang tidak, hanya karena
     jumlah sinyalnya lebih banyak.
     """
-    text_signals = [
-        _signal_uniformity(features),
-        _signal_formulaic_phrasing(features),
-        _signal_impersonality(features),
-        _signal_flat_certainty(features),
-        _signal_lexical_uniformity(features),
-    ]
+    text_signals = text_signal_scores(features)
 
     if process is None:
         breakdown = text_signals

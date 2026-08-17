@@ -10,11 +10,10 @@ from datetime import timedelta
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import (
-    AuthenticationFailed,
     NotFound,
     PermissionDenied,
     ValidationError,
@@ -23,12 +22,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.permissions import IsStudent, IsTeacher
-from core.services import get_profile_by_sub
+from core.services import get_profile_by_sub, get_request_profile
 
 from .join_codes import generate_unique_join_code
 from .llm import run_analysis
 from .cognitive import build_profile
-from .overview import build_overview
+from .overview import build_teacher_overview
 from .process_signals import ProcessContext, ProgressSample
 from .reports import build_report
 from .models import (
@@ -53,6 +52,7 @@ from .serializers import (
     ClassPublicSerializer,
     JoinClassSerializer,
     StudentAssignmentSerializer,
+    StudentSubmissionStatusListSerializer,
     StudentSubmissionStatusSerializer,
     SubmissionCreateSerializer,
     SubmissionDetailSerializer,
@@ -67,13 +67,6 @@ from .serializers import (
 
 def _owner_uuid(request) -> UUID:
     return UUID(request.user.sub)
-
-
-def _get_request_profile(request):
-    profile = get_profile_by_sub(request.user.sub)
-    if profile is None:
-        raise AuthenticationFailed("Akun tidak ditemukan.")
-    return profile
 
 
 def _parse_uuid_or_404(value: str) -> UUID:
@@ -121,20 +114,6 @@ def _require_member_assignment(request, assignment_id: str) -> Assignment:
     return assignment
 
 
-def _progress_samples(submission: Submission, started_at) -> tuple:
-    """Baca cuplikan pertumbuhan kata yang tersimpan sebagai ReasoningEvent."""
-    samples = []
-    for event in submission.reasoning_events.all():
-        if event.event_type != EventType.PROGRESS:
-            continue
-        count = (event.payload or {}).get("word_count")
-        if not isinstance(count, int):
-            continue
-        offset = int((event.occurred_at - started_at).total_seconds())
-        samples.append(ProgressSample(offset_seconds=max(0, offset), word_count=count))
-    return tuple(sorted(samples, key=lambda s: s.offset_seconds))
-
-
 def _build_process_context(
     text: str,
     duration_seconds: int | None,
@@ -167,6 +146,34 @@ def _paste_char_count(submission: Submission) -> int:
         if isinstance(value, int):
             total += value
     return total
+
+
+def _analyse_for(
+    text_answer: str,
+    assignment: Assignment,
+    *,
+    duration_seconds: int | None,
+    revision_count: int,
+    paste_char_count: int = 0,
+    progress: tuple = (),
+) -> dict:
+    """Jalankan rantai analisis dengan konteks proses yang dirakit seragam.
+
+    Satu-satunya jalan masuk ke run_analysis dari views: submit pertama,
+    revisi, dan analisis ulang wajib merakit argumen dengan cara yang sama.
+    """
+    return run_analysis(
+        text_answer,
+        assignment.class_ref.education_level,
+        assignment.expected_bloom_level,
+        _build_process_context(
+            text_answer,
+            duration_seconds,
+            revision_count,
+            paste_char_count,
+            progress,
+        ),
+    )
 
 
 def _assignment_annotations():
@@ -214,7 +221,7 @@ class ClassListCreateView(APIView):
         return Response(ClassListSerializer(classes, many=True).data)
 
     def post(self, request):
-        owner_profile = _get_request_profile(request)
+        owner_profile = get_request_profile(request)
         serializer = ClassCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_class = Class.objects.create(
@@ -222,13 +229,11 @@ class ClassListCreateView(APIView):
             join_code=generate_unique_join_code(),
             **serializer.validated_data,
         )
-        annotated = (
-            Class.objects.filter(pk=new_class.pk)
-            .annotate(assignment_count=Count("assignments"))
-            .first()
-        )
+        # Kelas baru pasti belum punya tugas; angka nolnya diketahui tanpa
+        # round trip kedua ke database.
+        new_class.assignment_count = 0
         return Response(
-            ClassListSerializer(annotated).data,
+            ClassListSerializer(new_class).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -256,14 +261,13 @@ class AssignmentListCreateView(APIView):
             class_ref=target_class,
             **serializer.validated_data,
         )
-        annotated = (
-            Assignment.objects.filter(pk=new_assignment.pk)
-            .select_related("class_ref")
-            .annotate(**_assignment_annotations())
-            .first()
-        )
+        # Tugas baru pasti belum punya submission; class_ref sudah ter-load
+        # dari _require_owned_class, jadi tidak perlu refetch ber-annotate.
+        new_assignment.submission_count = 0
+        new_assignment.high_band_count = 0
+        new_assignment.needs_review_count = 0
         return Response(
-            AssignmentListSerializer(annotated).data,
+            AssignmentListSerializer(new_assignment).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -285,7 +289,7 @@ class TeacherOverviewView(APIView):
         submissions = Submission.objects.filter(
             assignment__class_ref__owner_id=owner_id
         )
-        return Response({"classes": build_overview(classes, submissions)})
+        return Response({"classes": build_teacher_overview(classes, submissions)})
 
 
 class TeacherAssignmentListView(APIView):
@@ -323,7 +327,7 @@ class JoinClassView(APIView):
         if target_class is None:
             raise NotFound("Kode kelas tidak ditemukan.")
 
-        student_profile = _get_request_profile(request)
+        student_profile = get_request_profile(request)
         _, created = ClassMembership.objects.get_or_create(
             class_ref=target_class,
             student_profile=student_profile,
@@ -333,12 +337,20 @@ class JoinClassView(APIView):
         )
 
 
-def _latest_submission_map(student_id: UUID, assignment_ids: list) -> dict:
-    """Map assignment_id -> submission terbaru milik mahasiswa."""
+def _latest_submission_map(
+    student_id: UUID, assignment_ids: list, *, include_text: bool = True
+) -> dict:
+    """Map assignment_id -> submission terbaru milik mahasiswa.
+
+    include_text=False untuk listing: esainya tidak ditampilkan di daftar,
+    jadi tidak perlu ikut terangkut dari database.
+    """
     submissions = Submission.objects.filter(
         student_profile_id=student_id,
         assignment_id__in=assignment_ids,
     ).order_by("assignment_id", "-created_at")
+    if not include_text:
+        submissions = submissions.defer("text_answer")
     latest: dict = {}
     for submission in submissions:
         if submission.assignment_id not in latest:
@@ -349,7 +361,7 @@ def _latest_submission_map(student_id: UUID, assignment_ids: list) -> dict:
 def _serialize_student_assignment(assignment: Assignment, submission) -> dict:
     data = StudentAssignmentSerializer(assignment).data
     data["submission"] = (
-        StudentSubmissionStatusSerializer(submission).data
+        StudentSubmissionStatusListSerializer(submission).data
         if submission is not None
         else None
     )
@@ -375,7 +387,9 @@ class StudentClassListView(APIView):
             .order_by("-created_at")
         )
         latest = _latest_submission_map(
-            student_id, [assignment.id for assignment in assignments]
+            student_id,
+            [assignment.id for assignment in assignments],
+            include_text=False,
         )
 
         assignments_by_class: dict = {}
@@ -396,7 +410,7 @@ class StudentClassListView(APIView):
                     "education_level": cls.education_level,
                     "program_studi": cls.program_studi,
                     "semester": cls.semester,
-                    "teacher_name": owner.display_name or owner.email,
+                    "teacher_name": owner.label,
                     "joined_at": membership.joined_at,
                     "assignments": assignments_by_class.get(cls.id, []),
                 }
@@ -445,7 +459,7 @@ class SubmissionListView(APIView):
     def post(self, request, assignment_id: str):
         assignment = _require_member_assignment(request, assignment_id)
         self._reject_if_past_deadline(assignment)
-        student_profile = _get_request_profile(request)
+        student_profile = get_request_profile(request)
 
         serializer = SubmissionCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -506,13 +520,12 @@ class SubmissionListView(APIView):
             for s in sorted(samples, key=lambda s: s["at"])
         )
 
-        analysis = run_analysis(
+        analysis = _analyse_for(
             text_answer,
-            assignment.class_ref.education_level,
-            assignment.expected_bloom_level,
-            _build_process_context(
-                text_answer, duration_seconds, revision_count=0, progress=progress
-            ),
+            assignment,
+            duration_seconds=duration_seconds,
+            revision_count=0,
+            progress=progress,
         )
         with transaction.atomic():
             submission = Submission.objects.create(
@@ -560,16 +573,12 @@ class SubmissionListView(APIView):
         # revision_count masih nilai lama di titik ini; revisi yang sedang
         # berjalan ikut dihitung supaya sinyal proses melihat angka yang sama
         # dengan yang nanti tersimpan.
-        analysis = run_analysis(
+        analysis = _analyse_for(
             text_answer,
-            assignment.class_ref.education_level,
-            assignment.expected_bloom_level,
-            _build_process_context(
-                text_answer,
-                submission.duration_seconds,
-                submission.revision_count + 1,
-                _paste_char_count(submission),
-            ),
+            assignment,
+            duration_seconds=submission.duration_seconds,
+            revision_count=submission.revision_count + 1,
+            paste_char_count=_paste_char_count(submission),
         )
         with transaction.atomic():
             submission.text_answer = text_answer
@@ -599,9 +608,17 @@ class SubmissionListView(APIView):
 def _get_submission_or_404(submission_id: str) -> Submission:
     submission = (
         Submission.objects.select_related(
-            "assignment__class_ref", "student_profile", "analysis"
+            "assignment__class_ref", "student_profile", "analysis", "verification"
         )
-        .prefetch_related("reasoning_events")
+        # Queryset prefetch sudah terurut; serializer tinggal memakai .all()
+        # apa adanya. Memanggil .order_by() lagi di serializer akan membuang
+        # hasil prefetch dan memicu query baru.
+        .prefetch_related(
+            Prefetch(
+                "reasoning_events",
+                queryset=ReasoningEvent.objects.order_by("occurred_at"),
+            )
+        )
         .filter(pk=_parse_uuid_or_404(submission_id))
         .first()
     )
@@ -643,7 +660,7 @@ class StudentCognitiveProfileView(APIView):
             {
                 "student": {
                     "id": str(student.id),
-                    "display_name": student.display_name or student.email,
+                    "display_name": student.label,
                 },
                 "classes": build_profile(submissions),
             }
@@ -761,16 +778,12 @@ class SubmissionReanalyzeView(APIView):
 
     def post(self, request, submission_id: str):
         submission = _require_owned_submission(request, submission_id)
-        analysis = run_analysis(
+        analysis = _analyse_for(
             submission.text_answer,
-            submission.assignment.class_ref.education_level,
-            submission.assignment.expected_bloom_level,
-            _build_process_context(
-                submission.text_answer,
-                submission.duration_seconds,
-                submission.revision_count,
-                _paste_char_count(submission),
-            ),
+            submission.assignment,
+            duration_seconds=submission.duration_seconds,
+            revision_count=submission.revision_count,
+            paste_char_count=_paste_char_count(submission),
         )
         result, _ = AnalysisResult.objects.update_or_create(
             submission=submission,

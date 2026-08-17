@@ -1,38 +1,30 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getApiErrorMessage } from "@/lib/api-shared";
 import { joinClass } from "@/lib/mutations";
+import { useAction } from "@/lib/use-action";
 
 export function JoinCodeForm() {
-  const router = useRouter();
   const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, run } = useAction(
+    "Gagal bergabung. Periksa kode kelasnya.",
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setMessage(null);
-    setError(null);
-    try {
-      const result = await joinClass(code.trim().toUpperCase());
+    const { result } = await run(() => joinClass(code.trim().toUpperCase()));
+    if (result) {
       setMessage(
         result.created
           ? `Berhasil bergabung ke kelas ${result.class.name}.`
           : `Kamu sudah menjadi anggota kelas ${result.class.name}.`,
       );
       setCode("");
-      router.refresh();
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Gagal bergabung. Periksa kode kelasnya."));
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -48,8 +40,8 @@ export function JoinCodeForm() {
           onChange={(event) => setCode(event.target.value)}
           className="uppercase"
         />
-        <Button type="submit" disabled={loading} className="shrink-0">
-          {loading ? "Bergabung..." : "Gabung kelas"}
+        <Button type="submit" disabled={pending} className="shrink-0">
+          {pending ? "Bergabung..." : "Gabung kelas"}
         </Button>
       </form>
       {message ? <p className="text-body-sm text-primary">{message}</p> : null}

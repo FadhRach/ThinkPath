@@ -44,6 +44,14 @@ OPENALEX_MAILTO = os.getenv("OPENALEX_MAILTO", "").strip()
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
+# Dibutuhkan hanya oleh evaluate_detector.py. Dibaca sebagai fungsi, bukan
+# konstanta modul seperti yang lain, supaya tes bisa menggantinya lewat
+# environment tanpa memuat ulang modul.
+def detector_api_key() -> str:
+    return os.getenv("WINSTON_API_KEY", "").strip()
+
+
+
 GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models"
 
 # Beberapa generator sekaligus, dan sengaja dari keluarga model yang berbeda
