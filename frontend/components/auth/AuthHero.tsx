@@ -13,7 +13,7 @@ export function AuthHero() {
       <span className="pointer-events-none absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-white/5" />
 
       <div className="relative">
-        <Brandmark wordmarkClassName="text-white" className="from-white/25 to-white/10" />
+        <Brandmark wordmarkClassName="text-white" />
       </div>
 
       <div className="relative mt-auto space-y-6">
