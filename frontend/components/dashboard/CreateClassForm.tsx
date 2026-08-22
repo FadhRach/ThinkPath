@@ -57,7 +57,7 @@ export function CreateClassForm() {
           type="text"
           required
           maxLength={120}
-          placeholder="Contoh: XI-B"
+          placeholder="Contoh: Metodologi Penelitian A"
           value={name}
           onChange={(event) => setName(event.target.value)}
         />

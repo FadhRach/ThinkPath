@@ -35,7 +35,7 @@ export function JoinCodeForm() {
           type="text"
           required
           maxLength={8}
-          placeholder="Kode kelas, contoh: THINK-XIB"
+          placeholder="Kode kelas, contoh: KB-9A2B"
           value={code}
           onChange={(event) => setCode(event.target.value)}
           className="uppercase"

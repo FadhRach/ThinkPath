@@ -1,6 +1,6 @@
 import { Brandmark } from "@/components/common/Brandmark";
 
-const LINKS = ["Panduan", "Bantuan", "Kebijakan Privasi", "Hubungi Sekolah"];
+const LINKS = ["Panduan", "Bantuan", "Kebijakan Privasi", "Hubungi Kampus"];
 
 export function Footer() {
   return (
