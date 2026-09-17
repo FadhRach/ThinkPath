@@ -28,9 +28,16 @@ export function EmailPasswordForm({ mode }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { pending, error, run, router } = useAction(
+  const { pending, error, setError, run, router } = useAction(
     "Gagal memproses. Periksa isian lalu coba lagi.",
   );
+
+  function handleRoleChange(next: Role) {
+    setRole(next);
+    // Pesan "akun ini terdaftar sebagai ..." sudah tidak relevan begitu
+    // pengguna mengganti pilihannya.
+    setError(null);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +46,7 @@ export function EmailPasswordForm({ mode }: Props) {
     await run(
       () =>
         mode === "login"
-          ? login(email, password)
+          ? login(email, password, role)
           : register({
               email,
               password,
@@ -57,7 +64,7 @@ export function EmailPasswordForm({ mode }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <RoleSelector value={role} onChange={setRole} />
+      <RoleSelector value={role} onChange={handleRoleChange} />
 
       {mode === "register" ? (
         <div className="space-y-1.5">

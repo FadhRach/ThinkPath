@@ -27,6 +27,17 @@ class HealthView(APIView):
         return Response({"status": "ok"})
 
 
+ROLE_NAME = {"teacher": "dosen", "student": "mahasiswa"}
+ROLE_OPTION = {"teacher": "Dosen", "student": "Mahasiswa"}
+
+
+def role_mismatch_message(account_role: str) -> str:
+    return (
+        f"Akun ini terdaftar sebagai {ROLE_NAME[account_role]}. "
+        f"Pilih peran {ROLE_OPTION[account_role]} untuk masuk."
+    )
+
+
 def _auth_response(profile) -> dict:
     return {
         "token": create_access_token(profile),
@@ -58,11 +69,20 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        profile = authenticate_credentials(**serializer.validated_data)
+        data = serializer.validated_data
+        profile = authenticate_credentials(data["email"], data["password"])
         if profile is None:
             return Response(
                 {"detail": "Email atau kata sandi salah."},
                 status=status.HTTP_401_UNAUTHORIZED,
+            )
+        # Diperiksa SETELAH kata sandi terbukti benar. Kalau urutannya dibalik,
+        # siapa pun bisa menebak peran sebuah email tanpa tahu kata sandinya.
+        requested_role = data.get("role")
+        if requested_role and requested_role != profile.role:
+            return Response(
+                {"detail": role_mismatch_message(profile.role)},
+                status=status.HTTP_403_FORBIDDEN,
             )
         return Response(_auth_response(profile))
 
