@@ -8,7 +8,7 @@ const FEATURES = [
   {
     icon: ScanSearch,
     title: "Deteksi penggunaan AI",
-    body: "Ensemble empat sinyal membaca pola teks dan proses menulis, bukan sekadar hasil akhir.",
+    body: "Enam sinyal membaca pola teks sekaligus proses menulisnya, bukan sekadar hasil akhir.",
   },
   {
     icon: TrendingUp,
@@ -38,7 +38,7 @@ export default function HomePage() {
       </header>
 
       <section className="mx-auto w-full max-w-[1120px] px-6 py-16 text-center">
-        <p className="caption-eyebrow text-primary">Integritas akademik K-12</p>
+        <p className="caption-eyebrow text-primary">Integritas akademik perguruan tinggi</p>
         <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
           Pahami cara mahasiswa berpikir, bukan hanya nilainya.
         </h1>
