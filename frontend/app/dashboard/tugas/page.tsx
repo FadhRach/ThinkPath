@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { academicLabel } from "@/lib/academic";
+import { academicLabel, distinctSubject } from "@/lib/academic";
 import { getAllAssignments } from "@/lib/data";
 import { formatDate } from "@/lib/formatting";
 import type { TeacherAssignmentRow } from "@/lib/types";
@@ -102,7 +102,12 @@ function AssignmentTable({
           <td className="py-2.5 pr-4">
             <span className="block text-foreground">{row.class_name}</span>
             <span className="block text-caption text-muted-foreground">
-              {row.subject} · {academicLabel({ education_level: row.education_level })}
+              {[
+                distinctSubject(row.class_name, row.subject),
+                academicLabel({ education_level: row.education_level }),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </td>
           <td className="py-2.5 pr-4">

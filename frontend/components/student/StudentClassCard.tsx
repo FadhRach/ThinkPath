@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { bloomCode } from "@/lib/bloom";
 import { formatRelativeTime } from "@/lib/formatting";
 import type { StudentClassWithAssignments } from "@/lib/types";
-import { academicLabel } from "@/lib/academic";
+import { academicLabel, distinctSubject } from "@/lib/academic";
 
 export function StudentClassCard({
   studentClass,
@@ -19,8 +19,13 @@ export function StudentClassCard({
         <div>
           <h2 className="text-lg font-bold text-foreground">{studentClass.name}</h2>
           <p className="text-body-sm text-muted-foreground">
-            {studentClass.subject} &middot; {academicLabel(studentClass)} &middot;{" "}
-            {studentClass.teacher_name}
+            {[
+              distinctSubject(studentClass.name, studentClass.subject),
+              academicLabel(studentClass),
+              studentClass.teacher_name,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
       </header>

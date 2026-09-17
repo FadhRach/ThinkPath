@@ -1,8 +1,5 @@
-import { ClipboardPaste, Flag, PenLine, Send } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-
 import type { EventType, ReasoningEventView } from "@/lib/types";
-import { DISPLAY_TIME_ZONE, formatClockHHMM } from "@/lib/formatting";
+import { DISPLAY_TIME_ZONE, formatClockHHMM, formatDurationSeconds } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -14,18 +11,21 @@ interface Props {
 interface Marker {
   type: EventType;
   at: string;
+  offsetMs: number;
   label: string;
   detail: string;
 }
 
-const EVENT_META: Record<EventType, { icon: LucideIcon; tone: string; label: string }> = {
-  started: { icon: Flag, tone: "text-muted-foreground", label: "Mulai" },
-  revision: { icon: PenLine, tone: "text-primary", label: "Revisi" },
-  paste: { icon: ClipboardPaste, tone: "text-danger", label: "Tempel" },
-  submitted: { icon: Send, tone: "text-muted-foreground", label: "Kumpul" },
+// Warna penanda. Tempel memakai warning, bukan danger: menempel teks bukan
+// pelanggaran, hanya bagian proses yang layak ditanyakan.
+const EVENT_META: Record<EventType, { dot: string; label: string }> = {
+  started: { dot: "bg-muted-foreground/60", label: "Mulai" },
+  revision: { dot: "bg-primary", label: "Revisi" },
+  paste: { dot: "bg-warning", label: "Tempel" },
+  submitted: { dot: "bg-foreground/70", label: "Kumpul" },
   // Cuplikan berkala tidak digambar sebagai penanda: jumlahnya puluhan dan
   // akan menutupi linimasa. Ia punya kurvanya sendiri di bawah.
-  progress: { icon: PenLine, tone: "text-muted-foreground", label: "Cuplikan" },
+  progress: { dot: "bg-muted-foreground/40", label: "Cuplikan" },
 };
 
 function detailFor(event: ReasoningEventView): string {
@@ -41,7 +41,7 @@ function detailFor(event: ReasoningEventView): string {
   return "";
 }
 
-function toMarkers(events: ReasoningEventView[]): Marker[] {
+function toMarkers(events: ReasoningEventView[], start: number): Marker[] {
   return [...events]
     .filter((event) => event.event_type !== "progress")
     .sort(
@@ -50,6 +50,7 @@ function toMarkers(events: ReasoningEventView[]): Marker[] {
     .map((event) => ({
       type: event.event_type,
       at: event.occurred_at,
+      offsetMs: new Date(event.occurred_at).getTime() - start,
       label: EVENT_META[event.event_type]?.label ?? event.event_type,
       detail: detailFor(event),
     }));
@@ -60,8 +61,7 @@ interface GrowthPoint {
   words: number;
 }
 
-function toGrowth(events: ReasoningEventView[], startedAt: string): GrowthPoint[] {
-  const start = new Date(startedAt).getTime();
+function toGrowth(events: ReasoningEventView[], start: number): GrowthPoint[] {
   return events
     .filter((event) => event.event_type === "progress")
     .map((event) => ({
@@ -125,18 +125,22 @@ function GrowthCurve({ points }: { points: GrowthPoint[] }) {
  * Jejak pengerjaan pada sumbu waktu, bukan sebagai kalimat.
  *
  * Sinyal proses adalah satu satunya masukan yang tidak berasal dari statistik
- * teks, sehingga paling sulit dipalsukan dengan menulis ulang jawaban. Sampai
- * sekarang ia justru yang paling tidak terlihat di layar, terangkum menjadi
- * satu kalimat. Bentuk linimasa memaparkan pola yang tidak tertangkap angka:
- * satu tempel besar di awal lalu langsung kumpul terbaca berbeda dari revisi
- * yang menyebar sepanjang pengerjaan, walaupun durasi totalnya sama.
+ * teks, sehingga paling sulit dipalsukan dengan menulis ulang jawaban. Bentuk
+ * linimasa memaparkan pola yang tidak tertangkap angka: satu tempel besar di
+ * awal lalu langsung kumpul terbaca berbeda dari revisi yang menyebar sepanjang
+ * pengerjaan, walaupun durasi totalnya sama.
+ *
+ * Di jalur waktu hanya ada titik kecil tanpa label. Label jam per penanda dulu
+ * saling menimpa begitu dua peristiwa berdekatan; jam dan rinciannya kini
+ * dibaca di daftar di bawahnya, satu baris per peristiwa.
  *
  * Yang sengaja tidak dilakukan: memberi vonis pada pola mana pun. Menempel
  * kutipan panjang dari jurnal itu wajar dalam menulis akademik.
  */
 export function ProcessTimeline({ events, startedAt, submittedAt }: Props) {
-  const markers = toMarkers(events);
-  const growth = toGrowth(events, startedAt);
+  const start = new Date(startedAt).getTime();
+  const markers = toMarkers(events, start);
+  const growth = toGrowth(events, start);
 
   if (markers.length === 0) {
     return (
@@ -146,76 +150,74 @@ export function ProcessTimeline({ events, startedAt, submittedAt }: Props) {
     );
   }
 
-  const start = new Date(startedAt).getTime();
   const end = submittedAt ? new Date(submittedAt).getTime() : Date.now();
   const span = Math.max(end - start, 1);
 
   return (
     <div className="space-y-4">
-      <div className="relative h-14">
-        <div className="absolute inset-x-0 top-6 h-1 rounded-full bg-muted" />
-        {markers.map((marker, index) => {
-          const offset = Math.min(
-            100,
-            Math.max(0, ((new Date(marker.at).getTime() - start) / span) * 100),
-          );
-          const meta = EVENT_META[marker.type];
-          const Icon = meta?.icon ?? Flag;
-          return (
-            <span
-              key={`${marker.type}-${index}`}
-              className="absolute top-0 -translate-x-1/2"
-              style={{ left: `${offset}%` }}
-              title={`${marker.label} pukul ${formatClockHHMM(marker.at)}${
-                marker.detail ? ` (${marker.detail})` : ""
-              }`}
-            >
+      <div className="space-y-1.5">
+        <div className="relative mx-1.5 h-5" role="img" aria-label="Posisi peristiwa pada rentang pengerjaan">
+          <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-muted" />
+          {markers.map((marker, index) => {
+            const offset = Math.min(100, Math.max(0, (marker.offsetMs / span) * 100));
+            return (
               <span
+                key={`${marker.type}-${index}`}
                 className={cn(
-                  "grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-muted",
-                  meta?.tone,
+                  "absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-card",
+                  EVENT_META[marker.type]?.dot,
                 )}
-              >
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="mt-0.5 block text-center text-caption text-muted-foreground">
-                {formatClockHHMM(marker.at)}
-              </span>
-            </span>
-          );
-        })}
+                style={{ left: `${offset}%` }}
+                title={`${marker.label} pukul ${formatClockHHMM(marker.at)}`}
+              />
+            );
+          })}
+        </div>
+        <div className="flex justify-between text-caption text-muted-foreground">
+          <span>{formatClockHHMM(startedAt)}</span>
+          <span>{submittedAt ? formatClockHHMM(submittedAt) : "belum dikumpulkan"}</span>
+        </div>
       </div>
 
       {growth.length >= 2 ? <GrowthCurve points={growth} /> : null}
 
-      <ul className="space-y-2 border-t border-border pt-3">
-        {markers.map((marker, index) => {
-          const meta = EVENT_META[marker.type];
-          const Icon = meta?.icon ?? Flag;
-          return (
-            <li
-              key={`row-${marker.type}-${index}`}
-              className="flex items-baseline gap-2.5 text-body-sm"
-            >
-              <Icon className={cn("h-3.5 w-3.5 shrink-0", meta?.tone)} />
-              <span className="font-medium text-foreground">{marker.label}</span>
-              <span className="text-muted-foreground">
+      <ol className="space-y-2.5 border-t border-border pt-3">
+        {markers.map((marker, index) => (
+          <li
+            key={`row-${marker.type}-${index}`}
+            className="grid grid-cols-[auto_1fr_auto] items-baseline gap-x-2.5 text-body-sm"
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "h-2.5 w-2.5 translate-y-px self-center rounded-full",
+                EVENT_META[marker.type]?.dot,
+              )}
+            />
+            <span className="min-w-0">
+              <span className="font-medium text-foreground">{marker.label}</span>{" "}
+              <span className="tabular-nums text-muted-foreground">
                 {formatClockHHMM(marker.at)}
               </span>
               {marker.detail ? (
-                <span className="ml-auto text-caption text-muted-foreground">
+                <span className="block text-caption text-muted-foreground">
                   {marker.detail}
                 </span>
               ) : null}
-            </li>
-          );
-        })}
-      </ul>
+            </span>
+            <span className="text-caption tabular-nums text-muted-foreground">
+              {marker.offsetMs > 0
+                ? `+${formatDurationSeconds(Math.round(marker.offsetMs / 1000))}`
+                : ""}
+            </span>
+          </li>
+        ))}
+      </ol>
 
       <p className="text-caption text-muted-foreground">
-        Seluruh jam ditampilkan dalam {DISPLAY_TIME_ZONE.replace("_", " ")}.
-        Pola di sini bahan tanya, bukan bukti: menempel kutipan panjang adalah
-        hal biasa dalam menulis akademik.
+        Jam dalam {DISPLAY_TIME_ZONE.replace("_", " ")}; angka di kanan adalah
+        waktu sejak mulai. Pola di sini bahan tanya, bukan bukti: menempel
+        kutipan panjang adalah hal biasa dalam menulis akademik.
       </p>
     </div>
   );

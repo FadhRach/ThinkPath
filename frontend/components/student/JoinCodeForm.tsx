@@ -35,10 +35,11 @@ export function JoinCodeForm() {
           type="text"
           required
           maxLength={8}
-          placeholder="Kode kelas, contoh: KB-9A2B"
+          placeholder="Contoh: KB-9A2B"
+          aria-label="Kode kelas"
           value={code}
           onChange={(event) => setCode(event.target.value)}
-          className="uppercase"
+          className="uppercase placeholder:normal-case"
         />
         <Button type="submit" disabled={pending} className="shrink-0">
           {pending ? "Bergabung..." : "Gabung kelas"}

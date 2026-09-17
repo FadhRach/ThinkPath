@@ -46,8 +46,18 @@ export function submissionStatusMeta(status: SubmissionStatus): StatusMeta {
 
 export function initials(name: string | null | undefined): string {
   if (!name) return "?";
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  // Nama bernomor ("Mahasiswa 05") dulu menghasilkan "M0" untuk semua orang,
+  // sehingga seluruh avatar di tabel kelas tampak sama. Nomornya jauh lebih
+  // membedakan daripada huruf depan kata yang sama.
+  const last = parts[parts.length - 1] ?? "";
+  if (parts.length > 1 && /^\d+$/.test(last)) return last.slice(-2);
+  return (
+    parts
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
 }
 
 // Avatar diberi warna deterministik dari nama agar stabil antar render.

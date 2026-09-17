@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -34,7 +34,7 @@ function countWords(text: string): number {
 
 const COPY: Record<Mode, { submit: string; loading: string; done: string }> = {
   create: {
-    submit: "Submit & Analyze",
+    submit: "Kumpulkan Jawaban",
     loading: "Mengumpulkan...",
     done: "Jawabanmu berhasil dikumpulkan. Terima kasih.",
   },
@@ -145,7 +145,7 @@ export function SubmitAnswerForm({
       </Card>
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
       <Button type="submit" disabled={pending || tooShort} size="lg" className="w-full sm:w-auto">
-        <Sparkles className="h-4 w-4" />
+        <Send className="h-4 w-4" />
         {pending ? copy.loading : copy.submit}
       </Button>
     </form>

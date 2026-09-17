@@ -86,7 +86,7 @@ export function SubmissionTable({ submissions }: { submissions: SubmissionRow[] 
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="caption-eyebrow">Mahasiswa</TableHead>
-              <TableHead className="caption-eyebrow">Skor AI</TableHead>
+              <TableHead className="caption-eyebrow">Indikasi AI</TableHead>
               <TableHead className="caption-eyebrow">Level Kognitif</TableHead>
               <TableHead className="caption-eyebrow">Nilai</TableHead>
               <TableHead className="caption-eyebrow">Status</TableHead>
@@ -105,7 +105,7 @@ export function SubmissionTable({ submissions }: { submissions: SubmissionRow[] 
               </TableRow>
             ) : (
               visible.map((row) => (
-                <TableRow key={row.id} className="cursor-pointer">
+                <TableRow key={row.id}>
                   <TableCell>
                     <Link
                       href={`/dashboard/submission/${row.id}`}

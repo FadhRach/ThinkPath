@@ -339,6 +339,8 @@ class VerificationQueueSerializer(serializers.ModelSerializer):
 
 
 class AssignmentMiniSerializer(serializers.ModelSerializer):
+    # Dipakai halaman detail submission untuk kembali ke kelas asalnya.
+    class_id = serializers.UUIDField(source="class_ref_id", read_only=True)
     education_level = serializers.CharField(
         source="class_ref.education_level", read_only=True
     )
@@ -351,6 +353,7 @@ class AssignmentMiniSerializer(serializers.ModelSerializer):
         model = Assignment
         fields = [
             "id",
+            "class_id",
             "title",
             "expected_bloom_level",
             "education_level",

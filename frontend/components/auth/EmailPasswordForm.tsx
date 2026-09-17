@@ -102,14 +102,9 @@ export function EmailPasswordForm({ mode }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Kata sandi</Label>
-          {mode === "login" ? (
-            <span className="text-body-sm font-semibold text-primary">
-              Lupa kata sandi?
-            </span>
-          ) : null}
-        </div>
+        {/* Tautan "Lupa kata sandi?" dihapus: alur reset belum ada, dan teks
+            berwarna tautan yang tidak bisa diklik hanya membingungkan. */}
+        <Label htmlFor="password">Kata sandi</Label>
         <div className="relative">
           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

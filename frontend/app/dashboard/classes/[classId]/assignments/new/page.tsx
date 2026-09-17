@@ -6,6 +6,7 @@ import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
 import { CreateAssignmentForm } from "@/components/dashboard/CreateAssignmentForm";
 import { Card } from "@/components/ui/card";
+import { distinctSubject } from "@/lib/academic";
 import { getClasses } from "@/lib/data";
 
 export default async function NewAssignmentPage({
@@ -25,11 +26,13 @@ export default async function NewAssignmentPage({
     <div className="space-y-6">
       <BackLink
         href={`/dashboard/classes/${targetClass.id}`}
-        label="Kembali ke dashboard"
+        label="Kembali ke kelas"
       />
       <PageHeader
         title="Buat Tugas Baru"
-        subtitle={`${targetClass.name} · ${targetClass.subject}`}
+        subtitle={[targetClass.name, distinctSubject(targetClass.name, targetClass.subject)]
+          .filter(Boolean)
+          .join(" · ")}
       />
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card className="p-6 shadow-soft">

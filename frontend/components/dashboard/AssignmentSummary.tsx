@@ -51,9 +51,9 @@ export function AssignmentSummary({ assignment }: Props) {
           ) : null}
         </div>
         <div className="grid shrink-0 grid-cols-3 gap-6">
-          <Metric label="Dianalisis" value={assignment.submission_count} />
+          <Metric label="Terkumpul" value={assignment.submission_count} />
           <Metric
-            label="Indikasi AI"
+            label="AI tinggi"
             value={assignment.high_band_count}
             tone={assignment.high_band_count > 0 ? "high" : "neutral"}
           />
