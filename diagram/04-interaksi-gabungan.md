@@ -118,9 +118,11 @@ flowchart TD
     class K2 aman
 ```
 
-Pada data demo, **empat mahasiswa tertinggal dari target dan tidak satu pun di
-antaranya pernah berskor AI tinggi.** Kedua himpunan itu tidak beririsan, dan
-itulah pembenaran paling langsung untuk memakai dua sumbu.
+Pada data demo, **sembilan mahasiswa tertinggal dari target dan delapan di
+antaranya tidak pernah berskor AI tinggi.** Hanya satu orang masuk kedua
+himpunan, dan itulah pembenaran paling langsung untuk memakai dua sumbu: alat
+yang hanya menghitung kecurigaan akan melewatkan delapan orang yang justru
+terukur tertinggal.
 
 ---
 

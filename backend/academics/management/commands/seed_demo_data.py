@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from academics.analysis import analyze_text
 from academics.join_codes import generate_unique_join_code
-from academics.process_signals import ProcessContext
+from academics.process_signals import ProcessContext, ProgressSample
 from academics.models import (
     AiBand,
     AnalysisResult,
@@ -29,6 +29,9 @@ from academics.models import (
     ReasoningEvent,
     Submission,
     SubmissionStatus,
+    VerbalVerification,
+    VerificationOutcome,
+    VerificationStatus,
 )
 from core.models import EducationLevel, Profile, Role
 
@@ -139,17 +142,31 @@ def _ensure_assignment(
 # band dan lintasan sengaja tidak berkorelasi. Ada mahasiswa berindikasi AI
 # rendah yang tetap mandek di L1, dan ada yang berindikasi tinggi tetapi
 # argumennya berkembang. Kombinasi itu yang membuktikan E1 dan E2 terpisah.
+#
+# Cara mengerjakan meniru rekaman form produksi, bukan angka karangan:
+# - "tulis": kata bertambah sedikit demi sedikit tiap cuplikan, tanpa tempelan.
+# - "campur": sebagian besar diketik, satu paragraf (sekitar 30%) ditempel.
+# - "tempel": seluruh jawaban ditempel di awal lalu dikumpulkan.
+#
+# Revisi di sini berarti Simpan Revisi SETELAH dikumpulkan, sama seperti di
+# produksi. Data demo lama mengarang revisi saat menulis dan tempelan acak,
+# dua hal yang mustahil terekam di aplikasinya sendiri.
 _STUDENT_PROFILES = (
-    # (band, lintasan, rentang durasi, rentang revisi, ada tempelan besar)
-    (AiBand.LOW, "naik", (20 * 60, 45 * 60), (2, 6), False),
-    (AiBand.LOW, "datar", (22 * 60, 48 * 60), (2, 6), False),
-    (AiBand.LOW, "naik", (25 * 60, 50 * 60), (3, 7), False),
-    (AiBand.LOW, "turun", (20 * 60, 40 * 60), (2, 5), False),
-    (AiBand.MID, "datar", (8 * 60, 15 * 60), (1, 2), True),
-    (AiBand.MID, "naik", (9 * 60, 18 * 60), (1, 3), True),
-    (AiBand.HIGH, "datar", (2 * 60, 5 * 60), (0, 1), True),
-    (AiBand.HIGH, "turun", (2 * 60, 6 * 60), (0, 1), True),
+    # (band, lintasan, rentang durasi, cara mengerjakan, merevisi sekali)
+    (AiBand.LOW, "naik", (20 * 60, 45 * 60), "tulis", False),
+    (AiBand.LOW, "datar", (22 * 60, 48 * 60), "tulis", True),
+    (AiBand.LOW, "naik", (25 * 60, 50 * 60), "tulis", False),
+    (AiBand.LOW, "turun", (20 * 60, 40 * 60), "tulis", False),
+    (AiBand.MID, "datar", (8 * 60, 15 * 60), "campur", False),
+    (AiBand.MID, "naik", (9 * 60, 18 * 60), "campur", True),
+    (AiBand.HIGH, "datar", (2 * 60, 5 * 60), "tempel", False),
+    (AiBand.HIGH, "turun", (2 * 60, 6 * 60), "tempel", False),
 )
+
+# Selang cuplikan dan porsi tempelan persona "campur". Selang harus sama
+# dengan form (30 detik) supaya kurva demo terbaca seperti rekaman asli.
+SAMPLE_SECONDS = 30
+MIXED_PASTE_SHARE = 0.3
 
 
 def _depth_for(trajectory: str, step: int, total: int) -> int:
@@ -170,53 +187,119 @@ def _depth_for(trajectory: str, step: int, total: int) -> int:
     return 0
 
 
+def _simulate_session(
+    rng: random.Random, style: str, text: str, duration_seconds: int
+) -> tuple[list[ProgressSample], list[tuple[int, int]]]:
+    """Cuplikan jumlah kata dan tempelan untuk satu sesi mengerjakan.
+
+    Mengembalikan (cuplikan, tempelan), dengan tempelan berupa pasangan
+    (detik sejak mulai, jumlah karakter).
+    """
+    final_words = len(text.split())
+    offsets = list(range(0, duration_seconds, SAMPLE_SECONDS)) + [duration_seconds]
+
+    if style == "tempel":
+        # Teks penuh muncul di cuplikan kedua, lalu datar sampai dikumpulkan.
+        samples = [
+            ProgressSample(
+                offset_seconds=offset,
+                word_count=0 if offset == 0 else final_words,
+            )
+            for offset in offsets
+        ]
+        return samples, [(min(20, duration_seconds), len(text))]
+
+    pasted_words = round(final_words * MIXED_PASTE_SHARE) if style == "campur" else 0
+    typed_words = final_words - pasted_words
+    # Tempelan persona campur jatuh di sepertiga sampai setengah sesi.
+    paste_at = (
+        offsets[max(1, round(len(offsets) * rng.uniform(0.33, 0.5)))]
+        if pasted_words
+        else None
+    )
+
+    samples = []
+    for offset in offsets:
+        progress = offset / duration_seconds if duration_seconds else 1.0
+        words = round(typed_words * progress)
+        if paste_at is not None and offset >= paste_at:
+            words += pasted_words
+        if 0 < offset < duration_seconds:
+            # Menyunting sesekali menghapus beberapa kata, jadi kurvanya tidak
+            # pernah lurus sempurna seperti hasil rumus.
+            words = max(0, words - rng.choice((0, 0, 0, 1, 2)))
+        if offset == duration_seconds:
+            words = final_words
+        samples.append(ProgressSample(offset_seconds=offset, word_count=max(words, 0)))
+
+    pastes = (
+        [
+            (
+                paste_at - rng.randint(1, SAMPLE_SECONDS - 1),
+                round(len(text) * MIXED_PASTE_SHARE),
+            )
+        ]
+        if paste_at is not None
+        else []
+    )
+    return samples, pastes
+
+
 def _build_reasoning_events(
     submission: Submission,
     started_at,
-    submitted_at,
-    revision_count: int,
-    has_large_paste: bool,
+    first_submitted_at,
+    revised_at,
+    samples: list[ProgressSample],
+    pastes: list[tuple[int, int]],
 ) -> list[ReasoningEvent]:
+    """Event dengan bentuk yang sama persis dengan yang ditulis views produksi."""
     events: list[ReasoningEvent] = [
         ReasoningEvent(
             id=_stable_uuid(f"event:{submission.id}:started"),
             submission=submission,
             event_type=EventType.STARTED,
-            payload={},
+            payload={"paste_tracking": True},
             occurred_at=started_at,
-        )
-    ]
-    if has_large_paste:
-        paste_time = started_at + (submitted_at - started_at) * 0.3
-        events.append(
-            ReasoningEvent(
-                id=_stable_uuid(f"event:{submission.id}:paste"),
-                submission=submission,
-                event_type=EventType.PASTE,
-                payload={"char_count": random.randint(220, 520)},
-                occurred_at=paste_time,
-            )
-        )
-    for i in range(revision_count):
-        offset = (submitted_at - started_at) * (0.4 + i * 0.1)
-        events.append(
-            ReasoningEvent(
-                id=_stable_uuid(f"event:{submission.id}:rev:{i}"),
-                submission=submission,
-                event_type=EventType.REVISION,
-                payload={"diff_chars": random.randint(40, 180)},
-                occurred_at=started_at + offset,
-            )
-        )
-    events.append(
+        ),
         ReasoningEvent(
             id=_stable_uuid(f"event:{submission.id}:submitted"),
             submission=submission,
             event_type=EventType.SUBMITTED,
             payload={},
-            occurred_at=submitted_at,
+            occurred_at=first_submitted_at,
+        ),
+    ]
+    events += [
+        ReasoningEvent(
+            id=_stable_uuid(f"event:{submission.id}:progress:{index}"),
+            submission=submission,
+            event_type=EventType.PROGRESS,
+            payload={"word_count": sample.word_count},
+            occurred_at=started_at + timedelta(seconds=sample.offset_seconds),
         )
-    )
+        for index, sample in enumerate(samples)
+    ]
+    events += [
+        ReasoningEvent(
+            id=_stable_uuid(f"event:{submission.id}:paste:{index}"),
+            submission=submission,
+            event_type=EventType.PASTE,
+            payload={"char_count": chars},
+            occurred_at=started_at + timedelta(seconds=offset),
+        )
+        for index, (offset, chars) in enumerate(pastes)
+    ]
+    if revised_at is not None:
+        events.append(
+            ReasoningEvent(
+                id=_stable_uuid(f"event:{submission.id}:revision:1"),
+                submission=submission,
+                event_type=EventType.REVISION,
+                payload={"revision_count": 1, "paste_tracking": True},
+                occurred_at=revised_at,
+            )
+        )
     return events
 
 
@@ -244,16 +327,22 @@ def _seed_submissions_for_assignment(
     expected_ids: list[uuid.UUID] = []
     sample_answers = _sample_answers_for(assignment)
 
-    for index, (band, trajectory, duration_range, revision_range, has_paste) in enumerate(
+    for index, (band, trajectory, duration_range, style, revises) in enumerate(
         _STUDENT_PROFILES
     ):
         student = students[index]
         duration_seconds = rng.randint(*duration_range)
-        revision_count = rng.randint(*revision_range)
-        submitted_at = timezone.now() - timedelta(
+        first_submitted_at = timezone.now() - timedelta(
             weeks=weeks_ago, hours=rng.randint(1, 40)
         )
-        started_at = submitted_at - timedelta(seconds=duration_seconds)
+        started_at = first_submitted_at - timedelta(seconds=duration_seconds)
+        # Revisi terjadi beberapa jam setelah submit pertama, dan submitted_at
+        # ikut maju ke waktu revisi, persis seperti jalur Simpan Revisi.
+        revised_at = (
+            first_submitted_at + timedelta(hours=rng.randint(2, 20)) if revises else None
+        )
+        submitted_at = revised_at or first_submitted_at
+        revision_count = 1 if revises else 0
 
         label = f"submission:{assignment.id}:{index}"
         submission_id = _stable_uuid(label)
@@ -287,20 +376,24 @@ def _seed_submissions_for_assignment(
             },
         )
 
+        samples, pastes = _simulate_session(
+            rng, style, submission.text_answer, duration_seconds
+        )
         ReasoningEvent.objects.filter(submission=submission).delete()
         ReasoningEvent.objects.bulk_create(
             _build_reasoning_events(
                 submission=submission,
                 started_at=started_at,
-                submitted_at=submitted_at,
-                revision_count=revision_count,
-                has_large_paste=has_paste,
+                first_submitted_at=first_submitted_at,
+                revised_at=revised_at,
+                samples=samples,
+                pastes=pastes,
             )
         )
 
         # Tidak ada angka yang ditulis tangan. Seluruh baris demo dihitung
         # pipeline yang sama dengan jalur produksi, termasuk sinyal forensik
-        # proses dari durasi, revisi, dan tempelan di atas.
+        # proses dari cuplikan dan tempelan di atas.
         analysis = analyze_text(
             submission.text_answer,
             assignment.expected_bloom_level,
@@ -309,7 +402,9 @@ def _seed_submissions_for_assignment(
                 revision_count=revision_count,
                 word_count=len(submission.text_answer.split()),
                 char_count=len(submission.text_answer),
-                paste_char_count=_seed_paste_chars(submission),
+                paste_char_count=sum(chars for _, chars in pastes),
+                progress=tuple(samples),
+                paste_recorded=True,
             ),
         )
         analysis["analysis_source"] = AnalysisSource.SEED
@@ -331,15 +426,72 @@ def _seed_submissions_for_assignment(
     return created
 
 
-def _seed_paste_chars(submission: Submission) -> int:
-    total = 0
-    for event in submission.reasoning_events.all():
-        if event.event_type != EventType.PASTE:
+def _seed_verifications(
+    students: Sequence[Profile], assignments: Sequence[Assignment]
+) -> int:
+    """Contoh sesi verifikasi verbal supaya layar Verifikasi tidak pernah kosong.
+
+    Dipilih dari mahasiswa berpola tempel: dua sesi sudah selesai dengan
+    kesimpulan yang berbeda, satu masih dijadwalkan. Kesimpulan "mampu
+    menjelaskan" sengaja ada, karena skor tinggi tidak sama dengan menyontek.
+    """
+    if len(students) < 8:
+        return 0
+
+    def _has(assignment: Assignment, status: str) -> bool:
+        return assignment.submissions.filter(status=status).exists()
+
+    graded = [a for a in assignments if _has(a, SubmissionStatus.REVIEWED)]
+    open_ones = [a for a in assignments if _has(a, SubmissionStatus.SUBMITTED)]
+
+    plans = []
+    if graded:
+        plans += [
+            (
+                students[6],
+                graded[-1],
+                VerificationStatus.COMPLETED,
+                VerificationOutcome.PARTIAL,
+                "Bisa menjelaskan kerangka umum, tetapi belum bisa menguraikan "
+                "contoh yang ia tulis sendiri.",
+            ),
+            (
+                students[7],
+                graded[0],
+                VerificationStatus.COMPLETED,
+                VerificationOutcome.CAN_EXPLAIN,
+                "Menjelaskan alur argumen dengan runtut dan menjawab pertanyaan "
+                "lanjutan tanpa melihat teks.",
+            ),
+        ]
+    if open_ones:
+        plans.append((students[6], open_ones[-1], VerificationStatus.SCHEDULED, "", ""))
+
+    now = timezone.now()
+    count = 0
+    for student, assignment, status_value, outcome, notes in plans:
+        submission = Submission.objects.filter(
+            assignment=assignment, student_profile=student
+        ).first()
+        if submission is None:
             continue
-        value = (event.payload or {}).get("char_count")
-        if isinstance(value, int):
-            total += value
-    return total
+        completed = status_value == VerificationStatus.COMPLETED
+        VerbalVerification.objects.update_or_create(
+            submission=submission,
+            defaults={
+                "status": status_value,
+                "scheduled_at": (submission.submitted_at + timedelta(days=2))
+                if completed
+                else now + timedelta(days=2),
+                "outcome": outcome,
+                "notes": notes,
+                "completed_at": (submission.submitted_at + timedelta(days=2))
+                if completed
+                else None,
+            },
+        )
+        count += 1
+    return count
 
 
 def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
@@ -398,29 +550,44 @@ def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
                 "menguji ulang dengan data pembanding pada tugas berikutnya."
             ),
         ],
-        # Campuran: sebagian baku, sebagian masih menyisakan suara penulisnya.
+        # Campuran: sebagian baku dan berfrasa klise, sebagian masih menyisakan
+        # suara penulisnya. Panjangnya sekitar 110 kata, dan skornya diukur
+        # ulang setelah keragaman kosakata berhenti jenuh pada jawaban pendek:
+        # teks lama sekitar 60 kata hanya masuk band sedang KARENA kejenuhan
+        # itu, dan tanpanya persona ini jatuh ke band rendah.
         AiBand.MID: [
             # Kognitif menengah: menjelaskan ulang dan menguraikan langkah.
             (
                 base.capitalize() + " merupakan rangkaian proses yang dapat "
                 "dijelaskan dalam beberapa tahap. Artinya, ada urutan yang perlu "
-                "diikuti supaya hasilnya sesuai. Pertama, kondisi awal disiapkan "
-                "terlebih dahulu. Kemudian kondisi tersebut diproses pada tahap "
-                "berikutnya. Setelah itu hasilnya dapat diamati dan dicatat. Caranya "
+                "diikuti supaya hasilnya sesuai dengan tujuan. Pertama, kondisi awal "
+                "disiapkan terlebih dahulu dengan cermat. Kemudian kondisi tersebut "
+                "diproses pada tahap berikutnya secara bertahap. Setelah itu "
+                "hasilnya dapat diamati dan dicatat dengan teliti. Tahap pencatatan "
+                "ini memainkan peran penting dalam keseluruhan proses. Caranya "
                 "kurang lebih seperti yang dicontohkan pada modul praktikum. Saya "
                 "menerapkan langkah yang sama ketika mengerjakan studi kasus "
-                "sebelumnya."
+                "sebelumnya. Setiap tahap memiliki tujuan yang jelas dan saling "
+                "melengkapi satu sama lain. Dengan mengikuti urutan tersebut, hasil "
+                "yang diperoleh menjadi lebih mudah diperiksa kembali. Secara umum, "
+                "langkah tersebut dapat diterapkan pada berbagai situasi yang serupa."
             ),
-            # Kognitif kuat: sebab akibat dan pembandingan yang eksplisit.
+            # Kognitif lebih kuat: sebab akibat dan pembandingan yang eksplisit.
             (
                 "Berdasarkan bacaan, " + base + " mencakup beberapa komponen yang "
                 "saling mempengaruhi. Komponen pertama menentukan hasil komponen "
                 "kedua, sehingga urutannya penting. Namun apabila dibandingkan "
                 "dengan kasus yang dibahas di kelas, ada perbedaan yang cukup jelas. "
                 "Pada kasus di kelas faktor eksternal hampir tidak berpengaruh, "
-                "sedangkan pada contoh di literatur faktor eksternal justru "
-                "menyebabkan hasilnya berubah. Perbedaan ini muncul karena kondisi "
-                "awalnya memang tidak sama. Kesimpulannya bergantung pada konteks."
+                "sedangkan pada contoh di literatur faktor eksternal justru mengubah "
+                "hasilnya. Perbedaan ini muncul karena kondisi awalnya memang tidak "
+                "sama. Tidak dapat dipungkiri, kondisi awal memainkan peran penting "
+                "terhadap arah hasil akhir. Kondisi yang stabil menghasilkan pola "
+                "yang lebih mudah diprediksi. Sebaliknya, kondisi yang berubah ubah "
+                "menghasilkan pola yang sulit dibandingkan. Oleh karena itu penilaian "
+                "terhadap komponen perlu mempertimbangkan konteksnya masing masing. "
+                "Kesimpulannya, hasil akhir perlu dipahami secara holistik sesuai "
+                "konteks penerapannya."
             ),
         ],
         # Ragam sangat baku, frasa klise, tanpa keraguan dan tanpa rujukan konkret.
@@ -573,6 +740,8 @@ class Command(BaseCommand):
                         weeks_ago=weeks_ago,
                     )
 
+            verification_count = _seed_verifications(students, assignments)
+
             for target_class, (label, title, instructions, bloom) in open_items.items():
                 assignments.append(
                     _ensure_assignment(
@@ -586,10 +755,13 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write(
-            "Seeded teacher={teacher_id}, classes=2, assignments={assignments}, submissions={submissions}, analysis_results={submissions}".format(
+            "Seeded teacher={teacher_id}, classes=2, assignments={assignments}, "
+            "submissions={submissions}, analysis_results={submissions}, "
+            "verifications={verifications}".format(
                 teacher_id=teacher.id,
                 assignments=len(assignments),
                 submissions=total_submissions,
+                verifications=verification_count,
             )
         )
         self.stdout.write(
