@@ -10,6 +10,9 @@ interface Props {
   icon?: LucideIcon;
   // Nada aksen ikon; default teal, "danger" untuk metrik yang perlu perhatian.
   tone?: "brand" | "danger" | "warning";
+  /** Ikon di atas angka pada layar sempit. Untuk grid dua kolom di ponsel,
+   *  tempat ikon di samping teks membuat label terlipat berantakan. */
+  stackOnMobile?: boolean;
 }
 
 const ICON_TONE: Record<NonNullable<Props["tone"]>, string> = {
@@ -18,9 +21,21 @@ const ICON_TONE: Record<NonNullable<Props["tone"]>, string> = {
   warning: "bg-warning-soft text-warning",
 };
 
-export function StatCard({ label, value, hint, icon: Icon, tone = "brand" }: Props) {
+export function StatCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone = "brand",
+  stackOnMobile = false,
+}: Props) {
   return (
-    <Card className="flex items-start gap-3 p-4 shadow-soft">
+    <Card
+      className={cn(
+        "flex items-start gap-3 p-4 shadow-soft",
+        stackOnMobile && "flex-col sm:flex-row",
+      )}
+    >
       {Icon ? (
         <span
           className={cn(

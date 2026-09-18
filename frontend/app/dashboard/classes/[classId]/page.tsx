@@ -12,7 +12,7 @@ import { SubmissionTable } from "@/components/dashboard/SubmissionTable";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAssignments, getClasses, getSubmissions } from "@/lib/data";
-import { academicLabel } from "@/lib/academic";
+import { academicLabel, distinctSubject } from "@/lib/academic";
 
 interface SearchParams {
   assignment?: string;
@@ -43,7 +43,12 @@ export default async function ClassDetailPage({
 
       <PageHeader
         title={currentClass.name}
-        subtitle={`${currentClass.subject} · ${academicLabel(currentClass)}`}
+        subtitle={[
+          distinctSubject(currentClass.name, currentClass.subject),
+          academicLabel(currentClass),
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
           <span className="flex flex-wrap items-center gap-2 text-body-sm text-muted-foreground">
             Kode kelas:
@@ -57,7 +62,7 @@ export default async function ClassDetailPage({
       {assignments.length === 0 ? (
         <EmptyState
           title="Belum ada tugas di kelas ini"
-          caption="Setelah kamu membuat tugas, hasil pengumpulan mahasiswa akan muncul di sini lengkap dengan rangkuman bukti."
+          caption="Setelah Anda membuat tugas, hasil pengumpulan mahasiswa akan muncul di sini lengkap dengan rangkuman bukti."
           action={
             <Button asChild>
               <Link href={newAssignmentHref}>Buat tugas</Link>
@@ -124,7 +129,7 @@ async function ClassAssignments({
       {submissions.length === 0 ? (
         <EmptyState
           title="Belum ada pengumpulan"
-          caption="Mahasiswa belum mengumpulkan tugas ini. Begitu mereka submit, tabel bukti akan terisi otomatis."
+          caption="Mahasiswa belum mengumpulkan tugas ini. Begitu mereka mengumpulkan, tabel bukti akan terisi otomatis."
         />
       ) : (
         <div className="space-y-3">

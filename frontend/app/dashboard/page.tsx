@@ -6,10 +6,15 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ClassOverviewSection } from "@/components/overview/ClassOverviewSection";
+import { OverviewClassTabs } from "@/components/overview/OverviewClassTabs";
 import { Button } from "@/components/ui/button";
 import { getOverview } from "@/lib/data";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { kelas?: string };
+}) {
   const { classes } = await getOverview();
   const belowTarget = classes.reduce((sum, item) => sum + item.below_target_count, 0);
   const flagged = classes.reduce((sum, item) => sum + item.high_band_count, 0);
@@ -64,9 +69,19 @@ export default async function DashboardPage() {
             sumbu ini dipisahkan.
           </Callout>
 
-          {classes.map((item) => (
-            <ClassOverviewSection key={item.class_id} data={item} />
-          ))}
+          {classes.length === 1 ? (
+            <ClassOverviewSection data={classes[0]} />
+          ) : (
+            <OverviewClassTabs
+              initialId={searchParams.kelas}
+              tabs={classes.map((item) => ({
+                id: item.class_id,
+                label: item.class_name,
+                belowCount: item.below_target_count,
+                content: <ClassOverviewSection data={item} showTitle={false} />,
+              }))}
+            />
+          )}
         </>
       )}
     </div>

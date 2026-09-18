@@ -99,11 +99,28 @@ def _build_students(entries: list[dict]) -> list[dict]:
 
 
 def _bloom_distribution(entries: list[dict]) -> list[dict]:
+    """Jumlah submission per level, beserta berapa yang di bawah target TUGASNYA.
+
+    below_target dihitung per submission terhadap target tugasnya sendiri,
+    bukan terhadap rata rata target kelas. Membandingkan satu batang dengan
+    rata rata akan salah warna: jawaban L4 untuk tugas bertarget L4 sudah
+    memenuhi tuntutan, walaupun rata rata target kelasnya L4.33.
+    """
     counts: dict[int, int] = defaultdict(int)
+    below: dict[int, int] = defaultdict(int)
     for entry in entries:
-        for level in entry["levels"]:
+        for level, target in zip(entry["levels"], entry["targets"]):
             counts[level] += 1
-    return [{"level": level, "count": counts.get(level, 0)} for level in range(1, 7)]
+            if level < target:
+                below[level] += 1
+    return [
+        {
+            "level": level,
+            "count": counts.get(level, 0),
+            "below_target": below.get(level, 0),
+        }
+        for level in range(1, 7)
+    ]
 
 
 def _cohort_trend(submissions: list[Submission]) -> list[dict]:

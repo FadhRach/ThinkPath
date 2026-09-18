@@ -1,4 +1,4 @@
-import { GraduationCap, LayoutGrid, TrendingDown } from "lucide-react";
+import { FlaskConical, GraduationCap, LayoutGrid, TrendingDown } from "lucide-react";
 
 import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -7,7 +7,7 @@ import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DistributionBar } from "@/components/report/DistributionBar";
 import { GroupTable } from "@/components/report/GroupTable";
-import { academicLabel } from "@/lib/academic";
+import { academicLabel, distinctSubject } from "@/lib/academic";
 import { getReportOverview } from "@/lib/data";
 
 export default async function LaporanPage() {
@@ -45,13 +45,20 @@ export default async function LaporanPage() {
         banyak jawaban yang berada di bawah target Bloom tugasnya. Itu pertanyaan
         pengajaran: materi mana yang belum tersampaikan. Indikasi AI tetap
         ditampilkan sebagai konteks, tetapi jangan dipakai membandingkan kelas atau
-        program studi. Bobotnya belum dikalibrasi terhadap data berlabel, sehingga
-        selisih antar kelompok belum tentu berarti apa pun.
+        program studi. Bobot dan ambangnya baru diukur pada abstrak akademik publik,
+        belum pada esai mahasiswa berlabel dosen, sehingga selisih antar kelompok
+        belum tentu berarti apa pun.
       </Callout>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={LayoutGrid} label="Kelas diampu" value={overview.class_count} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
+          stackOnMobile
+          icon={LayoutGrid}
+          label="Kelas diampu"
+          value={overview.class_count}
+        />
+        <StatCard
+          stackOnMobile
           icon={GraduationCap}
           label="Submission dianalisis"
           value={analysed}
@@ -62,13 +69,18 @@ export default async function LaporanPage() {
           }
         />
         <StatCard
+          stackOnMobile
           icon={TrendingDown}
           label="Di bawah target Bloom"
           value={`${Math.round(belowRatio * 100)}%`}
           hint={`${overview.cognitive_gap.below} dari ${analysed} jawaban`}
-          tone={belowRatio >= 0.5 ? "danger" : belowRatio >= 0.25 ? "warning" : "brand"}
+          // Warning, bukan danger: tertinggal dari target adalah soal pengajaran,
+          // bukan pelanggaran. Danger disimpan untuk temuan gabungan.
+          tone={belowRatio >= 0.25 ? "warning" : "brand"}
         />
         <StatCard
+          stackOnMobile
+          icon={FlaskConical}
           label="Belum tervalidasi"
           value={unverified}
           hint="dihitung cadangan atau data demo"
@@ -76,7 +88,7 @@ export default async function LaporanPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard eyebrow="Kesenjangan Kognitif">
           <DistributionBar
             total={analysed}
@@ -84,7 +96,7 @@ export default async function LaporanPage() {
               {
                 label: "Di bawah target",
                 count: overview.cognitive_gap.below,
-                tone: "bg-danger",
+                tone: "bg-warning",
               },
               {
                 label: "Sesuai target",
@@ -123,12 +135,18 @@ export default async function LaporanPage() {
             ...row,
             key: row.id,
             label: row.name,
-            sublabel: `${row.subject} · ${academicLabel(row)} · ${row.assignment_count} tugas`,
+            sublabel: [
+              distinctSubject(row.name, row.subject),
+              academicLabel(row),
+              `${row.assignment_count} tugas`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
           }))}
         />
       </SectionCard>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <SectionCard eyebrow="Per Program Studi">
           <GroupTable
             firstColumn="Program studi"

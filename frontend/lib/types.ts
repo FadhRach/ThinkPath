@@ -64,6 +64,9 @@ export interface OverviewStudent {
 export interface BloomDistributionBin {
   level: number;
   count: number;
+  /** Berapa dari count yang di bawah target tugasnya sendiri. Opsional karena
+   *  frontend dan backend di-deploy terpisah; backend lama belum mengirimnya. */
+  below_target?: number;
 }
 
 export interface CohortTrendPoint {
@@ -319,6 +322,8 @@ export interface SubmissionDetail {
   id: string;
   assignment: {
     id: string;
+    /** Opsional: backend lama belum mengirimnya. */
+    class_id?: string;
     title: string;
     expected_bloom_level: number;
     /** Diwarisi dari kelas, tidak lagi disimpan di Assignment. */

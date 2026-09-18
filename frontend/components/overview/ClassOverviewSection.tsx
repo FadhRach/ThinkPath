@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -7,6 +8,7 @@ import {
 } from "@/components/charts";
 import { DataTable, DataTableRow } from "@/components/common/DataTable";
 import { SectionCard } from "@/components/common/SectionCard";
+import { distinctSubject } from "@/lib/academic";
 import { TREND_LABEL, bloomAxisCaption } from "@/lib/cognitive";
 import type { OverviewClass } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -34,23 +36,44 @@ const QUADRANT_LEGEND = [
   },
 ];
 
-export function ClassOverviewSection({ data }: { data: OverviewClass }) {
+interface Props {
+  data: OverviewClass;
+  /** Judul kelas tidak perlu diulang bila nama kelas sudah tertulis di tab. */
+  showTitle?: boolean;
+}
+
+export function ClassOverviewSection({ data, showTitle = true }: Props) {
   const attention = data.students.filter(
     (student) => student.gap !== null && student.gap <= -1,
   );
+  const subject = distinctSubject(data.class_name, data.subject);
+  const distributionCaption = [
+    bloomAxisCaption(data.bloom_distribution) || "Seluruh submission yang sudah dianalisis",
+    data.average_target != null ? `target rata-rata tugas L${data.average_target}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-bold text-foreground">{data.class_name}</h2>
-          <p className="text-body-sm text-muted-foreground">{data.subject}</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {showTitle ? (
+          <div>
+            <h2 className="text-lg font-bold text-foreground">{data.class_name}</h2>
+            {subject ? <p className="text-body-sm text-muted-foreground">{subject}</p> : null}
+          </div>
+        ) : (
+          <p className="text-body-sm text-muted-foreground">
+            {data.students.length} mahasiswa dengan tugas teranalisis
+            {subject ? ` · ${subject}` : ""}
+          </p>
+        )}
         <Link
           href={`/dashboard/classes/${data.class_id}`}
-          className="text-body-sm text-muted-foreground hover:text-primary"
+          className="inline-flex items-center gap-1.5 text-body-sm font-medium text-primary hover:underline"
         >
           Buka kelas
+          <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
 
@@ -95,23 +118,17 @@ export function ClassOverviewSection({ data }: { data: OverviewClass }) {
         ) : null}
       </SectionCard>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard eyebrow="Sebaran Level" className="space-y-2">
-          <p className="text-body-sm text-muted-foreground">
-            {bloomAxisCaption(data.bloom_distribution) ||
-              "Seluruh submission yang sudah dianalisis"}
-          </p>
+          <p className="text-body-sm text-muted-foreground">{distributionCaption}</p>
           <div className="pt-2">
-            <BloomDistributionChart
-              bins={data.bloom_distribution}
-              target={data.average_target}
-            />
+            <BloomDistributionChart bins={data.bloom_distribution} />
           </div>
         </SectionCard>
 
         <SectionCard eyebrow="Tren Kelas" className="space-y-2">
           <p className="text-body-sm text-muted-foreground">
-            Rata-rata kelas terhadap target yang menanjak, tugas demi tugas
+            Rata-rata kelas terhadap target, tugas demi tugas
           </p>
           <div className="pt-2">
             <CohortTrendChart points={data.cohort_trend} />
@@ -138,7 +155,7 @@ export function ClassOverviewSection({ data }: { data: OverviewClass }) {
                 <td className="py-2.5 pr-4 text-muted-foreground">
                   L{student.current_level}
                 </td>
-                <td className="py-2.5 pr-4 font-medium text-warning">
+                <td className="py-2.5 pr-4 font-medium tabular-nums text-warning">
                   {student.gap}
                 </td>
                 <td className="py-2.5 pr-4 text-muted-foreground">
@@ -146,7 +163,7 @@ export function ClassOverviewSection({ data }: { data: OverviewClass }) {
                 </td>
                 <td
                   className={cn(
-                    "py-2.5",
+                    "py-2.5 tabular-nums",
                     student.high_count > 0 ? "text-danger" : "text-muted-foreground",
                   )}
                 >

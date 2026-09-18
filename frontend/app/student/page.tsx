@@ -1,6 +1,6 @@
 import { BookOpen, CheckCircle2, GraduationCap, Star } from "lucide-react";
 
-import { GradeBarChart, type GradePoint } from "@/components/charts";
+import { GradeBarChart, type GradePoint } from "@/components/common/GradeBarChart";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { JoinCodeForm } from "@/components/student/JoinCodeForm";
@@ -21,7 +21,7 @@ interface Overview {
 // kognitif punya halamannya sendiri di /student/progres, lengkap dengan
 // penjelasan bahwa level bukan nilai.
 function deriveOverview(classes: StudentClassWithAssignments[]): Overview {
-  const graded: Array<{ label: string; grade: number }> = [];
+  const graded: Array<{ label: string; sublabel: string; grade: number; at: number }> = [];
   let activeCount = 0;
 
   for (const cls of classes) {
@@ -29,7 +29,12 @@ function deriveOverview(classes: StudentClassWithAssignments[]): Overview {
       const submission = assignment.submission;
       const isGraded = submission?.status === "reviewed" && submission.grade !== null;
       if (isGraded && submission) {
-        graded.push({ label: cls.subject, grade: submission.grade as number });
+        graded.push({
+          label: assignment.title,
+          sublabel: cls.name,
+          grade: submission.grade as number,
+          at: submission.submitted_at ? new Date(submission.submitted_at).getTime() : 0,
+        });
       } else {
         activeCount += 1;
       }
@@ -45,7 +50,11 @@ function deriveOverview(classes: StudentClassWithAssignments[]): Overview {
     activeCount,
     doneCount: graded.length,
     averageGrade,
-    gradeChart: graded.slice(-6).map((g) => ({ label: g.label, value: g.grade })),
+    // "Terakhir" berarti terbaru dikumpulkan, bukan urutan kelas di daftar.
+    gradeChart: [...graded]
+      .sort((a, b) => b.at - a.at)
+      .slice(0, 6)
+      .map((g) => ({ label: g.label, sublabel: g.sublabel, value: g.grade })),
   };
 }
 
@@ -56,7 +65,11 @@ export default async function StudentPage() {
   // modul, tanggalnya membeku pada saat server dinyalakan dan besok masih
   // menampilkan hari kemarin.
   const today = formatDateLong();
-  const firstName = (me.display_name || me.email).split(" ")[0];
+  const fullName = me.display_name || me.email;
+  const words = fullName.split(" ");
+  // "Mahasiswa 01" disapa utuh; menyapa "Mahasiswa" saja terasa seperti sapaan massal.
+  const firstName =
+    words.length > 1 && /^\d+$/.test(words[words.length - 1]) ? fullName : words[0];
 
   return (
     <div className="space-y-6">
@@ -65,22 +78,38 @@ export default async function StudentPage() {
         subtitle={`${today} · ${overview.activeCount} tugas menunggu diselesaikan`}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={BookOpen} label="Tugas aktif" value={overview.activeCount} />
-        <StatCard icon={CheckCircle2} label="Tugas selesai" value={overview.doneCount} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
+          stackOnMobile
+          icon={BookOpen}
+          label="Tugas aktif"
+          value={overview.activeCount}
+        />
+        <StatCard
+          stackOnMobile
+          icon={CheckCircle2}
+          label="Tugas selesai"
+          value={overview.doneCount}
+        />
+        <StatCard
+          stackOnMobile
           icon={Star}
           label="Rata-rata nilai"
           value={overview.averageGrade ?? "-"}
         />
-        <StatCard icon={GraduationCap} label="Kelas diikuti" value={classes.length} />
+        <StatCard
+          stackOnMobile
+          icon={GraduationCap}
+          label="Kelas diikuti"
+          value={classes.length}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {classes.length === 0 ? (
             <Card className="border-dashed p-10 text-center text-body text-muted-foreground shadow-none">
-              Kamu belum bergabung ke kelas mana pun. Minta kode kelas ke gurumu,
+              Kamu belum bergabung ke kelas mana pun. Minta kode kelas ke dosenmu,
               lalu masukkan di samping.
             </Card>
           ) : (
@@ -95,7 +124,7 @@ export default async function StudentPage() {
             <div>
               <h2 className="font-bold text-foreground">Gabung kelas</h2>
               <p className="text-body-sm text-muted-foreground">
-                Masukkan kode undangan dari gurumu.
+                Masukkan kode undangan dari dosenmu.
               </p>
             </div>
             <JoinCodeForm />
@@ -105,7 +134,7 @@ export default async function StudentPage() {
             <Card className="space-y-1 p-5 shadow-soft">
               <h2 className="font-bold text-foreground">Nilai Tugas Terakhir</h2>
               <p className="text-body-sm text-muted-foreground">
-                {overview.gradeChart.length} tugas terakhir yang dinilai
+                {overview.gradeChart.length} tugas terbaru yang sudah dinilai
               </p>
               <div className="pt-3">
                 <GradeBarChart data={overview.gradeChart} />

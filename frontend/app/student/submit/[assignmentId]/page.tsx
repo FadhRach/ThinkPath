@@ -7,6 +7,7 @@ import { SubjectTag } from "@/components/common/SubjectTag";
 import { AssignmentStatusBadge } from "@/components/student/AssignmentStatusBadge";
 import { SubmitAnswerForm } from "@/components/student/SubmitAnswerForm";
 import { Card } from "@/components/ui/card";
+import { distinctSubject } from "@/lib/academic";
 import { ApiError } from "@/lib/api";
 import { bloomCode } from "@/lib/bloom";
 import { getStudentAssignment } from "@/lib/data";
@@ -40,10 +41,15 @@ export default async function SubmitAssignmentPage({
 
       <div className="space-y-2">
         <SubjectTag
-          subject={detail.class.subject}
-          meta={`${detail.class.name}${
-            assignment.deadline ? ` · Tenggat ${formatRelativeTime(assignment.deadline)}` : ""
-          }`}
+          subject={detail.class.name}
+          meta={
+            [
+              distinctSubject(detail.class.name, detail.class.subject),
+              assignment.deadline ? `Tenggat ${formatRelativeTime(assignment.deadline)}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || undefined
+          }
         />
         <h1 className="text-display-2 font-extrabold tracking-tight text-foreground">
           {assignment.title}

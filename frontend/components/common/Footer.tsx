@@ -12,13 +12,20 @@ export function Footer() {
             Lihat proses berpikirnya, bukan hanya nilainya
           </span>
         </div>
-        <nav className="flex flex-wrap gap-x-6 gap-y-2 lg:ml-auto">
+        {/* Halamannya belum ada. Dulu teks ini berubah warna saat disorot,
+            seolah bisa diklik; sekarang tampil redup seperti menu yang
+            belum aktif di navigasi atas. */}
+        <ul className="flex flex-wrap gap-x-6 gap-y-2 lg:ml-auto">
           {LINKS.map((link) => (
-            <span key={link} className="cursor-default transition hover:text-foreground">
+            <li
+              key={link}
+              title="Segera hadir"
+              className="cursor-not-allowed text-muted-foreground/60"
+            >
               {link}
-            </span>
+            </li>
           ))}
-        </nav>
+        </ul>
         <span className="text-xs text-muted-foreground/70">
           &copy; 2026 Tim DataDigger
         </span>

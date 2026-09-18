@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BloomTrendChart } from "@/components/charts";
 import { DataTable, DataTableRow } from "@/components/common/DataTable";
 import { Card } from "@/components/ui/card";
+import { distinctSubject } from "@/lib/academic";
 import { bloomShortLabel } from "@/lib/bloom";
 import { TREND_LABEL, TREND_TONE, gapToTarget, toChartPoints, trendNarrative } from "@/lib/cognitive";
 import { formatDate } from "@/lib/formatting";
@@ -31,13 +32,14 @@ export function CognitiveClassCard({ series, showBand = false, linkSubmissions =
   const gap = gapToTarget(series);
   const TrendIcon = TREND_ICON[series.direction];
   const belowTarget = gap != null && gap <= -1;
+  const subject = distinctSubject(series.class_name, series.subject);
 
   return (
     <Card className="space-y-4 p-5 shadow-soft">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-bold text-foreground">{series.class_name}</h2>
-          <p className="text-body-sm text-muted-foreground">{series.subject}</p>
+          {subject ? <p className="text-body-sm text-muted-foreground">{subject}</p> : null}
         </div>
         <span
           className={cn(
@@ -74,11 +76,7 @@ export function CognitiveClassCard({ series, showBand = false, linkSubmissions =
       </div>
 
       <div>
-        <BloomTrendChart
-          data={toChartPoints(series)}
-          target={series.average_target}
-          height={200}
-        />
+        <BloomTrendChart data={toChartPoints(series)} height={200} />
       </div>
 
       <p className="rounded-lg bg-muted/60 px-3.5 py-2.5 text-body-sm text-muted-foreground">

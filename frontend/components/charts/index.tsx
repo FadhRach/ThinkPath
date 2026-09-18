@@ -18,27 +18,21 @@ export const AiBloomScatter = dynamic(
   { ssr: false, loading: chartSkeleton(340) },
 );
 
+// Tinggi skeleton = tinggi grafik + legenda di bawahnya (sekitar 30px).
 export const BloomDistributionChart = dynamic(
   () =>
     import("@/components/overview/BloomDistributionChart").then(
       (m) => m.BloomDistributionChart,
     ),
-  { ssr: false, loading: chartSkeleton(220) },
+  { ssr: false, loading: chartSkeleton(250) },
 );
 
 export const CohortTrendChart = dynamic(
   () => import("@/components/overview/CohortTrendChart").then((m) => m.CohortTrendChart),
-  { ssr: false, loading: chartSkeleton(240) },
+  { ssr: false, loading: chartSkeleton(250) },
 );
 
 export const BloomTrendChart = dynamic(
   () => import("@/components/common/BloomTrendChart").then((m) => m.BloomTrendChart),
-  { ssr: false, loading: chartSkeleton(220) },
+  { ssr: false, loading: chartSkeleton(230) },
 );
-
-export const GradeBarChart = dynamic(
-  () => import("@/components/common/GradeBarChart").then((m) => m.GradeBarChart),
-  { ssr: false, loading: chartSkeleton(200) },
-);
-
-export type { GradePoint } from "@/components/common/GradeBarChart";

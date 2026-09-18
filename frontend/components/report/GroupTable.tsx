@@ -15,9 +15,10 @@ interface Props {
   emptyMessage: string;
 }
 
+// Warning, bukan danger: tertinggal dari target adalah pertanyaan pengajaran.
 function ratioTone(ratio: number | null): string {
   if (ratio === null) return "text-muted-foreground";
-  if (ratio >= 0.5) return "text-danger";
+  if (ratio >= 0.5) return "font-semibold text-warning";
   if (ratio >= 0.25) return "text-warning";
   return "text-foreground";
 }
@@ -36,13 +37,13 @@ export function GroupTable({ rows, firstColumn, emptyMessage }: Props) {
 
   return (
     <DataTable
-      minWidthClass="min-w-[36rem]"
+      minWidthClass="min-w-[30rem]"
       headers={[
         firstColumn,
         "Di bawah target",
         "Rata-rata Bloom",
         "Dianalisis",
-        "Indikasi AI tinggi",
+        "AI tinggi",
       ]}
     >
       {rows.map((row) => (

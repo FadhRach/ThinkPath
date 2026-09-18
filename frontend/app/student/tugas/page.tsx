@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { distinctSubject } from "@/lib/academic";
 import { getStudentClasses } from "@/lib/data";
 import { formatDate } from "@/lib/formatting";
 import type { StudentClassWithAssignments } from "@/lib/types";
@@ -17,7 +18,8 @@ interface Row {
   assignmentId: string;
   title: string;
   className: string;
-  subject: string;
+  /** Null bila mata kuliah sudah tertulis di nama kelas. */
+  subject: string | null;
   deadline: string | null;
   expectedLevel: number;
   submission: StudentClassWithAssignments["assignments"][number]["submission"];
@@ -32,7 +34,7 @@ function flatten(classes: StudentClassWithAssignments[]): Row[] {
         assignmentId: assignment.id,
         title: assignment.title,
         className: cls.name,
-        subject: cls.subject,
+        subject: distinctSubject(cls.name, cls.subject),
         deadline: assignment.deadline,
         expectedLevel: assignment.expected_bloom_level,
         submission: assignment.submission,
@@ -124,9 +126,11 @@ function TaskTable({ rows, emptyMessage }: { rows: Row[]; emptyMessage: string }
             </td>
             <td className="py-2.5 pr-4">
               <span className="block text-foreground">{row.className}</span>
-              <span className="block text-caption text-muted-foreground">
-                {row.subject}
-              </span>
+              {row.subject ? (
+                <span className="block text-caption text-muted-foreground">
+                  {row.subject}
+                </span>
+              ) : null}
             </td>
             <td className="py-2.5 pr-4">
               <BloomBadge level={row.expectedLevel} />

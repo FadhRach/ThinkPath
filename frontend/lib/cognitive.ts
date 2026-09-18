@@ -68,6 +68,8 @@ export function toChartPoints(series: CognitiveClassSeries) {
   return series.points.map((point, index) => ({
     label: `T${index + 1}`,
     level: point.level,
+    expected: point.expected,
+    title: point.label,
   }));
 }
 

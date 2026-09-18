@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import type { ClassSummary } from "@/lib/types";
-import { academicLabel } from "@/lib/academic";
+import { academicLabel, distinctSubject } from "@/lib/academic";
 
 export function TeacherClassCard({ studentClass }: { studentClass: ClassSummary }) {
   return (
@@ -12,7 +12,9 @@ export function TeacherClassCard({ studentClass }: { studentClass: ClassSummary 
         <div className="space-y-1">
           <h2 className="text-lg font-bold text-foreground">{studentClass.name}</h2>
           <p className="text-body-sm text-muted-foreground">
-            {studentClass.subject} &middot; {academicLabel(studentClass)}
+            {[distinctSubject(studentClass.name, studentClass.subject), academicLabel(studentClass)]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
         <div className="flex items-center justify-between gap-3">

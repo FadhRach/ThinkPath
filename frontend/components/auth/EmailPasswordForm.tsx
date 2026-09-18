@@ -28,9 +28,16 @@ export function EmailPasswordForm({ mode }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { pending, error, run, router } = useAction(
+  const { pending, error, setError, run, router } = useAction(
     "Gagal memproses. Periksa isian lalu coba lagi.",
   );
+
+  function handleRoleChange(next: Role) {
+    setRole(next);
+    // Pesan "akun ini terdaftar sebagai ..." sudah tidak relevan begitu
+    // pengguna mengganti pilihannya.
+    setError(null);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +46,7 @@ export function EmailPasswordForm({ mode }: Props) {
     await run(
       () =>
         mode === "login"
-          ? login(email, password)
+          ? login(email, password, role)
           : register({
               email,
               password,
@@ -57,7 +64,7 @@ export function EmailPasswordForm({ mode }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <RoleSelector value={role} onChange={setRole} />
+      <RoleSelector value={role} onChange={handleRoleChange} />
 
       {mode === "register" ? (
         <div className="space-y-1.5">
@@ -95,14 +102,9 @@ export function EmailPasswordForm({ mode }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Kata sandi</Label>
-          {mode === "login" ? (
-            <span className="text-body-sm font-semibold text-primary">
-              Lupa kata sandi?
-            </span>
-          ) : null}
-        </div>
+        {/* Tautan "Lupa kata sandi?" dihapus: alur reset belum ada, dan teks
+            berwarna tautan yang tidak bisa diklik hanya membingungkan. */}
+        <Label htmlFor="password">Kata sandi</Label>
         <div className="relative">
           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
