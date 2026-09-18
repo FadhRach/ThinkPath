@@ -1,4 +1,4 @@
-import type { AiBand, SubmissionRow, SubmissionDetail } from "./types";
+import type { AiBand, SubmissionDetail } from "./types";
 
 export interface EvidenceBands {
   processBand: AiBand;
@@ -11,14 +11,16 @@ function bandFromAi(ai?: AiBand | null): AiBand {
 }
 
 /**
- * Cadangan ketika backend belum mengirim sinyal forensik proses, misalnya pada
- * baris tabel yang hanya memuat ringkasan analisis.
+ * Cadangan ketika backend tidak mengirim sinyal forensik proses.
+ *
+ * Hanya memakai durasi. Jumlah revisi sengaja tidak dipakai: yang tercatat
+ * hanya Simpan Revisi setelah jawaban dikumpulkan, bukan penyuntingan saat
+ * menulis, dan backend pun sudah berhenti menskornya. Durasi yang tidak
+ * terekam juga tidak boleh berubah menjadi tuduhan.
  */
-function processBandFor(revisionCount: number, durationSeconds: number | null): AiBand {
-  const duration = durationSeconds ?? 0;
-  if (duration < 5 * 60 && revisionCount <= 1) return "high";
-  if (duration < 15 * 60 || revisionCount <= 2) return "mid";
-  return "low";
+function processBandFor(durationSeconds: number | null): AiBand {
+  if (durationSeconds === null) return "low";
+  return durationSeconds < 5 * 60 ? "mid" : "low";
 }
 
 /**
@@ -33,7 +35,7 @@ function processBandFromDetail(detail: SubmissionDetail): AiBand {
     (item) => item.key === "process_forensics",
   );
   if (!signal) {
-    return processBandFor(detail.revision_count, detail.duration_seconds);
+    return processBandFor(detail.duration_seconds);
   }
   if (signal.value >= 0.7) return "high";
   if (signal.value >= 0.4) return "mid";
@@ -49,17 +51,6 @@ function cognitiveBandFor(
   if (gap >= 2) return "high";
   if (gap >= 1) return "mid";
   return "low";
-}
-
-export function bandsForRow(
-  row: SubmissionRow,
-  expectedBloomLevel: number,
-): EvidenceBands {
-  return {
-    processBand: processBandFor(row.revision_count, row.duration_seconds),
-    textBand: bandFromAi(row.analysis?.ai_band),
-    cognitiveBand: cognitiveBandFor(row.analysis?.bloom_level, expectedBloomLevel),
-  };
 }
 
 export function bandsForDetail(detail: SubmissionDetail): EvidenceBands {

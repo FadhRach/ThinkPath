@@ -6,7 +6,8 @@ permission dan view. List endpoints difilter ke pemilik (`user.sub`).
 """
 from __future__ import annotations
 
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from django.db import transaction
@@ -120,6 +121,7 @@ def _build_process_context(
     revision_count: int,
     paste_char_count: int = 0,
     progress: tuple = (),
+    paste_recorded: bool = True,
 ) -> ProcessContext:
     """Rakit metadata pengerjaan untuk sinyal forensik E1.
 
@@ -134,18 +136,73 @@ def _build_process_context(
         char_count=len(text),
         progress=progress,
         paste_char_count=paste_char_count,
+        paste_recorded=paste_recorded,
     )
 
 
-def _paste_char_count(submission: Submission) -> int:
-    total = 0
+# Penanda di payload event bahwa form yang dipakai merekam tempelan. Disimpan
+# supaya analisis ulang bisa membedakan "tidak menempel" dari "tidak direkam".
+PASTE_TRACKING_KEY = "paste_tracking"
+
+
+@dataclass(frozen=True)
+class StoredProcess:
+    """Bukti proses yang sudah tersimpan untuk satu submission."""
+
+    progress: tuple[ProgressSample, ...]
+    paste_char_count: int
+    paste_recorded: bool
+
+
+def _stored_process(submission: Submission) -> StoredProcess:
+    """Baca ulang jejak pengerjaan dari event yang tersimpan.
+
+    Simpan Revisi dan Analisis Ulang dulu hanya memakai durasi, sehingga
+    cuplikan pertumbuhan kata yang terekam saat mengarang hilang dari analisis:
+    siasat tempel-lalu-tunggu yang sudah tertangkap kembali terbaca wajar begitu
+    jawaban direvisi atau dianalisis ulang.
+    """
+    started = submission.started_at
+    progress: list[ProgressSample] = []
+    paste_total = 0
+    started_tracks_paste = False
+    revisions_track_paste = True
     for event in submission.reasoning_events.all():
-        if event.event_type != EventType.PASTE:
-            continue
-        value = (event.payload or {}).get("char_count")
-        if isinstance(value, int):
-            total += value
-    return total
+        payload = event.payload or {}
+        if event.event_type == EventType.PROGRESS:
+            words = payload.get("word_count")
+            if isinstance(words, int):
+                progress.append(
+                    ProgressSample(
+                        offset_seconds=max(
+                            0, int((event.occurred_at - started).total_seconds())
+                        ),
+                        word_count=words,
+                    )
+                )
+        elif event.event_type == EventType.PASTE:
+            chars = payload.get("char_count")
+            if isinstance(chars, int):
+                paste_total += chars
+        elif event.event_type == EventType.STARTED:
+            started_tracks_paste = bool(payload.get(PASTE_TRACKING_KEY))
+        elif event.event_type == EventType.REVISION:
+            revisions_track_paste = revisions_track_paste and bool(
+                payload.get(PASTE_TRACKING_KEY)
+            )
+    return StoredProcess(
+        progress=tuple(sorted(progress, key=lambda sample: sample.offset_seconds)),
+        paste_char_count=paste_total,
+        paste_recorded=started_tracks_paste and revisions_track_paste,
+    )
+
+
+def _pastes_within(validated: dict, start: datetime, end: datetime) -> list[dict]:
+    """Tempelan dari klien yang jatuh di dalam jendela pengerjaan saja."""
+    return sorted(
+        (paste for paste in validated.get("pastes") or [] if start <= paste["at"] <= end),
+        key=lambda paste: paste["at"],
+    )
 
 
 def _analyse_for(
@@ -156,6 +213,7 @@ def _analyse_for(
     revision_count: int,
     paste_char_count: int = 0,
     progress: tuple = (),
+    paste_recorded: bool = True,
 ) -> dict:
     """Jalankan rantai analisis dengan konteks proses yang dirakit seragam.
 
@@ -172,6 +230,7 @@ def _analyse_for(
             revision_count,
             paste_char_count,
             progress,
+            paste_recorded,
         ),
     )
 
@@ -478,7 +537,9 @@ class SubmissionListView(APIView):
             )
 
         if latest is not None:
-            submission = self._revise_submission(latest, assignment, text_answer)
+            submission = self._revise_submission(
+                latest, assignment, text_answer, serializer.validated_data
+            )
             detail = "Revisi jawaban berhasil disimpan."
         else:
             submission = self._create_submission(
@@ -519,6 +580,8 @@ class SubmissionListView(APIView):
             )
             for s in sorted(samples, key=lambda s: s["at"])
         )
+        paste_recorded = "pastes" in validated
+        pastes = _pastes_within(validated, started_at, submitted_at)
 
         analysis = _analyse_for(
             text_answer,
@@ -526,6 +589,8 @@ class SubmissionListView(APIView):
             duration_seconds=duration_seconds,
             revision_count=0,
             progress=progress,
+            paste_char_count=sum(paste["char_count"] for paste in pastes),
+            paste_recorded=paste_recorded,
         )
         with transaction.atomic():
             submission = Submission.objects.create(
@@ -543,7 +608,7 @@ class SubmissionListView(APIView):
                     ReasoningEvent(
                         submission=submission,
                         event_type=EventType.STARTED,
-                        payload={},
+                        payload={PASTE_TRACKING_KEY: paste_recorded},
                         occurred_at=started_at,
                     ),
                     ReasoningEvent(
@@ -563,22 +628,42 @@ class SubmissionListView(APIView):
                     )
                     for sample in progress
                 ]
+                + [
+                    ReasoningEvent(
+                        submission=submission,
+                        event_type=EventType.PASTE,
+                        payload={"char_count": paste["char_count"]},
+                        occurred_at=paste["at"],
+                    )
+                    for paste in pastes
+                ]
             )
             AnalysisResult.objects.create(submission=submission, **analysis)
         return submission
 
     @staticmethod
-    def _revise_submission(submission, assignment, text_answer) -> Submission:
+    def _revise_submission(submission, assignment, text_answer, validated) -> Submission:
         revised_at = timezone.now()
+        stored = _stored_process(submission)
+        # Tempelan saat merevisi ikut dihitung: jawaban jujur yang direvisi
+        # dengan menempel teks AI tidak boleh lolos hanya karena submit
+        # pertamanya bersih. Jendelanya dimulai dari form revisi dibuka.
+        session_start = validated.get("started_at") or submission.submitted_at
+        session_start = min(max(session_start, submission.started_at), revised_at)
+        pastes = _pastes_within(validated, session_start, revised_at)
+        paste_recorded = stored.paste_recorded and "pastes" in validated
         # revision_count masih nilai lama di titik ini; revisi yang sedang
-        # berjalan ikut dihitung supaya sinyal proses melihat angka yang sama
+        # berjalan ikut dihitung supaya bukti proses menyebut angka yang sama
         # dengan yang nanti tersimpan.
         analysis = _analyse_for(
             text_answer,
             assignment,
             duration_seconds=submission.duration_seconds,
             revision_count=submission.revision_count + 1,
-            paste_char_count=_paste_char_count(submission),
+            paste_char_count=stored.paste_char_count
+            + sum(paste["char_count"] for paste in pastes),
+            progress=stored.progress,
+            paste_recorded=paste_recorded,
         )
         with transaction.atomic():
             submission.text_answer = text_answer
@@ -593,11 +678,27 @@ class SubmissionListView(APIView):
                     "status",
                 ]
             )
-            ReasoningEvent.objects.create(
-                submission=submission,
-                event_type=EventType.REVISION,
-                payload={"revision_count": submission.revision_count},
-                occurred_at=revised_at,
+            ReasoningEvent.objects.bulk_create(
+                [
+                    ReasoningEvent(
+                        submission=submission,
+                        event_type=EventType.REVISION,
+                        payload={
+                            "revision_count": submission.revision_count,
+                            PASTE_TRACKING_KEY: "pastes" in validated,
+                        },
+                        occurred_at=revised_at,
+                    )
+                ]
+                + [
+                    ReasoningEvent(
+                        submission=submission,
+                        event_type=EventType.PASTE,
+                        payload={"char_count": paste["char_count"]},
+                        occurred_at=paste["at"],
+                    )
+                    for paste in pastes
+                ]
             )
             AnalysisResult.objects.update_or_create(
                 submission=submission, defaults=analysis
@@ -778,12 +879,15 @@ class SubmissionReanalyzeView(APIView):
 
     def post(self, request, submission_id: str):
         submission = _require_owned_submission(request, submission_id)
+        stored = _stored_process(submission)
         analysis = _analyse_for(
             submission.text_answer,
             submission.assignment,
             duration_seconds=submission.duration_seconds,
             revision_count=submission.revision_count,
-            paste_char_count=_paste_char_count(submission),
+            paste_char_count=stored.paste_char_count,
+            progress=stored.progress,
+            paste_recorded=stored.paste_recorded,
         )
         result, _ = AnalysisResult.objects.update_or_create(
             submission=submission,

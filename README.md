@@ -115,7 +115,7 @@ Skor E1 disusun dari lima sinyal teks dan satu sinyal proses:
 
 | Sinyal | Bobot | Yang diukur |
 |---|---|---|
-| Forensik proses | 0,25 | Durasi, revisi, porsi tempelan, pertumbuhan kata |
+| Forensik proses | 0,25 | Kurva pertumbuhan kata (atau laju bila tidak terekam) dan porsi tempelan; jumlah revisi ditampilkan, tidak diskor |
 | Keseragaman kalimat | 0,30 | Variasi panjang kalimat |
 | Frasa formulaik | 0,19 | Kepadatan frasa transisi khas LLM |
 | Keragaman kosakata | 0,19 | Jarak TTR dari titik tengah wajar |

@@ -129,11 +129,12 @@ itulah pembenaran paling langsung untuk memakai dua sumbu.
 ```mermaid
 flowchart LR
     subgraph K["Sulit dipalsukan"]
-        A["revision_count<br/><i>dihitung server</i>"]
+        A["revision_count<br/><i>dihitung server,<br/>ditampilkan, tidak diskor</i>"]
     end
     subgraph S["Menaikkan biaya kecurangan"]
         B["Kurva pertumbuhan kata<br/><i>telemetri klien</i>"]
         C["started_at<br/><i>dikirim klien</i>"]
+        F["Tempelan<br/><i>telemetri klien</i>"]
     end
     subgraph L["Bisa dihapus dengan menulis ulang"]
         D["Lima sinyal teks<br/><i>statistik dan penanda</i>"]
@@ -144,7 +145,7 @@ flowchart LR
     classDef sedang fill:#FDF6E3,stroke:#B8860B
     classDef lemah fill:#FDF0F4,stroke:#C2547A
     class A kuat
-    class B,C sedang
+    class B,C,F sedang
     class D,E lemah
 ```
 

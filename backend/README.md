@@ -104,8 +104,8 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 
 `POST /api/assignments/<id>/submissions` bersifat **upsert per mahasiswa**:
 
-- Submission pertama membuat baris baru (`revision_count = 0`).
-- Submission berikutnya, selama tenggat belum lewat dan belum dinilai, **memperbarui jawaban yang sama**: `revision_count += 1`, menambah `ReasoningEvent(revision)`, dan memicu analisis ulang.
+- Submission pertama membuat baris baru (`revision_count = 0`). Body: `text_answer`, `started_at`, `progress` (cuplikan jumlah kata), dan `pastes` (`[{at, char_count}]`, tanpa isi tempelan). Daftar `pastes` kosong berarti direkam dan tidak ada tempelan; kolom yang tidak dikirim berarti tidak terekam, dan penanda `paste_tracking` di event `started` menyimpan bedanya.
+- Submission berikutnya, selama tenggat belum lewat dan belum dinilai, **memperbarui jawaban yang sama**: `revision_count += 1`, menambah `ReasoningEvent(revision)` beserta tempelan sesi revisi, dan memicu analisis ulang yang **memakai ulang cuplikan tersimpan**. Jumlah revisi ditampilkan di bukti, tidak diskor.
 - Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`.
 
 **Skor AI dan sinyal tidak pernah diekspos ke mahasiswa** (`StudentSubmissionStatusSerializer`). Daftar tugas mahasiswa juga tidak mengirim `text_answer` demi menekan ukuran respons — teks lengkap hanya ada di endpoint detail.

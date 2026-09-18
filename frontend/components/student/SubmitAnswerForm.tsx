@@ -1,13 +1,13 @@
 "use client";
 
-import { CheckCircle2, Send } from "lucide-react";
+import { CheckCircle2, Info, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { submitAnswer, type ProgressSample } from "@/lib/mutations";
+import { submitAnswer, type PasteSample, type ProgressSample } from "@/lib/mutations";
 import { useAction } from "@/lib/use-action";
 
 const MIN_LENGTH = 50;
@@ -17,6 +17,9 @@ const MIN_LENGTH = 50;
 // yang diterima backend.
 const SAMPLE_INTERVAL_MS = 30_000;
 const MAX_SAMPLES = 240;
+// Batas yang sama dengan backend.
+const MAX_PASTES = 200;
+const MAX_PASTE_CHARS = 100_000;
 
 type Mode = "create" | "revise";
 
@@ -32,16 +35,23 @@ function countWords(text: string): number {
   return trimmed ? trimmed.split(/\s+/).length : 0;
 }
 
-const COPY: Record<Mode, { submit: string; loading: string; done: string }> = {
+const COPY: Record<
+  Mode,
+  { submit: string; loading: string; done: string; recording: string }
+> = {
   create: {
     submit: "Kumpulkan Jawaban",
     loading: "Mengumpulkan...",
     done: "Jawabanmu berhasil dikumpulkan. Terima kasih.",
+    recording:
+      "Selama kamu mengerjakan, ThinkPath mencatat jumlah kata setiap 30 detik serta kapan dan berapa karakter teks yang ditempel, tanpa isinya. Dosen melihat catatan ini sebagai bukti proses menulismu.",
   },
   revise: {
     submit: "Simpan Revisi",
     loading: "Menyimpan...",
     done: "Revisi jawabanmu berhasil disimpan.",
+    recording:
+      "Selama kamu merevisi, ThinkPath mencatat kapan dan berapa karakter teks yang ditempel, tanpa isinya. Dosen melihat catatan ini sebagai bukti proses menulismu.",
   },
 };
 
@@ -56,6 +66,10 @@ export function SubmitAnswerForm({
   // Jejak pertumbuhan kata. Disimpan di ref, bukan state, karena tidak pernah
   // dirender dan tidak boleh memicu render ulang tiap tiga puluh detik.
   const progressRef = useRef<ProgressSample[]>([]);
+  // Tempelan dan teks yang diseret masuk. Yang direkam hanya kapan dan berapa
+  // karakter; isinya tidak pernah disimpan atau dikirim. Tanpa ini sub-indikator
+  // tempelan di backend selalu nol untuk setiap mahasiswa.
+  const pastesRef = useRef<PasteSample[]>([]);
   const [text, setText] = useState(initialText);
   const [submitted, setSubmitted] = useState(false);
   const { pending, error, run } = useAction("Gagal menyimpan jawaban. Coba lagi.");
@@ -84,6 +98,14 @@ export function SubmitAnswerForm({
     return () => clearInterval(timer);
   }, []);
 
+  function recordInsertion(charCount: number) {
+    if (charCount <= 0 || pastesRef.current.length >= MAX_PASTES) return;
+    pastesRef.current.push({
+      at: new Date().toISOString(),
+      char_count: Math.min(charCount, MAX_PASTE_CHARS),
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const { ok } = await run(() =>
@@ -105,6 +127,7 @@ export function SubmitAnswerForm({
                 { at: new Date().toISOString(), word_count: countWords(text) },
               ].slice(0, MAX_SAMPLES)
             : undefined,
+        pastes: pastesRef.current,
       }),
     );
     if (ok) setSubmitted(true);
@@ -136,13 +159,19 @@ export function SubmitAnswerForm({
           placeholder="Tulis jawabanmu di sini..."
           value={text}
           onChange={(event) => setText(event.target.value)}
-          className="rounded-none border-0 bg-transparent px-5 py-4 text-body-lg focus-visible:ring-0"
+          onPaste={(event) => recordInsertion(event.clipboardData.getData("text").length)}
+          onDrop={(event) => recordInsertion(event.dataTransfer.getData("text").length)}
+          className="rounded-none border-0 bg-transparent px-5 py-4 text-body-lg focus-visible:ring-0 md:text-body-lg"
         />
         <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-3 text-body-sm text-muted-foreground">
           <span>Minimal {MIN_LENGTH} karakter</span>
           <span>{countWords(text)} kata &middot; {text.trim().length} karakter</span>
         </div>
       </Card>
+      <p className="flex items-start gap-2 text-caption text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        {copy.recording}
+      </p>
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
       <Button type="submit" disabled={pending || tooShort} size="lg" className="w-full sm:w-auto">
         <Send className="h-4 w-4" />

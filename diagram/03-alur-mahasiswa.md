@@ -94,7 +94,7 @@ sequenceDiagram
 
     MH->>F: tekan Kumpulkan
     F->>F: cuplikan terakhir
-    F->>API: POST jawaban + started_at + deret cuplikan
+    F->>API: POST jawaban + started_at + deret cuplikan + tempelan
 
     API->>API: buang cuplikan di luar<br/>rentang mulai sampai kumpul
     API->>AN: teks + konteks proses
@@ -115,7 +115,16 @@ teks penuh, dan jejaknya terbaca datar sejak awal.
 
 Pada mode **revisi** cuplikan tidak dikirim sama sekali, karena kotak sudah
 terisi jawaban sebelumnya sehingga cuplikan dasar akan mencatat ratusan kata
-sejak detik nol.
+sejak detik nol. Backend memakai ulang cuplikan yang tersimpan dari sesi
+pertama, begitu juga tombol Analisis Ulang milik dosen. Dulu keduanya
+membuangnya, dan siasat tempel-lalu-tunggu yang sudah tertangkap kembali
+terbaca wajar.
+
+**Tempelan direkam** di kedua mode: kapan dan berapa karakter, tidak pernah
+isinya. Teks yang diseret masuk ikut dihitung. Daftar kosong berarti "direkam,
+tidak ada tempelan"; kolom yang tidak dikirim sama sekali (form lama) berarti
+"tidak terekam", dan bukti di layar dosen menuliskannya begitu, bukan "tidak
+ada tempelan". Form menampilkan pemberitahuan ini kepada mahasiswa.
 
 ---
 
@@ -137,9 +146,12 @@ flowchart LR
 ```
 
 Menunggu tidak menolong, karena menunggu justru **memperpanjang garis datarnya**.
-Diukur pada uji sintetis 400 kata, siasat tempel-lalu-tunggu naik dari 0,30 ke
-0,75, dan memecah tempelan jadi empat potong tetap tertangkap di 0,45 karena
-seluruh lonjakan dijumlahkan, bukan diambil yang terbesar.
+Pada uji sintetis 400 kata yang dibiarkan terbuka 40 menit (tempelan tidak
+terekam), nilai sinyal proses tanpa kurva 0,00 karena laju 10 kata per menit
+terbaca wajar, sedangkan dengan kurva 0,64. Memecah tempelan jadi empat potong
+tetap bernilai 0,64 karena seluruh lonjakan dijumlahkan, bukan diambil yang
+terbesar. Menulis bertahap bernilai 0,00. Bila tempelannya terekam dan
+mendominasi teks, nilainya 1,00.
 
 ---
 
@@ -157,7 +169,8 @@ stateDiagram-v2
 
     note right of Terkumpul
         Tiap revisi menaikkan revision_count
-        dan memicu analisis ulang
+        dan memicu analisis ulang.
+        Jumlah revisi ditampilkan, tidak diskor
     end note
     note right of Diverifikasi
         Kesimpulan sesi tidak pernah

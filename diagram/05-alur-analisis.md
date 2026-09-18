@@ -181,15 +181,14 @@ flowchart TB
     CEK -->|"ya"| GR["<b>growth</b><br/>porsi kata yang tiba lewat lonjakan"]
     CEK -->|"tidak"| PC["<b>pace</b><br/>kata per menit agregat"]
 
-    GR --> W["bobot 0,45"]
+    GR --> W["bobot 0,64"]
     PC --> W
-    RV["<b>revision</b><br/>0 revisi pada teks ≥ 100 kata"] --> W2["bobot 0,30"]
-    PS["<b>paste</b><br/>porsi karakter ditempel"] --> W3["bobot 0,25"]
+    PS["<b>paste</b><br/>porsi karakter ditempel<br/><i>atau: tidak terekam</i>"] --> W3["bobot 0,36"]
+    RV["<b>revision_count</b><br/>jumlah Simpan Revisi"] -.->|"hanya ditulis di bukti"| VAL
 
     W --> DOM{"Tempelan ≥ 50%<br/>teks akhir?"}
-    W2 --> DOM
     W3 --> DOM
-    DOM -->|"ya"| SKIP["laju/pertumbuhan TIDAK dinilai<br/>bobotnya dialihkan ke revisi + tempel"]
+    DOM -->|"ya"| SKIP["laju/pertumbuhan TIDAK dinilai<br/>bobotnya dialihkan ke tempelan"]
     DOM -->|"tidak"| NORM["jumlahkan berbobot"]
     SKIP --> VAL["Nilai 0–1"]
     NORM --> VAL
@@ -198,7 +197,7 @@ flowchart TB
     class GR,DOM kunci
 ```
 
-**Dua penjagaan yang lahir dari bug nyata.**
+**Tiga penjagaan yang lahir dari bug nyata.**
 
 Pertama, laju berhenti dinilai ketika tempelan mendominasi. Mahasiswa yang
 menempel tidak mengetik apa pun, jadi "kata per menit" hanya membagi teks orang
@@ -209,6 +208,15 @@ dikumpulkan sistem praktis tidak menggerakkan skor.
 Kedua, seluruh lonjakan dijumlahkan, bukan diambil yang terbesar. Versi pertama
 memakai yang terbesar dan bisa dihindari dengan memecah tempelan jadi empat
 potong, yang menurunkan nilainya dari 0,45 ke **0,11**.
+
+Ketiga, jumlah revisi dikeluarkan dari skor. Sub-indikator itu dimaksudkan
+mengukur penyuntingan saat menulis, tetapi yang tersedia hanya jumlah tombol
+Simpan Revisi setelah jawaban dikumpulkan. Submit pertama selalu bernilai nol
+revisi, jadi setiap jawaban sepanjang 100 kata ke atas mendapat **+7,5 poin**
+skor AI, dan esai yang sama bisa pindah band hanya karena tombol yang ditekan.
+Revisi kini ditampilkan di bukti, tidak diskor, sama seperti jam pengumpulan.
+Perbandingan laju terhadap tempelan (0,45 : 0,25) dipertahankan, sehingga
+bobotnya menjadi 0,64 : 0,36.
 
 Modul ini tidak tersentuh oleh perubahan detektor. Bobotnya tetap 0,25 dari skor
 akhir, dan justru itu titiknya: apa pun yang membaca teks bisa dikalahkan

@@ -51,10 +51,19 @@ export interface ProgressSample {
   word_count: number;
 }
 
+/** Satu tempelan: kapan dan berapa karakter. Isinya tidak pernah dikirim. */
+export interface PasteSample {
+  at: string;
+  char_count: number;
+}
+
 export interface SubmitAnswerInput {
   text_answer: string;
   started_at: string;
   progress?: ProgressSample[];
+  /** Selalu dikirim, walau kosong: daftar kosong berarti "direkam, tidak ada
+   *  tempelan", sedangkan kolom yang tidak ada berarti "tidak direkam". */
+  pastes?: PasteSample[];
 }
 
 export function submitAnswer(assignmentId: string, input: SubmitAnswerInput) {

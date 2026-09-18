@@ -241,6 +241,20 @@ function countWords(text: string): number {
   return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
 }
 
+/**
+ * Tempelan hanya bisa dinyatakan "tidak ada" bila form yang dipakai merekamnya.
+ * Backend menandai itu di payload event mulai dan setiap revisi; submission
+ * lama tanpa penanda dianggap tidak terekam.
+ */
+function pasteTracked(detail: SubmissionDetail): boolean {
+  const events = detail.reasoning_events;
+  const started = events.find((event) => event.event_type === "started");
+  if (started?.payload?.paste_tracking !== true) return false;
+  return events
+    .filter((event) => event.event_type === "revision")
+    .every((event) => event.payload?.paste_tracking === true);
+}
+
 function buildProcessSentence(detail: SubmissionDetail): string {
   const pastes = detail.reasoning_events.filter((event) => event.event_type === "paste");
   const pastedChars = pastes.reduce((sum, event) => {
@@ -248,13 +262,17 @@ function buildProcessSentence(detail: SubmissionDetail): string {
     return sum + (typeof chars === "number" ? chars : 0);
   }, 0);
 
+  // Revisi di sini berarti Simpan Revisi setelah dikumpulkan, bukan suntingan
+  // saat menulis, jadi kalimatnya tidak boleh terbaca "tidak pernah menyunting".
   const revisionPart =
-    detail.revision_count === 0 ? "Tanpa revisi" : `${detail.revision_count} revisi`;
-  let pastePart = "tanpa tempel besar";
+    detail.revision_count === 0
+      ? "Dikumpulkan sekali"
+      : `Direvisi ${detail.revision_count} kali setelah dikumpulkan`;
+  let pastePart = pasteTracked(detail) ? "tanpa tempelan" : "tempelan tidak terekam";
   if (pastes.length === 1) {
-    pastePart = pastedChars > 0 ? `1 tempel ${pastedChars} karakter` : "1 tempel";
+    pastePart = pastedChars > 0 ? `1 tempelan ${pastedChars} karakter` : "1 tempelan";
   } else if (pastes.length > 1) {
-    pastePart = `${pastes.length} tempel, total ${pastedChars} karakter`;
+    pastePart = `${pastes.length} tempelan, total ${pastedChars} karakter`;
   }
   return `${revisionPart}, ${pastePart}, durasi ${formatDurationSeconds(detail.duration_seconds)}.`;
 }
