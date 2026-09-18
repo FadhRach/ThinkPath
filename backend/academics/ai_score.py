@@ -206,15 +206,31 @@ def _signal_flat_certainty(features: TextFeatures) -> SignalScore:
     )
 
 
+# Panjang minimum teks di gold set (ai_experiment/src/config.py, MIN_WORDS).
+# Titik tengah 0,62 dan rentang 0,25 di bawah hanya pernah diuji pada teks
+# sepanjang ini ke atas.
+LEXICAL_MIN_WORDS = 120
+
+
 def _signal_lexical_uniformity(features: TextFeatures) -> SignalScore:
     """Keragaman kosakata di luar rentang wajar tulisan mahasiswa.
 
     Nilai ekstrem di kedua arah sama sama mencurigakan, jadi jarak dari titik
     tengah wajar yang dipakai, bukan nilai mentahnya.
+
+    Di bawah LEXICAL_MIN_WORDS sinyal ini netral. Rasio kata unik pada teks
+    pendek selalu tinggi secara alami: jawaban 60 kata jarang mengulang kata,
+    sehingga rasionya sekitar 0,85 dan nilainya mentok 1,0. Dulu itu menyumbang
+    sampai +24 poin ke setiap jawaban pendek, cukup untuk mendorong jawaban
+    jujur bersuara orang pertama ke band sedang, sementara jawaban jujur 190
+    kata hanya mendapat +7.
     """
-    if features.word_count < 40:
+    if features.word_count < LEXICAL_MIN_WORDS:
         value = 0.5
-        evidence = "Teks terlalu pendek untuk menilai keragaman kosakata"
+        evidence = (
+            f"Teks {features.word_count} kata terlalu pendek untuk menilai "
+            f"keragaman kosakata (butuh minimal {LEXICAL_MIN_WORDS} kata)"
+        )
     else:
         deviation = abs(features.type_token_ratio - 0.62) / 0.25
         value = _clamp01(deviation)
