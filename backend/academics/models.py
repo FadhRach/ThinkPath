@@ -72,6 +72,21 @@ class SubmissionStatus(models.TextChoices):
     REVIEWED = "reviewed", "Reviewed"
 
 
+class SubmissionOrigin(models.TextChoices):
+    """Cara jawaban mula-mula terisi.
+
+    DOCUMENT_IMPORT menandai submission yang baseline awalnya berasal dari
+    dokumen yang diunggah (lihat academics.document_extraction), bukan
+    diketik langsung. Tidak memengaruhi skor teks sama sekali - hanya
+    dipakai untuk membentuk ProcessContext (lihat views._create_submission)
+    dan untuk memberi label ke dosen bahwa sinyal proses submission ini
+    memang lebih tipis dari biasanya.
+    """
+
+    TYPED = "typed", "Diketik"
+    DOCUMENT_IMPORT = "document_import", "Diimpor dari dokumen"
+
+
 class VerificationStatus(models.TextChoices):
     SCHEDULED = "scheduled", "Dijadwalkan"
     COMPLETED = "completed", "Selesai"
@@ -205,6 +220,20 @@ class Submission(models.Model):
         related_name="submissions",
     )
     text_answer = models.TextField(blank=True, default="")
+    # Dokumen ProseMirror/TipTap untuk tampilan berformat. Proyeksi teks polos
+    # yang dipakai SELURUH kode skor (ai_score.py, process_signals.py,
+    # text_features.py, detector.py) tetap text_answer - field ini murni untuk
+    # tampilan dan tidak pernah dibaca oleh kode analisis mana pun.
+    rich_content = models.JSONField(null=True, blank=True, default=None)
+    origin = models.CharField(
+        max_length=20,
+        choices=SubmissionOrigin.choices,
+        default=SubmissionOrigin.TYPED,
+    )
+    # {"filename": str, "page_count": int,
+    #  "extraction_method": "pdf_text_layer"|"vision_llm"|"mixed"}
+    # Hanya terisi saat origin=document_import.
+    import_metadata = models.JSONField(null=True, blank=True, default=None)
     started_at = models.DateTimeField()
     submitted_at = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.IntegerField(

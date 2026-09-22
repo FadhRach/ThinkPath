@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from .document_extraction import MAX_PAGES
 from .models import (
     AnalysisResult,
     Assignment,
     Class,
     ReasoningEvent,
     Submission,
+    SubmissionOrigin,
     VerbalVerification,
     VerificationOutcome,
     VerificationStatus,
@@ -153,23 +155,28 @@ class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
             "grade",
             "teacher_feedback",
             "text_answer",
+            "rich_content",
+            "origin",
+            "import_metadata",
             "revision_count",
         ]
 
 
 class StudentSubmissionStatusListSerializer(StudentSubmissionStatusSerializer):
-    """Varian listing: tanpa text_answer.
+    """Varian listing: tanpa text_answer/rich_content.
 
     Daftar kelas mahasiswa tidak menampilkan isi esai, jadi mengirimnya berarti
     mengangkut seluruh tulisan yang pernah dibuat mahasiswa pada setiap buka
-    halaman. Teks tetap tersedia lewat endpoint detail tugas.
+    halaman. Teks tetap tersedia lewat endpoint detail tugas. rich_content
+    mengikuti alasan yang sama karena memuat isi jawaban yang sama, hanya
+    dalam bentuk lain.
     """
 
     class Meta(StudentSubmissionStatusSerializer.Meta):
         fields = [
             field
             for field in StudentSubmissionStatusSerializer.Meta.fields
-            if field != "text_answer"
+            if field not in ("text_answer", "rich_content")
         ]
 
 
@@ -198,6 +205,7 @@ class SubmissionListSerializer(serializers.ModelSerializer):
             "revision_count",
             "status",
             "grade",
+            "origin",
             "analysis",
         ]
 
@@ -219,12 +227,42 @@ class ProgressSampleSerializer(serializers.Serializer):
     word_count = serializers.IntegerField(min_value=0, max_value=100_000)
 
 
+class PasteEventSerializer(serializers.Serializer):
+    """Satu peristiwa tempel: kapan terjadi dan berapa karakter yang masuk."""
+
+    at = serializers.DateTimeField()
+    char_count = serializers.IntegerField(min_value=1, max_value=200_000)
+
+
+class ImportMetadataSerializer(serializers.Serializer):
+    filename = serializers.CharField(max_length=255)
+    page_count = serializers.IntegerField(min_value=1, max_value=MAX_PAGES)
+    extraction_method = serializers.ChoiceField(
+        choices=["pdf_text_layer", "vision_llm", "mixed"]
+    )
+
+
 class SubmissionCreateSerializer(serializers.Serializer):
     text_answer = serializers.CharField(min_length=50)
+    # Dokumen ProseMirror/TipTap untuk tampilan. Murni disimpan apa adanya,
+    # tidak pernah dibaca kode analisis - lihat Submission.rich_content.
+    rich_content = serializers.JSONField(required=False, allow_null=True, default=None)
     started_at = serializers.DateTimeField(required=False)
     # Dibatasi supaya satu permintaan tidak bisa membanjiri basis data. Dengan
     # cuplikan tiap 30 detik, 240 sampel setara dua jam pengerjaan.
     progress = ProgressSampleSerializer(many=True, required=False, max_length=240)
+    # Dibatasi longgar - satu sesi mengetik wajar tidak menempel ratusan kali.
+    paste_events = PasteEventSerializer(many=True, required=False, max_length=100)
+    origin = serializers.ChoiceField(
+        choices=SubmissionOrigin.choices, required=False, default=SubmissionOrigin.TYPED
+    )
+    import_metadata = ImportMetadataSerializer(required=False, allow_null=True, default=None)
+
+
+class DocumentExtractRequestSerializer(serializers.Serializer):
+    blob_url = serializers.URLField()
+    content_type = serializers.CharField()
+    filename = serializers.CharField(max_length=255)
 
 
 class ReasoningEventSerializer(serializers.ModelSerializer):
@@ -376,6 +414,9 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "assignment",
             "student",
             "text_answer",
+            "rich_content",
+            "origin",
+            "import_metadata",
             "started_at",
             "submitted_at",
             "duration_seconds",

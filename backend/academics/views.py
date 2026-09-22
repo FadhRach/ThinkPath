@@ -24,6 +24,7 @@ from rest_framework.views import APIView
 from core.permissions import IsStudent, IsTeacher
 from core.services import get_profile_by_sub, get_request_profile
 
+from .document_extraction import ExtractionError, extract_document
 from .join_codes import generate_unique_join_code
 from .llm import run_analysis
 from .cognitive import build_profile
@@ -39,6 +40,7 @@ from .models import (
     EventType,
     ReasoningEvent,
     Submission,
+    SubmissionOrigin,
     SubmissionStatus,
     VerbalVerification,
     VerificationStatus,
@@ -50,6 +52,7 @@ from .serializers import (
     ClassCreateSerializer,
     ClassListSerializer,
     ClassPublicSerializer,
+    DocumentExtractRequestSerializer,
     JoinClassSerializer,
     StudentAssignmentSerializer,
     StudentSubmissionStatusListSerializer,
@@ -146,6 +149,36 @@ def _paste_char_count(submission: Submission) -> int:
         if isinstance(value, int):
             total += value
     return total
+
+
+def _window_filtered_paste_events(
+    validated: dict, window_start, window_end
+) -> list[dict]:
+    """paste_events klien yang jatuh di luar jendela mulai..kumpul dibuang.
+
+    Disiplin yang sama dengan filter progress yang sudah ada: cap waktu di
+    luar jendela pengerjaan pasti bukan hasil tempelan yang nyata terjadi saat
+    submission ini dikerjakan.
+    """
+    return [
+        e
+        for e in validated.get("paste_events") or []
+        if window_start <= e["at"] <= window_end
+    ]
+
+
+def _paste_reasoning_events(
+    submission: Submission, events: list[dict]
+) -> list[ReasoningEvent]:
+    return [
+        ReasoningEvent(
+            submission=submission,
+            event_type=EventType.PASTE,
+            payload={"char_count": e["char_count"]},
+            occurred_at=e["at"],
+        )
+        for e in events
+    ]
 
 
 def _analyse_for(
@@ -478,7 +511,9 @@ class SubmissionListView(APIView):
             )
 
         if latest is not None:
-            submission = self._revise_submission(latest, assignment, text_answer)
+            submission = self._revise_submission(
+                latest, assignment, text_answer, serializer.validated_data
+            )
             detail = "Revisi jawaban berhasil disimpan."
         else:
             submission = self._create_submission(
@@ -502,29 +537,47 @@ class SubmissionListView(APIView):
         started_at = validated.get("started_at") or submitted_at
         if started_at > submitted_at:
             started_at = submitted_at
-        duration_seconds = int((submitted_at - started_at).total_seconds())
 
-        # Cuplikan di luar rentang mulai sampai kumpul dibuang. Klien yang
-        # mengarang jejak tidak dipercaya begitu saja, dan cap waktu di luar
-        # jendela pengerjaan pasti bukan hasil pengetikan yang nyata.
-        samples = [
-            s
-            for s in validated.get("progress") or []
-            if started_at <= s["at"] <= submitted_at
-        ]
-        progress = tuple(
-            ProgressSample(
-                offset_seconds=max(0, int((s["at"] - started_at).total_seconds())),
-                word_count=s["word_count"],
+        origin = validated.get("origin") or SubmissionOrigin.TYPED
+        is_import = origin == SubmissionOrigin.DOCUMENT_IMPORT
+
+        # Baseline impor tidak boleh terbaca sebagai ledakan mengetik: durasi
+        # dan progress diabaikan sama sekali untuk momen impor, persis seperti
+        # mode revisi yang sudah lebih dulu mengabaikan progress di frontend
+        # (SubmitAnswerForm.tsx). Ini memakai fallback netral yang SUDAH ADA
+        # di process_signals.py (_pace_value -> 0.5 saat duration_seconds
+        # None), bukan heuristik baru - lihat process_signals.py untuk
+        # rasionalnya.
+        if is_import:
+            duration_seconds = None
+            progress: tuple[ProgressSample, ...] = ()
+        else:
+            duration_seconds = int((submitted_at - started_at).total_seconds())
+            # Cuplikan di luar rentang mulai sampai kumpul dibuang. Klien yang
+            # mengarang jejak tidak dipercaya begitu saja, dan cap waktu di
+            # luar jendela pengerjaan pasti bukan hasil pengetikan yang nyata.
+            samples = [
+                s
+                for s in validated.get("progress") or []
+                if started_at <= s["at"] <= submitted_at
+            ]
+            progress = tuple(
+                ProgressSample(
+                    offset_seconds=max(0, int((s["at"] - started_at).total_seconds())),
+                    word_count=s["word_count"],
+                )
+                for s in sorted(samples, key=lambda s: s["at"])
             )
-            for s in sorted(samples, key=lambda s: s["at"])
-        )
+
+        paste_events = _window_filtered_paste_events(validated, started_at, submitted_at)
+        paste_char_count = sum(e["char_count"] for e in paste_events)
 
         analysis = _analyse_for(
             text_answer,
             assignment,
             duration_seconds=duration_seconds,
             revision_count=0,
+            paste_char_count=paste_char_count,
             progress=progress,
         )
         with transaction.atomic():
@@ -532,6 +585,9 @@ class SubmissionListView(APIView):
                 assignment=assignment,
                 student_profile=student_profile,
                 text_answer=text_answer,
+                rich_content=validated.get("rich_content"),
+                origin=origin,
+                import_metadata=validated.get("import_metadata"),
                 started_at=started_at,
                 submitted_at=submitted_at,
                 duration_seconds=duration_seconds,
@@ -563,46 +619,110 @@ class SubmissionListView(APIView):
                     )
                     for sample in progress
                 ]
+                + _paste_reasoning_events(submission, paste_events)
             )
             AnalysisResult.objects.create(submission=submission, **analysis)
         return submission
 
     @staticmethod
-    def _revise_submission(submission, assignment, text_answer) -> Submission:
+    def _revise_submission(submission, assignment, text_answer, validated) -> Submission:
         revised_at = timezone.now()
+
+        # paste_events yang menyertai request revisi INI wajib ikut menambah
+        # skor analisis revisi INI, bukan baru terlihat di revisi berikutnya.
+        # _paste_char_count(submission) hanya menghitung baris ReasoningEvent
+        # yang SUDAH tersimpan dari revisi sebelumnya; event baru di request
+        # ini belum tersimpan pada titik ini, jadi dijumlahkan manual dulu
+        # sebelum dipakai menganalisis, baru disimpan di blok atomic di bawah.
+        new_paste_events = _window_filtered_paste_events(
+            validated, submission.started_at, revised_at
+        )
+        new_paste_char_count = sum(e["char_count"] for e in new_paste_events)
+        total_paste_char_count = _paste_char_count(submission) + new_paste_char_count
+
         # revision_count masih nilai lama di titik ini; revisi yang sedang
         # berjalan ikut dihitung supaya sinyal proses melihat angka yang sama
-        # dengan yang nanti tersimpan.
+        # dengan yang nanti tersimpan. duration_seconds SENGAJA tidak diubah -
+        # untuk submission hasil impor dokumen ia tetap None seumur hidup
+        # thread submission ini, menjaga sinyal laju tetap netral di setiap
+        # revisi berikutnya, bukan cuma pada momen impor pertama.
         analysis = _analyse_for(
             text_answer,
             assignment,
             duration_seconds=submission.duration_seconds,
             revision_count=submission.revision_count + 1,
-            paste_char_count=_paste_char_count(submission),
+            paste_char_count=total_paste_char_count,
         )
         with transaction.atomic():
             submission.text_answer = text_answer
+            submission.rich_content = validated.get("rich_content")
             submission.revision_count += 1
             submission.submitted_at = revised_at
             submission.status = SubmissionStatus.SUBMITTED
             submission.save(
                 update_fields=[
                     "text_answer",
+                    "rich_content",
                     "revision_count",
                     "submitted_at",
                     "status",
                 ]
             )
-            ReasoningEvent.objects.create(
-                submission=submission,
-                event_type=EventType.REVISION,
-                payload={"revision_count": submission.revision_count},
-                occurred_at=revised_at,
+            ReasoningEvent.objects.bulk_create(
+                [
+                    ReasoningEvent(
+                        submission=submission,
+                        event_type=EventType.REVISION,
+                        payload={"revision_count": submission.revision_count},
+                        occurred_at=revised_at,
+                    )
+                ]
+                + _paste_reasoning_events(submission, new_paste_events)
             )
             AnalysisResult.objects.update_or_create(
                 submission=submission, defaults=analysis
             )
         return submission
+
+
+_EXTRACTION_ERROR_STATUS = {
+    "unsupported_type": status.HTTP_400_BAD_REQUEST,
+    "too_large": status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+    "too_many_pages": status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+    "failed": status.HTTP_422_UNPROCESSABLE_ENTITY,
+}
+
+
+class DocumentExtractView(APIView):
+    """POST ekstrak teks dari dokumen yang sudah diunggah ke Blob.
+
+    Tidak menyentuh Submission sama sekali - transformasi blob_url -> teks
+    murni. Mahasiswa tetap wajib meninjau hasilnya di editor lalu menekan
+    submit lewat SubmissionListView seperti biasa; endpoint ini tidak pernah
+    membuat jawaban final.
+    """
+
+    permission_classes = [IsStudent]
+
+    def post(self, request, assignment_id: str):
+        _require_member_assignment(request, assignment_id)
+        serializer = DocumentExtractRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            result = extract_document(**serializer.validated_data)
+        except ExtractionError as exc:
+            return Response(
+                {"detail": exc.message, "code": exc.code},
+                status=_EXTRACTION_ERROR_STATUS[exc.code],
+            )
+        return Response(
+            {
+                "text": result.text,
+                "page_count": result.page_count,
+                "extraction_method": result.extraction_method,
+                "warnings": result.warnings,
+            }
+        )
 
 
 def _get_submission_or_404(submission_id: str) -> Submission:

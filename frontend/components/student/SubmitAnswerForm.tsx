@@ -1,13 +1,18 @@
 "use client";
 
+import type { JSONContent } from "@tiptap/react";
 import { CheckCircle2, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Callout } from "@/components/common/Callout";
+import { DocumentUploadField } from "@/components/student/DocumentUploadField";
+import { RichAnswerEditor, type RichAnswerEditorHandle } from "@/components/student/RichAnswerEditor";
+import { EMPTY_DOC, plainTextToDoc } from "@/lib/rich-text";
 import { submitAnswer, type ProgressSample } from "@/lib/mutations";
+import type { ImportMetadata, SubmissionOrigin } from "@/lib/types";
 import { useAction } from "@/lib/use-action";
 
 const MIN_LENGTH = 50;
@@ -24,7 +29,7 @@ interface Props {
   assignmentId: string;
   backHref: string;
   mode?: Mode;
-  initialText?: string;
+  initialContent?: JSONContent;
 }
 
 function countWords(text: string): number {
@@ -49,22 +54,29 @@ export function SubmitAnswerForm({
   assignmentId,
   backHref,
   mode = "create",
-  initialText = "",
+  initialContent,
 }: Props) {
   // Waktu mulai direkam sekali saat form dirender, dikirim sebagai started_at.
   const startedAtRef = useRef(new Date().toISOString());
   // Jejak pertumbuhan kata. Disimpan di ref, bukan state, karena tidak pernah
   // dirender dan tidak boleh memicu render ulang tiap tiga puluh detik.
   const progressRef = useRef<ProgressSample[]>([]);
-  const [text, setText] = useState(initialText);
+  const editorRef = useRef<RichAnswerEditorHandle>(null);
+  // Asal jawaban saat ini. Diubah jadi document_import begitu ekstraksi
+  // dokumen berhasil mengisi editor. Dipakai untuk menekan progress di bawah
+  // - baseline impor tidak boleh terbaca sebagai ledakan mengetik, persis
+  // alasan progress juga ditekan pada mode revisi.
+  const originRef = useRef<SubmissionOrigin>("typed");
+  const importMetaRef = useRef<ImportMetadata | null>(null);
+
+  // Teks terbaru disimpan di ref supaya pewaktu di bawah tidak perlu membaca
+  // lewat editor tiap tiga puluh detik; state hanya untuk yang benar benar
+  // perlu re-render (hitungan kata yang tampil, tombol submit).
+  const textRef = useRef("");
+  const [wordCount, setWordCount] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const { pending, error, run } = useAction("Gagal menyimpan jawaban. Coba lagi.");
   const copy = COPY[mode];
-
-  // Teks terbaru disimpan di ref supaya pewaktu di bawah tidak perlu dipasang
-  // ulang setiap ketikan, yang akan mengacak jarak antar cuplikan.
-  const textRef = useRef(text);
-  textRef.current = text;
 
   useEffect(() => {
     // Cuplikan dasar diambil segera, bukan menunggu selang pertama. Tanpa ini,
@@ -84,27 +96,47 @@ export function SubmitAnswerForm({
     return () => clearInterval(timer);
   }, []);
 
+  function handleEditorUpdate(plainText: string) {
+    textRef.current = plainText;
+    setWordCount(countWords(plainText));
+  }
+
+  function handleExtracted(text: string, meta: ImportMetadata) {
+    originRef.current = "document_import";
+    importMetaRef.current = meta;
+    editorRef.current?.setImportedContent(plainTextToDoc(text));
+    // setImportedContent memicu onUpdate lewat emitUpdate=true, tapi
+    // dipanggil di sini juga supaya hitungan kata tampil seketika tanpa
+    // menunggu event editor asinkron.
+    handleEditorUpdate(text);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const isTyped = originRef.current === "typed";
+
     const { ok } = await run(() =>
       submitAnswer(assignmentId, {
-        text_answer: text.trim(),
+        text_answer: textRef.current.trim(),
+        rich_content: editorRef.current?.getRichContent() ?? EMPTY_DOC,
         started_at: startedAtRef.current,
-        // Hanya dikirim saat mengarang dari nol. Pada mode revisi kotak sudah
-        // terisi jawaban sebelumnya, sehingga cuplikan dasar mencatat ratusan
-        // kata sejak detik nol dan backend akan membacanya sebagai lonjakan.
-        // Backend memang mengabaikan progress pada jalur revisi, tetapi lebih
-        // jujur tidak mengirim data yang tidak bisa ditafsirkan.
-        //
-        // Cuplikan terakhir diambil saat menekan tombol, supaya penambahan
-        // setelah cuplikan berkala terakhir tidak hilang dari jejak.
+        // Hanya dikirim saat mengarang dari nol dengan mengetik langsung.
+        // Pada mode revisi kotak sudah terisi jawaban sebelumnya, dan pada
+        // impor dokumen baseline-nya datang dari OCR, bukan dari mengetik -
+        // keduanya akan membuat cuplikan dasar mencatat ratusan kata sejak
+        // detik nol dan terbaca sebagai lonjakan oleh backend. Backend
+        // sendiri sudah mengabaikan progress untuk kedua kasus itu, tetapi
+        // lebih jujur tidak mengirim data yang tidak bisa ditafsirkan.
         progress:
-          mode === "create"
+          mode === "create" && isTyped
             ? [
                 ...progressRef.current,
-                { at: new Date().toISOString(), word_count: countWords(text) },
+                { at: new Date().toISOString(), word_count: countWords(textRef.current) },
               ].slice(0, MAX_SAMPLES)
             : undefined,
+        paste_events: editorRef.current?.getPasteEvents(),
+        origin: originRef.current,
+        import_metadata: importMetaRef.current,
       }),
     );
     if (ok) setSubmitted(true);
@@ -124,23 +156,28 @@ export function SubmitAnswerForm({
     );
   }
 
-  const tooShort = text.trim().length < MIN_LENGTH;
+  const tooShort = textRef.current.trim().length < MIN_LENGTH;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {mode === "create" ? (
+        <Callout variant="info" title="Ingin mengunggah dokumen?">
+          <p>
+            Unggah PDF atau foto jawabanmu (termasuk tulisan tangan) dan sistem
+            akan mengisi editor di bawah dengan hasil bacaannya. Kamu tetap
+            wajib meninjau dan membetulkan hasilnya sebelum mengumpulkan.
+          </p>
+          <div className="mt-3">
+            <DocumentUploadField assignmentId={assignmentId} onExtracted={handleExtracted} />
+          </div>
+        </Callout>
+      ) : null}
+
       <Card className="overflow-hidden border-2 border-primary/40 shadow-soft">
-        <Textarea
-          id="answer"
-          rows={12}
-          required
-          placeholder="Tulis jawabanmu di sini..."
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          className="rounded-none border-0 bg-transparent px-5 py-4 text-body-lg focus-visible:ring-0"
-        />
+        <RichAnswerEditor ref={editorRef} initialContent={initialContent} onUpdate={handleEditorUpdate} />
         <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-3 text-body-sm text-muted-foreground">
           <span>Minimal {MIN_LENGTH} karakter</span>
-          <span>{countWords(text)} kata &middot; {text.trim().length} karakter</span>
+          <span>{wordCount} kata</span>
         </div>
       </Card>
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}

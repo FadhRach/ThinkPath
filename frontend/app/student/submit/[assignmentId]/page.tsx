@@ -3,15 +3,18 @@ import { notFound } from "next/navigation";
 import { BackLink } from "@/components/common/BackLink";
 import { BloomStepper } from "@/components/common/BloomStepper";
 import { Callout } from "@/components/common/Callout";
+import { RichContentView } from "@/components/common/RichContentView";
 import { SubjectTag } from "@/components/common/SubjectTag";
 import { AssignmentStatusBadge } from "@/components/student/AssignmentStatusBadge";
 import { SubmitAnswerForm } from "@/components/student/SubmitAnswerForm";
+import { SubmissionOriginBadge } from "@/components/submission/SubmissionOriginBadge";
 import { Card } from "@/components/ui/card";
 import { distinctSubject } from "@/lib/academic";
 import { ApiError } from "@/lib/api";
 import { bloomCode } from "@/lib/bloom";
 import { getStudentAssignment } from "@/lib/data";
 import { formatRelativeTime } from "@/lib/formatting";
+import { asJSONContent, plainTextToDoc } from "@/lib/rich-text";
 import type { StudentSubmissionWithText } from "@/lib/types";
 
 export default async function SubmitAssignmentPage({
@@ -133,7 +136,7 @@ function renderSubmissionSection({
           assignmentId={assignmentId}
           backHref="/student"
           mode="revise"
-          initialText={submission.text_answer}
+          initialContent={asJSONContent(submission.rich_content) ?? plainTextToDoc(submission.text_answer)}
         />
       </div>
     );
@@ -145,9 +148,12 @@ function renderSubmissionSection({
 
   return (
     <Card className="space-y-4 p-5 shadow-soft">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="caption-eyebrow text-primary">Pengumpulanmu</p>
-        <AssignmentStatusBadge submission={submission} />
+        <div className="flex items-center gap-2">
+          <SubmissionOriginBadge origin={submission.origin} importMetadata={submission.import_metadata} />
+          <AssignmentStatusBadge submission={submission} />
+        </div>
       </div>
       <p className="text-body-sm text-muted-foreground">
         Dikumpulkan {formatRelativeTime(submission.submitted_at)}
@@ -159,9 +165,11 @@ function renderSubmissionSection({
 
       <div className="space-y-1.5">
         <p className="text-body-sm font-semibold text-foreground">Jawabanmu</p>
-        <p className="whitespace-pre-wrap rounded-card border border-border bg-muted/40 p-4 text-body text-foreground">
-          {submission.text_answer}
-        </p>
+        <RichContentView
+          content={submission.rich_content}
+          fallbackText={submission.text_answer}
+          className="rounded-card border border-border bg-muted/40 p-4 text-body text-foreground"
+        />
       </div>
 
       {isReviewed && submission.grade !== null ? (

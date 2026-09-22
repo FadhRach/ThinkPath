@@ -11,6 +11,13 @@ export type EventType =
   | "progress";
 export type AnalysisSource = "llm" | "detector" | "heuristic" | "seed";
 export type VerificationStatus = "scheduled" | "completed" | "cancelled";
+export type SubmissionOrigin = "typed" | "document_import";
+
+export interface ImportMetadata {
+  filename: string;
+  page_count: number;
+  extraction_method: "pdf_text_layer" | "vision_llm" | "mixed";
+}
 /** Baris pada halaman Daftar Tugas dosen: sama seperti AssignmentSummary,
  *  ditambah asal kelasnya karena di sana tugas lintas kelas bercampur. */
 export interface TeacherAssignmentRow extends AssignmentSummary {
@@ -244,10 +251,13 @@ export interface StudentSubmissionStatus {
   grade: number | null;
   teacher_feedback: string;
   revision_count: number;
+  origin: SubmissionOrigin;
+  import_metadata: ImportMetadata | null;
 }
 
 export interface StudentSubmissionWithText extends StudentSubmissionStatus {
   text_answer: string;
+  rich_content: unknown | null;
 }
 
 export interface StudentClassWithAssignments extends ClassPublic {
@@ -309,6 +319,7 @@ export interface SubmissionRow {
   revision_count: number;
   status: SubmissionStatus;
   grade: number | null;
+  origin: SubmissionOrigin;
   analysis: { ai_band: AiBand; bloom_level: number } | null;
 }
 
@@ -333,6 +344,9 @@ export interface SubmissionDetail {
   };
   student: StudentMini;
   text_answer: string;
+  rich_content: unknown | null;
+  origin: SubmissionOrigin;
+  import_metadata: ImportMetadata | null;
   started_at: string;
   submitted_at: string | null;
   duration_seconds: number | null;

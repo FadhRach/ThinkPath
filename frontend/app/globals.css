@@ -72,3 +72,26 @@
     color: hsl(var(--muted-foreground));
   }
 }
+
+/* Tampilan editor jawaban kaya (RichAnswerEditor) dan pembacaan hasilnya
+   (RichContentView). TipTap/ProseMirror tidak membawa gaya bawaan apa pun,
+   jadi elemen hasil StarterKit (heading, daftar, tebal) diberi gaya di sini
+   alih alih menambah plugin @tailwindcss/typography untuk lima elemen. */
+.prose-answer h2 {
+  @apply mt-4 text-body-lg font-bold text-foreground first:mt-0;
+}
+.prose-answer h3 {
+  @apply mt-3 text-body font-bold text-foreground first:mt-0;
+}
+.prose-answer p {
+  @apply my-2 first:mt-0 last:mb-0;
+}
+.prose-answer ul {
+  @apply my-2 list-disc space-y-1 pl-6;
+}
+.prose-answer ol {
+  @apply my-2 list-decimal space-y-1 pl-6;
+}
+.prose-answer strong {
+  @apply font-bold;
+}

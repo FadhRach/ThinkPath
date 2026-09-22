@@ -120,6 +120,14 @@ export function SubmissionTable({ submissions }: { submissions: SubmissionRow[] 
                               Revisi {row.revision_count}x
                             </span>
                           ) : null}
+                          {row.origin === "document_import" ? (
+                            <span
+                              className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                              title="Jawaban ini dimulai dari unggahan dokumen, sinyal proses lebih tipis dari biasanya."
+                            >
+                              Diimpor
+                            </span>
+                          ) : null}
                         </span>
                         <span className="block text-body-sm text-muted-foreground">
                           {formatRelativeTime(row.submitted_at)}

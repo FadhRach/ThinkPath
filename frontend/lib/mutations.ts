@@ -4,9 +4,11 @@ import type {
   AssignmentSummary,
   ClassSummary,
   EducationLevel,
+  ImportMetadata,
   JoinClassResult,
   Profile,
   SubmissionDetail,
+  SubmissionOrigin,
   VerificationOutcome,
   VerificationStatus,
   VerificationView,
@@ -51,10 +53,20 @@ export interface ProgressSample {
   word_count: number;
 }
 
+/** Satu peristiwa tempel: kapan terjadi dan berapa karakter yang masuk. */
+export interface PasteEvent {
+  at: string;
+  char_count: number;
+}
+
 export interface SubmitAnswerInput {
   text_answer: string;
+  rich_content?: unknown;
   started_at: string;
   progress?: ProgressSample[];
+  paste_events?: PasteEvent[];
+  origin?: SubmissionOrigin;
+  import_metadata?: ImportMetadata | null;
 }
 
 export function submitAnswer(assignmentId: string, input: SubmitAnswerInput) {
@@ -64,6 +76,26 @@ export function submitAnswer(assignmentId: string, input: SubmitAnswerInput) {
       method: "POST",
       body: JSON.stringify(input),
     },
+  );
+}
+
+export interface ExtractDocumentInput {
+  blob_url: string;
+  content_type: string;
+  filename: string;
+}
+
+export interface ExtractDocumentResult {
+  text: string;
+  page_count: number;
+  extraction_method: ImportMetadata["extraction_method"];
+  warnings: string[];
+}
+
+export function extractDocument(assignmentId: string, input: ExtractDocumentInput) {
+  return apiFetchBrowser<ExtractDocumentResult>(
+    `/api/assignments/${assignmentId}/extract-document`,
+    { method: "POST", body: JSON.stringify(input) },
   );
 }
 

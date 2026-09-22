@@ -5,6 +5,7 @@ import { BackLink } from "@/components/common/BackLink";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { BloomStepper } from "@/components/common/BloomStepper";
 import { Callout } from "@/components/common/Callout";
+import { RichContentView } from "@/components/common/RichContentView";
 import { SectionCard } from "@/components/common/SectionCard";
 import {
   AnalysisSourceBadge,
@@ -19,6 +20,7 @@ import { RecommendationBlock } from "@/components/submission/RecommendationBlock
 import { SentenceRhythm } from "@/components/submission/SentenceRhythm";
 import { SignalBreakdown } from "@/components/submission/SignalBreakdown";
 import { SignalList, uniqueSignals } from "@/components/submission/SignalList";
+import { SubmissionOriginBadge } from "@/components/submission/SubmissionOriginBadge";
 import { VerificationPanel } from "@/components/submission/VerificationPanel";
 import { Card } from "@/components/ui/card";
 import { academicLabel } from "@/lib/academic";
@@ -166,7 +168,19 @@ export default async function SubmissionDetailPage({
 
           <SectionCard eyebrow="Jawaban Mahasiswa">
             {detail.text_answer ? (
-              <SentenceRhythm text={detail.text_answer} />
+              <div className="space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-body-sm font-semibold text-foreground">Format asli</p>
+                  <SubmissionOriginBadge origin={detail.origin} importMetadata={detail.import_metadata} />
+                </div>
+                <RichContentView content={detail.rich_content} fallbackText={detail.text_answer} />
+                <div className="border-t border-border pt-4">
+                  <p className="mb-2 text-body-sm font-semibold text-foreground">
+                    Ritme kalimat
+                  </p>
+                  <SentenceRhythm text={detail.text_answer} />
+                </div>
+              </div>
             ) : (
               <p className="text-body text-muted-foreground">Belum ada teks jawaban.</p>
             )}

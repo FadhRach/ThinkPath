@@ -61,7 +61,7 @@ Prasyarat: Python 3.11+ dan Node.js 20+
 
 **1. Backend**
 
-```bash
+```b
 cd backend
 python -m venv venv
 venv\Scripts\activate            # macOS/Linux: source venv/bin/activate
