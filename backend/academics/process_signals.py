@@ -21,10 +21,17 @@ sepanjang 100 kata ke atas otomatis mendapat +7,5 poin skor AI, dan esai yang
 sama bisa pindah band hanya karena tombol yang ditekan. Jumlah revisi tetap
 ditulis di bukti untuk dosen, sama seperti jam: ditampilkan, tidak diskor.
 
+Tindakan menempel. Mahasiswa wajar menempel kutipan, definisi, atau data dari
+artikel yang ia rujuk, jadi menempel sendiri bukan tanda apa pun dan hanya
+menambah bising. Form tidak merekamnya, dan skor tidak membacanya. Yang tetap
+dibaca adalah bentuk kurva pertumbuhan kata: seluruh jawaban yang muncul dalam
+satu lonjakan lalu datar tetap terlihat, tetapi sumbangannya sebanding dengan
+porsinya, sehingga satu kutipan pendek di tengah esai hanya bergeser sedikit.
+
 Jam dinding juga tidak dirakit di modul ini. Backend berjalan pada TIME_ZONE UTC
 sedangkan frontend merender waktu ke zona lokal pembaca, sehingga jam yang
 ditanam di string dari sini akan berbeda dengan jam di layar. Modul ini hanya
-menghasilkan besaran yang bebas zona waktu: durasi, laju, revisi, dan tempelan.
+menghasilkan besaran yang bebas zona waktu: durasi, laju, dan jumlah kata.
 """
 from __future__ import annotations
 
@@ -34,12 +41,6 @@ from dataclasses import dataclass
 # di atas batas atas praktis mustahil untuk teks yang disusun sendiri.
 PLAUSIBLE_WPM = 25.0
 IMPLAUSIBLE_WPM = 80.0
-
-# Bobot antar sub-indikator di dalam sinyal proses, jumlahnya 1,0. "pace"
-# diisi laju mengetik, atau bentuk kurva pertumbuhan kata bila jejaknya terekam.
-# Perbandingan 0,45 : 0,25 dipertahankan dari bobot lama setelah revisi (0,30)
-# dikeluarkan dari skor; alasannya ada di docstring modul.
-SUB_WEIGHTS = {"pace": 0.45 / 0.70, "paste": 0.25 / 0.70}
 
 
 # Lonjakan sebesar ini dalam satu selang cuplikan tidak mungkin diketik.
@@ -68,14 +69,8 @@ class ProcessContext:
     revision_count: int
     word_count: int
     char_count: int
-    paste_char_count: int = 0
     # Kosong berarti tidak terekam, bukan berarti mencurigakan.
     progress: tuple[ProgressSample, ...] = ()
-    # False bila form yang dipakai belum merekam tempelan, misalnya submission
-    # lama. Nol karakter ditempel baru berarti "tidak menempel" kalau memang
-    # direkam; tanpa pembeda ini, bukti "tidak ada tempelan" tertulis untuk
-    # jawaban yang tempelannya tidak pernah diamati.
-    paste_recorded: bool = True
 
     @property
     def words_per_minute(self) -> float | None:
@@ -110,25 +105,6 @@ def _revision_note(context: ProcessContext) -> str:
     if context.revision_count <= 0:
         return ""
     return f"direvisi {context.revision_count} kali setelah dikumpulkan (tidak diskor)"
-
-
-def _paste_value(context: ProcessContext) -> tuple[float, str]:
-    if not context.paste_recorded:
-        return 0.0, "Tempelan tidak terekam pada pengerjaan ini"
-    if context.paste_char_count <= 0:
-        return 0.0, "Tidak ada teks yang ditempel"
-    if context.char_count <= 0:
-        return 0.5, "Ada tempelan, panjang teks akhir tidak diketahui"
-    ratio = context.paste_char_count / context.char_count
-    return (
-        _clamp01(ratio / 0.5),
-        f"{context.paste_char_count} karakter ditempel "
-        f"({ratio * 100:.0f}% dari teks akhir)",
-    )
-
-
-# Di atas porsi tempelan ini, laju mengetik berhenti mengukur apa pun.
-PASTE_DOMINATES_RATIO = 0.5
 
 
 def _growth_value(context: ProcessContext) -> tuple[float, str]:
@@ -185,54 +161,24 @@ def _growth_value(context: ProcessContext) -> tuple[float, str]:
     )
 
 
-def _paste_ratio(context: ProcessContext) -> float:
-    # Tempelan yang tidak terekam tidak boleh memicu cabang "didominasi
-    # tempelan". Satu sesi revisi dari form lama bisa mematikan penandanya
-    # sementara karakter tempelan sesi pertama masih tersimpan, dan hasilnya
-    # dulu bukti yang bertentangan: "didominasi tempelan" berdampingan dengan
-    # "tempelan tidak terekam".
-    if not context.paste_recorded:
-        return 0.0
-    if context.paste_char_count <= 0 or context.char_count <= 0:
-        return 0.0
-    return _clamp01(context.paste_char_count / context.char_count)
-
-
 def evaluate_process(context: ProcessContext) -> tuple[float, str]:
     """Nilai 0 sampai 1 untuk sinyal proses, beserta ringkasan buktinya.
 
-    Laju mengetik berhenti dinilai ketika sebagian besar teks akhir berasal dari
-    tempelan. Alasannya sederhana: mahasiswa yang menempel tidak mengetik apa
-    pun, jadi "kata per menit" hanya membagi teks orang lain dengan lama ia
-    duduk. Laju yang tampak wajar pada teks tempelan akan menyeret turun bukti
-    terkuat yang bisa dikumpulkan sistem ini.
+    Satu sub-indikator saja: bentuk kurva pertumbuhan kata bila jejaknya
+    terekam, atau laju mengetik agregat bila tidak. Keduanya menjawab pertanyaan
+    yang sama, yaitu apakah teks ini benar benar disusun di sini. Laju agregat
+    kalah oleh satu siasat sederhana, menempel lalu membiarkan jendela terbuka
+    sampai durasinya terlihat wajar; bentuk kurva tidak, karena menunggu justru
+    memperpanjang garis datarnya. Karena itu kurva menggantikan laju sepenuhnya
+    begitu tersedia.
 
-    Bobot laju tidak dibuang melainkan dialihkan ke tempelan, sehingga totalnya
-    tetap 1,0 dan tidak ada sub-indikator yang diam diam berubah arti.
-
-    Menghitung laju hanya dari bagian yang tidak ditempel sempat dipertimbangkan
-    dan ditolak: pada tempelan seratus persen hasilnya nol kata per menit, yang
-    justru terbaca paling wajar dari semua kemungkinan.
-
-    Ketika jejak pertumbuhan kata terekam, ia menggantikan laju sepenuhnya.
-    Keduanya menjawab pertanyaan yang sama, yaitu apakah teks ini benar benar
-    disusun di sini, tetapi laju agregat kalah oleh satu siasat sederhana:
-    menempel lalu membiarkan jendela terbuka sampai durasinya terlihat wajar.
-    Bentuk kurva tidak bisa dikalahkan begitu, karena menunggu justru
-    memperpanjang garis datarnya.
+    Jumlah revisi hanya ditulis sebagai keterangan, dan tindakan menempel tidak
+    dibaca sama sekali. Alasan keduanya ada di docstring modul.
     """
-    paste, paste_text = _paste_value(context)
-
     if context.has_progress:
-        first, first_text = _growth_value(context)
+        value, evidence = _growth_value(context)
     else:
-        first, first_text = _pace_value(context)
+        value, evidence = _pace_value(context)
 
-    if _paste_ratio(context) >= PASTE_DOMINATES_RATIO:
-        value = paste
-        first_text = f"{first_text}, tidak dinilai karena teks didominasi tempelan"
-    else:
-        value = first * SUB_WEIGHTS["pace"] + paste * SUB_WEIGHTS["paste"]
-
-    parts = [first_text, paste_text.lower(), _revision_note(context)]
+    parts = [evidence, _revision_note(context)]
     return _clamp01(value), ", ".join(part for part in parts if part)

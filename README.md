@@ -2,7 +2,7 @@
 
 **Sistem Verifikasi Pemahaman Berbasis Proses untuk Integritas Akademik Mahasiswa**
 
-ThinkPath membantu dosen menjawab pertanyaan yang tidak bisa dijawab alat deteksi AI biasa: mahasiswa mana yang paling layak diajak bicara lebih dulu. Alih-alih memberi satu skor "AI atau bukan", ThinkPath merekam proses pengerjaan (durasi, revisi, pertumbuhan kata, tempelan), mengukur level penalaran jawaban dengan Taksonomi Bloom, lalu menyajikan keduanya sebagai bukti yang bisa ditinjau dosen, bukan vonis.
+ThinkPath membantu dosen menjawab pertanyaan yang tidak bisa dijawab alat deteksi AI biasa: mahasiswa mana yang paling layak diajak bicara lebih dulu. Alih-alih memberi satu skor "AI atau bukan", ThinkPath merekam proses pengerjaan (durasi, pertumbuhan kata, dan revisi), mengukur level penalaran jawaban dengan Taksonomi Bloom, lalu menyajikan keduanya sebagai bukti yang bisa ditinjau dosen, bukan vonis.
 
 **Live demo:** https://thinkpath.vercel.app
 
@@ -22,8 +22,10 @@ Password untuk semua akun: `thinkpath123`
 
 | Peran | Email | Isi |
 |---|---|---|
-| Dosen | `dosen@thinkpath.local` | 2 kelas, 10 tugas, 64 submission yang sudah dianalisis |
-| Mahasiswa | `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local` | 8 mahasiswa dengan lintasan Bloom berbeda |
+| Dosen | `dosen@thinkpath.local` | 2 kelas, 10 tugas, 64 submission teranalisis, 3 sesi verifikasi verbal |
+| Mahasiswa | `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local` | 8 mahasiswa dengan lintasan Bloom dan cara mengerjakan berbeda |
+
+Cara mengerjakan di data demo direkam seperti di produksi, yaitu cuplikan jumlah kata tiap 30 detik, bukan angka karangan: empat mahasiswa menulis bertahap, dua sebagian besar mengetik dengan satu kutipan pendek, dan dua memunculkan seluruh jawaban sekaligus lalu mengumpulkan. Sebaran band yang dihasilkan: 32 rendah, 16 sedang, 16 tinggi.
 
 Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview.
 
@@ -44,7 +46,7 @@ thinkpath/
 ├── frontend/        Next.js 14, antarmuka dosen dan mahasiswa
 ├── backend/         Django 5 + DRF, satu-satunya API untuk semua data
 ├── ai_experiment/   Validasi dan kalibrasi lapisan analisis
-└── docs/            Dokumentasi teknis internal
+└── diagram/         Diagram arsitektur, alur peran, dan design system (Mermaid)
 ```
 
 Frontend tidak pernah menyentuh database langsung:
@@ -98,6 +100,8 @@ Dosen membuat kelas, membagikan kode gabung, membuat tugas beserta target level 
 
 Mahasiswa bergabung lewat kode kelas, mengerjakan tugas dengan proses pengerjaan terekam, boleh merevisi selama tenggat belum lewat dan belum dinilai, lalu melihat nilai, umpan balik, dan perkembangan penalarannya. Mahasiswa tidak pernah melihat skor AI tentang dirinya.
 
+Yang direkam saat mengerjakan hanya jumlah kata tiap 30 detik, bukan isi tulisannya, dan form pengerjaan memberitahukan hal ini sebelum mahasiswa menulis. Tindakan menempel tidak direkam: menempel kutipan dari rujukan itu wajar.
+
 ### Lapisan analisis
 
 Dua mesin yang saling bebas dan tidak pernah membaca hasil satu sama lain:
@@ -115,7 +119,7 @@ Skor E1 disusun dari lima sinyal teks dan satu sinyal proses:
 
 | Sinyal | Bobot | Yang diukur |
 |---|---|---|
-| Forensik proses | 0,25 | Kurva pertumbuhan kata (atau laju bila tidak terekam) dan porsi tempelan; jumlah revisi ditampilkan, tidak diskor |
+| Forensik proses | 0,25 | Kurva pertumbuhan kata, atau laju bila kurva tidak terekam; jumlah revisi ditampilkan, tidak diskor |
 | Keseragaman kalimat | 0,30 | Variasi panjang kalimat |
 | Frasa formulaik | 0,19 | Kepadatan frasa transisi khas LLM |
 | Keragaman kosakata | 0,19 | Jarak TTR dari titik tengah wajar |
@@ -124,11 +128,14 @@ Skor E1 disusun dari lima sinyal teks dan satu sinyal proses:
 
 Sinyal forensik proses diberi porsi terbesar karena ia satu-satunya yang tidak membaca teks, sehingga parafrase tidak bisa menghapusnya.
 
+Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosakata netral di bawah 120 kata, panjang minimum gold set: rasio kata unik teks pendek selalu tinggi secara alami, dan memaksakan titik tengah yang diukur pada teks panjang akan mendorong jawaban jujur yang pendek ke band sedang. Jumlah revisi tidak diskor sama sekali, karena yang tercatat hanya tombol Simpan Revisi setelah jawaban dikumpulkan, bukan penyuntingan saat menulis; angkanya tetap ditampilkan ke dosen, seperti jam pengumpulan. Tindakan menempel tidak dibaca sama sekali; jawaban yang seluruhnya muncul sekaligus tetap terlihat dari bentuk kurvanya, sedangkan satu kutipan 60 kata di tengah esai hanya menambah sekitar 4 poin.
+
 ### Fitur utama
 
 - Peta kelas dua sumbu, memisahkan "perlu bantuan" dari "perlu ditanya"
 - Panel Asal Skor AI, merinci dari mana tiap poin skor berasal
 - Linimasa pengerjaan berupa kurva pertumbuhan kata
+- Pemberitahuan terbuka ke mahasiswa tentang apa yang direkam saat ia menulis
 - Ritme kalimat sebagai bukti gaya menulis
 - Verifikasi verbal, mencatat hasil sesi tanya jawab tanpa mengubah skor AI
 - Profil kognitif, tren level penalaran lintas tugas
@@ -139,10 +146,12 @@ Sinyal forensik proses diberi porsi terbesar karena ia satu-satunya yang tidak m
 | Aspek | Status |
 |---|---|
 | Fitur end-to-end dua peran | Lengkap dan berjalan |
-| Uji otomatis | 126 tes backend dan 68 tes ai_experiment, semuanya lolos |
-| Kalibrasi E1 heuristik | Terukur, ROC-AUC 0,900 pada gold set 999 sampel; bobot sinyal dan ambang band keduanya hasil ukur |
+| Uji otomatis | 151 tes backend dan 68 tes ai_experiment, semuanya lolos |
+| Kalibrasi E1 heuristik | Terukur, ROC-AUC 0,900 pada gold set 999 sampel; bobot sinyal teks dan ambang sedang 42 hasil ukur |
+| Ambang tinggi 70 dan bobot forensik proses | Belum terukur; tidak ada sampel gold set yang mencapai 70 |
 | Detektor eksternal Winston | Tersambung, belum diukur pada teks Indonesia |
 | Level Bloom E2 | Berjalan, belum divalidasi penilai manusia |
+| Jawaban di bawah 120 kata | Di luar rentang panjang gold set; sinyal keragaman kosakata dinetralkan di sana |
 
 ROC-AUC 0,900 diukur pada abstrak akademik, sedangkan produk ini menilai esai mahasiswa. Angka itu sah untuk membandingkan antar-detektor, tetapi bukan akurasi ThinkPath pada esai mahasiswa. Metodologi dan cara mereproduksinya ada di [ai_experiment/README.md](./ai_experiment/README.md).
 

@@ -1,18 +1,19 @@
-"""Tes bukti proses pengerjaan: revisi, tempelan, dan jejak pertumbuhan kata.
+"""Tes bukti proses pengerjaan: revisi, tindakan menempel, dan jejak pertumbuhan kata.
 
-Tiga bug yang dijaga agar tidak kembali:
+Keputusan yang dijaga agar tidak kembali:
 
-1. **Revisi menambah +7,5 poin ke setiap submit pertama.** Yang tersedia hanya
-   jumlah tombol Simpan Revisi setelah jawaban dikumpulkan, dan submit pertama
-   selalu bernilai nol, sehingga jawaban yang sama berbeda band hanya karena
-   tombol yang ditekan. Revisi kini ditampilkan, tidak diskor.
+1. **Revisi tidak diskor.** Yang tersedia hanya jumlah tombol Simpan Revisi
+   setelah jawaban dikumpulkan, dan submit pertama selalu bernilai nol,
+   sehingga dulu jawaban yang sama berbeda band hanya karena tombol yang
+   ditekan (+7,5 poin). Revisi kini ditampilkan, tidak diskor.
 
-2. **Tempelan tidak pernah terekam.** Form tidak mengirim apa pun, jadi
-   seperempat sinyal proses selalu nol dan bukti "tidak ada tempelan" tertulis
-   untuk jawaban yang tempelannya tidak pernah diamati.
+2. **Tindakan menempel tidak direkam maupun diskor.** Mahasiswa wajar menempel
+   kutipan dari artikel yang ia rujuk. Kolom tempelan yang masih dikirim klien
+   lama diabaikan.
 
-3. **Simpan Revisi dan Analisis Ulang membuang jejak pertumbuhan kata.** Siasat
-   tempel-lalu-tunggu yang sudah tertangkap kembali terbaca wajar.
+3. **Simpan Revisi dan Analisis Ulang memakai ulang jejak pertumbuhan kata.**
+   Dulu keduanya membuangnya, sehingga siasat tempel-lalu-tunggu yang sudah
+   tertangkap kembali terbaca wajar.
 """
 from __future__ import annotations
 
@@ -28,7 +29,6 @@ from academics.models import (
     Class,
     ClassMembership,
     EventType,
-    ReasoningEvent,
     Submission,
 )
 from academics.process_signals import ProcessContext, ProgressSample, evaluate_process
@@ -55,10 +55,15 @@ def _process_value(**overrides) -> tuple[float, str]:
         "revision_count": 0,
         "word_count": 300,
         "char_count": 2000,
-        "paste_char_count": 0,
     }
     base.update(overrides)
     return evaluate_process(ProcessContext(**base))
+
+
+def _gradual(total_words: int, minutes: int) -> list[tuple[int, int]]:
+    """Cuplikan tiap 30 detik untuk menulis bertahap dari nol."""
+    steps = minutes * 2
+    return [(step * 30, round(total_words * step / steps)) for step in range(steps + 1)]
 
 
 class RevisionIsNotScoredTest(SimpleTestCase):
@@ -69,7 +74,7 @@ class RevisionIsNotScoredTest(SimpleTestCase):
         self.assertEqual(first, revised)
 
     def test_patient_first_submission_scores_zero(self):
-        """300 kata dalam 30 menit tanpa tempelan tidak menyumbang apa pun.
+        """300 kata dalam 30 menit tidak menyumbang apa pun.
 
         Sebelumnya bernilai 0,30 hanya karena submit pertama selalu tanpa revisi.
         """
@@ -86,33 +91,36 @@ class RevisionIsNotScoredTest(SimpleTestCase):
         self.assertNotIn("revisi", evidence.lower())
 
 
-class PasteEvidenceTest(SimpleTestCase):
-    def test_unrecorded_paste_is_not_reported_as_no_paste(self):
-        value, evidence = _process_value(paste_recorded=False)
-        self.assertEqual(value, 0.0)
-        self.assertIn("tempelan tidak terekam", evidence)
-        self.assertNotIn("tidak ada teks yang ditempel", evidence)
+class PasteIsNotMeasuredTest(SimpleTestCase):
+    def test_evidence_never_talks_about_pasting(self):
+        _, evidence = _process_value()
+        self.assertNotIn("tempel", evidence.lower())
 
-    def test_recorded_zero_paste_says_so(self):
-        _, evidence = _process_value(paste_recorded=True)
-        self.assertIn("tidak ada teks yang ditempel", evidence)
+    def test_quote_sized_burst_moves_the_value_proportionally(self):
+        """Satu kutipan 60 kata di tengah esai 400 kata hanya bergeser sedikit.
 
-    def test_unrecorded_paste_never_dominates(self):
-        """Revisi dari form lama pernah menghasilkan bukti yang bertentangan.
-
-        Penanda rekaman mati sementara karakter tempelan sesi pertama masih
-        tersimpan, sehingga bukti berbunyi "didominasi tempelan" berdampingan
-        dengan "tempelan tidak terekam".
+        Kurva tetap melihat lonjakan, tetapi sumbangannya sebanding porsinya.
+        Seluruh jawaban yang muncul sekaligus tetap bernilai penuh.
         """
-        value, evidence = _process_value(paste_char_count=1200, paste_recorded=False)
-        self.assertEqual(value, 0.0)
-        self.assertNotIn("didominasi tempelan", evidence)
+        typed = _gradual(340, 30)
+        quote_at = len(typed) // 2
+        with_quote = tuple(
+            ProgressSample(offset, words + (60 if index >= quote_at else 0))
+            for index, (offset, words) in enumerate(typed)
+        )
+        value, evidence = _process_value(word_count=400, progress=with_quote)
+        # Selang yang memuat kutipan juga membawa beberapa kata yang diketik,
+        # jadi porsinya sedikit di atas 60/400.
+        self.assertGreater(value, 0.1)
+        self.assertLess(value, 0.2)
+        self.assertIn("satu lonjakan", evidence)
 
-    def test_paste_dominated_answer_reaches_full_value(self):
-        """Tempelan 100 persen kini mencapai 1,0, bukan tertahan revisi."""
-        value, evidence = _process_value(paste_char_count=2000)
-        self.assertEqual(value, 1.0)
-        self.assertIn("didominasi tempelan", evidence)
+        whole = tuple(
+            ProgressSample(offset, 0 if offset == 0 else 400)
+            for offset, _ in typed
+        )
+        full, _ = _process_value(word_count=400, progress=whole)
+        self.assertEqual(full, 1.0)
 
 
 class GrowthReplacesPaceTest(SimpleTestCase):
@@ -127,12 +135,12 @@ class GrowthReplacesPaceTest(SimpleTestCase):
             duration_seconds=20 * 60, word_count=400, progress=burst
         )
         self.assertEqual(by_pace, 0.0)
-        self.assertGreater(by_curve, 0.6)
+        self.assertEqual(by_curve, 1.0)
         self.assertIn("lonjakan", evidence)
 
 
 class SubmissionProcessApiTest(TestCase):
-    """Jalur API: rekam tempelan, lalu pertahankan bukti saat revisi dan analisis ulang."""
+    """Jalur API: kolom tempelan diabaikan, jejak kurva bertahan saat revisi."""
 
     def setUp(self):
         env = patch.dict("os.environ", {"GROQ_API_KEY": "", "WINSTON_API_KEY": ""})
@@ -186,7 +194,7 @@ class SubmissionProcessApiTest(TestCase):
         return row["evidence"]
 
     def _burst_payload(self) -> dict:
-        """Tempel seluruh jawaban di awal, lalu biarkan jendela terbuka."""
+        """Seluruh jawaban muncul sekaligus di awal, lalu jendela dibiarkan terbuka."""
         started = timezone.now() - timedelta(minutes=20)
         offsets = (5, 35, 65, 95, 125)
         words = (0, 150, 150, 150, 150)
@@ -196,10 +204,10 @@ class SubmissionProcessApiTest(TestCase):
                 {"at": (started + timedelta(seconds=o)).isoformat(), "word_count": w}
                 for o, w in zip(offsets, words)
             ],
-            "pastes": [],
         }
 
-    def test_create_records_pastes_and_tracking_marker(self):
+    def test_pastes_sent_by_an_old_client_are_ignored(self):
+        """Frontend dan backend di-deploy terpisah; form lama masih mengirim kolom ini."""
         started = timezone.now() - timedelta(minutes=10)
         response = self._submit(
             started_at=started.isoformat(),
@@ -207,62 +215,23 @@ class SubmissionProcessApiTest(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         submission = Submission.objects.get(pk=response.data["id"])
-
-        pastes = submission.reasoning_events.filter(event_type=EventType.PASTE)
-        self.assertEqual([event.payload["char_count"] for event in pastes], [600])
-        start_event = submission.reasoning_events.get(event_type=EventType.STARTED)
-        self.assertTrue(start_event.payload["paste_tracking"])
-        self.assertIn("600 karakter ditempel", self._process_evidence(submission))
-
-    def test_paste_outside_the_session_is_ignored(self):
-        started = timezone.now() - timedelta(minutes=10)
-        response = self._submit(
-            started_at=started.isoformat(),
-            pastes=[{"at": (started - timedelta(hours=1)).isoformat(), "char_count": 900}],
+        self.assertFalse(
+            submission.reasoning_events.filter(event_type=EventType.PASTE).exists()
         )
-        submission = Submission.objects.get(pk=response.data["id"])
-        self.assertFalse(submission.reasoning_events.filter(event_type=EventType.PASTE).exists())
-
-    def test_old_client_without_pastes_is_marked_untracked(self):
-        response = self._submit(
-            started_at=(timezone.now() - timedelta(minutes=10)).isoformat()
-        )
-        submission = Submission.objects.get(pk=response.data["id"])
-        start_event = submission.reasoning_events.get(event_type=EventType.STARTED)
-        self.assertFalse(start_event.payload["paste_tracking"])
-        self.assertIn("tempelan tidak terekam", self._process_evidence(submission))
+        self.assertNotIn("tempel", self._process_evidence(submission).lower())
 
     def test_revision_keeps_the_growth_curve(self):
         response = self._submit(**self._burst_payload())
         submission = Submission.objects.get(pk=response.data["id"])
         self.assertIn("lonjakan", self._process_evidence(submission))
 
-        revised = self._submit(
-            text_answer=ANSWER + " Saya menambahkan satu kalimat penutup.",
-            started_at=(timezone.now() - timedelta(minutes=1)).isoformat(),
-            pastes=[],
-        )
+        revised = self._submit(text_answer=ANSWER + " Saya menambahkan satu kalimat penutup.")
         self.assertEqual(revised.status_code, 201)
         submission.refresh_from_db()
         evidence = self._process_evidence(submission)
         self.assertEqual(submission.revision_count, 1)
         self.assertIn("lonjakan", evidence)
         self.assertIn("direvisi 1 kali", evidence)
-
-    def test_revision_session_pastes_are_counted(self):
-        response = self._submit(**self._burst_payload())
-        submission = Submission.objects.get(pk=response.data["id"])
-
-        opened = timezone.now() - timedelta(minutes=2)
-        self._submit(
-            text_answer=ANSWER + " Paragraf tambahan yang ditempel dari sumber lain.",
-            started_at=opened.isoformat(),
-            pastes=[{"at": (opened + timedelta(seconds=30)).isoformat(), "char_count": 350}],
-        )
-        self.assertEqual(
-            submission.reasoning_events.filter(event_type=EventType.PASTE).count(), 1
-        )
-        self.assertIn("350 karakter ditempel", self._process_evidence(submission))
 
     def test_reanalysis_keeps_the_growth_curve(self):
         response = self._submit(**self._burst_payload())
@@ -280,15 +249,3 @@ class SubmissionProcessApiTest(TestCase):
         )
         self.assertIn("lonjakan", after)
         self.assertEqual(before, after)
-
-    def test_untracked_revision_marks_pastes_untracked(self):
-        """Satu sesi tanpa rekaman tempelan membuat seluruh jawaban tidak terekam."""
-        response = self._submit(**self._burst_payload())
-        submission = Submission.objects.get(pk=response.data["id"])
-        self._submit(text_answer=ANSWER + " Revisi dari form lama tanpa rekaman.")
-
-        revision = ReasoningEvent.objects.get(
-            submission=submission, event_type=EventType.REVISION
-        )
-        self.assertFalse(revision.payload["paste_tracking"])
-        self.assertIn("tempelan tidak terekam", self._process_evidence(submission))

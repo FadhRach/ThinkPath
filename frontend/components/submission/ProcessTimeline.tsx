@@ -16,12 +16,12 @@ interface Marker {
   detail: string;
 }
 
-// Warna penanda. Tempel memakai warning, bukan danger: menempel teks bukan
-// pelanggaran, hanya bagian proses yang layak ditanyakan.
 const EVENT_META: Record<EventType, { dot: string; label: string }> = {
   started: { dot: "bg-muted-foreground/60", label: "Mulai" },
   revision: { dot: "bg-primary", label: "Revisi" },
-  paste: { dot: "bg-warning", label: "Tempel" },
+  // Tidak lagi direkam: menempel kutipan dari rujukan itu wajar. Baris lama
+  // yang masih memuatnya disaring di toMarkers, bukan ditampilkan.
+  paste: { dot: "bg-muted-foreground/40", label: "Tempel" },
   submitted: { dot: "bg-foreground/70", label: "Kumpul" },
   // Cuplikan berkala tidak digambar sebagai penanda: jumlahnya puluhan dan
   // akan menutupi linimasa. Ia punya kurvanya sendiri di bawah.
@@ -30,10 +30,6 @@ const EVENT_META: Record<EventType, { dot: string; label: string }> = {
 
 function detailFor(event: ReasoningEventView): string {
   const payload = event.payload ?? {};
-  if (event.event_type === "paste") {
-    const chars = payload.char_count;
-    return typeof chars === "number" ? `${chars} karakter sekaligus` : "Tempel teks";
-  }
   if (event.event_type === "revision") {
     const words = payload.word_count;
     return typeof words === "number" ? `${words} kata saat itu` : "Penyuntingan";
@@ -43,7 +39,7 @@ function detailFor(event: ReasoningEventView): string {
 
 function toMarkers(events: ReasoningEventView[], start: number): Marker[] {
   return [...events]
-    .filter((event) => event.event_type !== "progress")
+    .filter((event) => event.event_type !== "progress" && event.event_type !== "paste")
     .sort(
       (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime(),
     )

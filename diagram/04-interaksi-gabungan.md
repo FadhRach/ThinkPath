@@ -136,7 +136,6 @@ flowchart LR
     subgraph S["Menaikkan biaya kecurangan"]
         B["Kurva pertumbuhan kata<br/><i>telemetri klien</i>"]
         C["started_at<br/><i>dikirim klien</i>"]
-        F["Tempelan<br/><i>telemetri klien</i>"]
     end
     subgraph L["Bisa dihapus dengan menulis ulang"]
         D["Lima sinyal teks<br/><i>statistik dan penanda</i>"]
@@ -147,7 +146,7 @@ flowchart LR
     classDef sedang fill:#FDF6E3,stroke:#B8860B
     classDef lemah fill:#FDF0F4,stroke:#C2547A
     class A kuat
-    class B,C,F sedang
+    class B,C sedang
     class D,E lemah
 ```
 
@@ -227,7 +226,7 @@ erDiagram
         json attack_kinds
     }
     ReasoningEvent {
-        string event_type "started revision paste submitted progress"
+        string event_type "started revision submitted progress; paste hanya di baris lama"
         json payload
         datetime occurred_at
     }

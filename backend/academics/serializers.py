@@ -219,22 +219,12 @@ class ProgressSampleSerializer(serializers.Serializer):
     word_count = serializers.IntegerField(min_value=0, max_value=100_000)
 
 
-class PasteSampleSerializer(serializers.Serializer):
-    """Satu tempelan: kapan, dan berapa karakter. Isi tempelan tidak pernah dikirim."""
-
-    at = serializers.DateTimeField()
-    char_count = serializers.IntegerField(min_value=1, max_value=100_000)
-
-
 class SubmissionCreateSerializer(serializers.Serializer):
     text_answer = serializers.CharField(min_length=50)
     started_at = serializers.DateTimeField(required=False)
     # Dibatasi supaya satu permintaan tidak bisa membanjiri basis data. Dengan
     # cuplikan tiap 30 detik, 240 sampel setara dua jam pengerjaan.
     progress = ProgressSampleSerializer(many=True, required=False, max_length=240)
-    # Daftar kosong tetap bermakna: form sudah merekam dan tidak ada tempelan.
-    # Kolom yang tidak dikirim sama sekali berarti tempelan tidak terekam.
-    pastes = PasteSampleSerializer(many=True, required=False, max_length=200)
 
 
 class ReasoningEventSerializer(serializers.ModelSerializer):

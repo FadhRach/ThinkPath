@@ -107,7 +107,7 @@ saat salah satu API hendak menjawab.
 ```mermaid
 flowchart LR
     T["Teks jawaban"] --> TF["text_features.py<br/><i>murni deskriptif</i>"]
-    P["Metadata proses<br/>durasi · cuplikan kata · tempelan"] --> PS["process_signals.py"]
+    P["Metadata proses<br/>durasi · cuplikan kata"] --> PS["process_signals.py"]
 
     TF --> E1["ai_score.py · E1<br/>5 sinyal teks"]
     TF --> E2["bloom.py · E2<br/>level C1–C6"]

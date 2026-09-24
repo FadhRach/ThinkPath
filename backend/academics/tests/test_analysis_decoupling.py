@@ -306,22 +306,20 @@ class SignalBreakdownTest(SimpleTestCase):
         self.assertAlmostEqual(total, result.score, delta=1.0)
 
 
-# Pengerjaan wajar: 260 kata dalam 35 menit, banyak revisi, tanpa tempelan.
+# Pengerjaan wajar: 260 kata dalam 35 menit, banyak revisi.
 PATIENT_PROCESS = ProcessContext(
     duration_seconds=35 * 60,
     revision_count=5,
     word_count=260,
     char_count=1600,
-    paste_char_count=0,
 )
 
-# Pola pada contoh desain: 412 kata dalam 4 menit, tanpa revisi, ada tempelan.
+# Pola pada contoh desain: 412 kata dalam 4 menit, tanpa revisi.
 RUSHED_PROCESS = ProcessContext(
     duration_seconds=4 * 60,
     revision_count=0,
     word_count=412,
     char_count=2500,
-    paste_char_count=1400,
 )
 
 

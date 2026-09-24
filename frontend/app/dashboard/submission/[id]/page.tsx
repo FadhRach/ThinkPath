@@ -241,40 +241,17 @@ function countWords(text: string): number {
   return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
 }
 
-/**
- * Tempelan hanya bisa dinyatakan "tidak ada" bila form yang dipakai merekamnya.
- * Backend menandai itu di payload event mulai dan setiap revisi; submission
- * lama tanpa penanda dianggap tidak terekam.
- */
-function pasteTracked(detail: SubmissionDetail): boolean {
-  const events = detail.reasoning_events;
-  const started = events.find((event) => event.event_type === "started");
-  if (started?.payload?.paste_tracking !== true) return false;
-  return events
-    .filter((event) => event.event_type === "revision")
-    .every((event) => event.payload?.paste_tracking === true);
-}
-
 function buildProcessSentence(detail: SubmissionDetail): string {
-  const pastes = detail.reasoning_events.filter((event) => event.event_type === "paste");
-  const pastedChars = pastes.reduce((sum, event) => {
-    const chars = event.payload?.char_count;
-    return sum + (typeof chars === "number" ? chars : 0);
-  }, 0);
-
   // Revisi di sini berarti Simpan Revisi setelah dikumpulkan, bukan suntingan
   // saat menulis, jadi kalimatnya tidak boleh terbaca "tidak pernah menyunting".
   const revisionPart =
     detail.revision_count === 0
       ? "Dikumpulkan sekali"
       : `Direvisi ${detail.revision_count} kali setelah dikumpulkan`;
-  let pastePart = pasteTracked(detail) ? "tanpa tempelan" : "tempelan tidak terekam";
-  if (pastes.length === 1) {
-    pastePart = pastedChars > 0 ? `1 tempelan ${pastedChars} karakter` : "1 tempelan";
-  } else if (pastes.length > 1) {
-    pastePart = `${pastes.length} tempelan, total ${pastedChars} karakter`;
-  }
-  return `${revisionPart}, ${pastePart}, durasi ${formatDurationSeconds(detail.duration_seconds)}.`;
+  const growth = detail.reasoning_events.some((event) => event.event_type === "progress")
+    ? "kurva pertumbuhan kata terekam"
+    : "kurva pertumbuhan kata tidak terekam";
+  return `${revisionPart}, ${growth}, durasi ${formatDurationSeconds(detail.duration_seconds)}.`;
 }
 
 function buildTextSentence(detail: SubmissionDetail): string {

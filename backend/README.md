@@ -29,7 +29,7 @@ Cek: `curl http://localhost:7860/health` harus mengembalikan `{"status":"ok"}`.
 **Menjalankan tes:**
 
 ```bash
-python manage.py test            # 126 tes (analisis, auth, detektor, ambang)
+python manage.py test            # 151 tes (analisis, auth, detektor, ambang, bukti proses)
 ```
 
 ---
@@ -65,7 +65,7 @@ Dua jebakan yang dikunci tes:
 | `ClassMembership` | `class_memberships` | keanggotaan mahasiswa (unik per kelas) |
 | `Assignment` | `assignments` | `deadline`, `expected_bloom_level` (1–6). Jenjang diwarisi dari kelas |
 | `Submission` | `submissions` | `status` draft/submitted/reviewed, `revision_count`, `grade` |
-| `ReasoningEvent` | `reasoning_events` | jejak proses: started/progress/revision/paste/submitted |
+| `ReasoningEvent` | `reasoning_events` | jejak proses: started/progress/revision/submitted (paste hanya di baris lama, tidak lagi ditulis) |
 | `AnalysisResult` | `analysis_results` | OneToOne submission: `ai_score`, `ai_band`, `bloom_level`, `signals` |
 | `VerbalVerification` | `verbal_verifications` | jadwal & hasil sesi tanya jawab |
 | `DetectorScore` | `detector_scores` | cache skor detektor eksternal per hash teks |
@@ -104,8 +104,8 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 
 `POST /api/assignments/<id>/submissions` bersifat **upsert per mahasiswa**:
 
-- Submission pertama membuat baris baru (`revision_count = 0`). Body: `text_answer`, `started_at`, `progress` (cuplikan jumlah kata), dan `pastes` (`[{at, char_count}]`, tanpa isi tempelan). Daftar `pastes` kosong berarti direkam dan tidak ada tempelan; kolom yang tidak dikirim berarti tidak terekam, dan penanda `paste_tracking` di event `started` menyimpan bedanya.
-- Submission berikutnya, selama tenggat belum lewat dan belum dinilai, **memperbarui jawaban yang sama**: `revision_count += 1`, menambah `ReasoningEvent(revision)` beserta tempelan sesi revisi, dan memicu analisis ulang yang **memakai ulang cuplikan tersimpan**. Jumlah revisi ditampilkan di bukti, tidak diskor.
+- Submission pertama membuat baris baru (`revision_count = 0`). Body: `text_answer`, `started_at`, dan `progress` (cuplikan jumlah kata). Tindakan menempel tidak direkam; kolom `pastes` dari form lama diabaikan.
+- Submission berikutnya, selama tenggat belum lewat dan belum dinilai, **memperbarui jawaban yang sama**: `revision_count += 1`, menambah `ReasoningEvent(revision)`, dan memicu analisis ulang yang **memakai ulang cuplikan tersimpan**. Jumlah revisi ditampilkan di bukti, tidak diskor.
 - Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`.
 
 **Skor AI dan sinyal tidak pernah diekspos ke mahasiswa** (`StudentSubmissionStatusSerializer`). Daftar tugas mahasiswa juga tidak mengirim `text_answer` demi menekan ukuran respons — teks lengkap hanya ada di endpoint detail.

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { submitAnswer, type PasteSample, type ProgressSample } from "@/lib/mutations";
+import { submitAnswer, type ProgressSample } from "@/lib/mutations";
 import { useAction } from "@/lib/use-action";
 
 const MIN_LENGTH = 50;
@@ -17,9 +17,6 @@ const MIN_LENGTH = 50;
 // yang diterima backend.
 const SAMPLE_INTERVAL_MS = 30_000;
 const MAX_SAMPLES = 240;
-// Batas yang sama dengan backend.
-const MAX_PASTES = 200;
-const MAX_PASTE_CHARS = 100_000;
 
 type Mode = "create" | "revise";
 
@@ -44,14 +41,14 @@ const COPY: Record<
     loading: "Mengumpulkan...",
     done: "Jawabanmu berhasil dikumpulkan. Terima kasih.",
     recording:
-      "Selama kamu mengerjakan, ThinkPath mencatat jumlah kata setiap 30 detik serta kapan dan berapa karakter teks yang ditempel, tanpa isinya. Dosen melihat catatan ini sebagai bukti proses menulismu.",
+      "Selama kamu mengerjakan, ThinkPath mencatat jumlah kata setiap 30 detik, bukan isi tulisanmu. Dosen melihat catatan ini sebagai gambaran proses menulismu. Menempel kutipan dari sumber yang kamu rujuk itu wajar.",
   },
   revise: {
     submit: "Simpan Revisi",
     loading: "Menyimpan...",
     done: "Revisi jawabanmu berhasil disimpan.",
     recording:
-      "Selama kamu merevisi, ThinkPath mencatat kapan dan berapa karakter teks yang ditempel, tanpa isinya. Dosen melihat catatan ini sebagai bukti proses menulismu.",
+      "Waktu kamu menyimpan revisi ikut tercatat dan terlihat oleh dosen, tanpa memengaruhi penilaian.",
   },
 };
 
@@ -66,10 +63,6 @@ export function SubmitAnswerForm({
   // Jejak pertumbuhan kata. Disimpan di ref, bukan state, karena tidak pernah
   // dirender dan tidak boleh memicu render ulang tiap tiga puluh detik.
   const progressRef = useRef<ProgressSample[]>([]);
-  // Tempelan dan teks yang diseret masuk. Yang direkam hanya kapan dan berapa
-  // karakter; isinya tidak pernah disimpan atau dikirim. Tanpa ini sub-indikator
-  // tempelan di backend selalu nol untuk setiap mahasiswa.
-  const pastesRef = useRef<PasteSample[]>([]);
   const [text, setText] = useState(initialText);
   const [submitted, setSubmitted] = useState(false);
   const { pending, error, run } = useAction("Gagal menyimpan jawaban. Coba lagi.");
@@ -98,14 +91,6 @@ export function SubmitAnswerForm({
     return () => clearInterval(timer);
   }, []);
 
-  function recordInsertion(charCount: number) {
-    if (charCount <= 0 || pastesRef.current.length >= MAX_PASTES) return;
-    pastesRef.current.push({
-      at: new Date().toISOString(),
-      char_count: Math.min(charCount, MAX_PASTE_CHARS),
-    });
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const { ok } = await run(() =>
@@ -127,7 +112,6 @@ export function SubmitAnswerForm({
                 { at: new Date().toISOString(), word_count: countWords(text) },
               ].slice(0, MAX_SAMPLES)
             : undefined,
-        pastes: pastesRef.current,
       }),
     );
     if (ok) setSubmitted(true);
@@ -159,8 +143,6 @@ export function SubmitAnswerForm({
           placeholder="Tulis jawabanmu di sini..."
           value={text}
           onChange={(event) => setText(event.target.value)}
-          onPaste={(event) => recordInsertion(event.clipboardData.getData("text").length)}
-          onDrop={(event) => recordInsertion(event.dataTransfer.getData("text").length)}
           className="rounded-none border-0 bg-transparent px-5 py-4 text-body-lg focus-visible:ring-0 md:text-body-lg"
         />
         <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-3 text-body-sm text-muted-foreground">

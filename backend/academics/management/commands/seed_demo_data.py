@@ -143,14 +143,17 @@ def _ensure_assignment(
 # rendah yang tetap mandek di L1, dan ada yang berindikasi tinggi tetapi
 # argumennya berkembang. Kombinasi itu yang membuktikan E1 dan E2 terpisah.
 #
-# Cara mengerjakan meniru rekaman form produksi, bukan angka karangan:
-# - "tulis": kata bertambah sedikit demi sedikit tiap cuplikan, tanpa tempelan.
-# - "campur": sebagian besar diketik, satu paragraf (sekitar 30%) ditempel.
-# - "tempel": seluruh jawaban ditempel di awal lalu dikumpulkan.
+# Cara mengerjakan meniru rekaman form produksi, yaitu cuplikan jumlah kata
+# tiap 30 detik, bukan angka karangan:
+# - "tulis": kata bertambah sedikit demi sedikit tiap cuplikan.
+# - "campur": sebagian besar diketik, dengan satu lompatan kecil (sekitar 30%
+#   jawaban) seperti kutipan yang ditempel. Lompatannya di bawah ambang
+#   lonjakan, jadi kutipan sewajar ini tidak terbaca sebagai apa pun.
+# - "tempel": seluruh jawaban muncul sekaligus di awal lalu dikumpulkan.
 #
 # Revisi di sini berarti Simpan Revisi SETELAH dikumpulkan, sama seperti di
 # produksi. Data demo lama mengarang revisi saat menulis dan tempelan acak,
-# dua hal yang mustahil terekam di aplikasinya sendiri.
+# dua hal yang tidak pernah direkam aplikasinya sendiri.
 _STUDENT_PROFILES = (
     # (band, lintasan, rentang durasi, cara mengerjakan, merevisi sekali)
     (AiBand.LOW, "naik", (20 * 60, 45 * 60), "tulis", False),
@@ -163,10 +166,10 @@ _STUDENT_PROFILES = (
     (AiBand.HIGH, "turun", (2 * 60, 6 * 60), "tempel", False),
 )
 
-# Selang cuplikan dan porsi tempelan persona "campur". Selang harus sama
+# Selang cuplikan dan porsi lompatan persona "campur". Selang harus sama
 # dengan form (30 detik) supaya kurva demo terbaca seperti rekaman asli.
 SAMPLE_SECONDS = 30
-MIXED_PASTE_SHARE = 0.3
+MIXED_QUOTE_SHARE = 0.3
 
 
 def _depth_for(trajectory: str, step: int, total: int) -> int:
@@ -189,12 +192,8 @@ def _depth_for(trajectory: str, step: int, total: int) -> int:
 
 def _simulate_session(
     rng: random.Random, style: str, text: str, duration_seconds: int
-) -> tuple[list[ProgressSample], list[tuple[int, int]]]:
-    """Cuplikan jumlah kata dan tempelan untuk satu sesi mengerjakan.
-
-    Mengembalikan (cuplikan, tempelan), dengan tempelan berupa pasangan
-    (detik sejak mulai, jumlah karakter).
-    """
+) -> list[ProgressSample]:
+    """Cuplikan jumlah kata untuk satu sesi mengerjakan."""
     final_words = len(text.split())
     offsets = list(range(0, duration_seconds, SAMPLE_SECONDS)) + [duration_seconds]
 
@@ -207,14 +206,14 @@ def _simulate_session(
             )
             for offset in offsets
         ]
-        return samples, [(min(20, duration_seconds), len(text))]
+        return samples
 
-    pasted_words = round(final_words * MIXED_PASTE_SHARE) if style == "campur" else 0
-    typed_words = final_words - pasted_words
-    # Tempelan persona campur jatuh di sepertiga sampai setengah sesi.
-    paste_at = (
+    quoted_words = round(final_words * MIXED_QUOTE_SHARE) if style == "campur" else 0
+    typed_words = final_words - quoted_words
+    # Lompatan persona campur jatuh di sepertiga sampai setengah sesi.
+    quote_at = (
         offsets[max(1, round(len(offsets) * rng.uniform(0.33, 0.5)))]
-        if pasted_words
+        if quoted_words
         else None
     )
 
@@ -222,8 +221,8 @@ def _simulate_session(
     for offset in offsets:
         progress = offset / duration_seconds if duration_seconds else 1.0
         words = round(typed_words * progress)
-        if paste_at is not None and offset >= paste_at:
-            words += pasted_words
+        if quote_at is not None and offset >= quote_at:
+            words += quoted_words
         if 0 < offset < duration_seconds:
             # Menyunting sesekali menghapus beberapa kata, jadi kurvanya tidak
             # pernah lurus sempurna seperti hasil rumus.
@@ -231,18 +230,7 @@ def _simulate_session(
         if offset == duration_seconds:
             words = final_words
         samples.append(ProgressSample(offset_seconds=offset, word_count=max(words, 0)))
-
-    pastes = (
-        [
-            (
-                paste_at - rng.randint(1, SAMPLE_SECONDS - 1),
-                round(len(text) * MIXED_PASTE_SHARE),
-            )
-        ]
-        if paste_at is not None
-        else []
-    )
-    return samples, pastes
+    return samples
 
 
 def _build_reasoning_events(
@@ -251,7 +239,6 @@ def _build_reasoning_events(
     first_submitted_at,
     revised_at,
     samples: list[ProgressSample],
-    pastes: list[tuple[int, int]],
 ) -> list[ReasoningEvent]:
     """Event dengan bentuk yang sama persis dengan yang ditulis views produksi."""
     events: list[ReasoningEvent] = [
@@ -259,7 +246,7 @@ def _build_reasoning_events(
             id=_stable_uuid(f"event:{submission.id}:started"),
             submission=submission,
             event_type=EventType.STARTED,
-            payload={"paste_tracking": True},
+            payload={},
             occurred_at=started_at,
         ),
         ReasoningEvent(
@@ -280,23 +267,13 @@ def _build_reasoning_events(
         )
         for index, sample in enumerate(samples)
     ]
-    events += [
-        ReasoningEvent(
-            id=_stable_uuid(f"event:{submission.id}:paste:{index}"),
-            submission=submission,
-            event_type=EventType.PASTE,
-            payload={"char_count": chars},
-            occurred_at=started_at + timedelta(seconds=offset),
-        )
-        for index, (offset, chars) in enumerate(pastes)
-    ]
     if revised_at is not None:
         events.append(
             ReasoningEvent(
                 id=_stable_uuid(f"event:{submission.id}:revision:1"),
                 submission=submission,
                 event_type=EventType.REVISION,
-                payload={"revision_count": 1, "paste_tracking": True},
+                payload={"revision_count": 1},
                 occurred_at=revised_at,
             )
         )
@@ -376,9 +353,7 @@ def _seed_submissions_for_assignment(
             },
         )
 
-        samples, pastes = _simulate_session(
-            rng, style, submission.text_answer, duration_seconds
-        )
+        samples = _simulate_session(rng, style, submission.text_answer, duration_seconds)
         ReasoningEvent.objects.filter(submission=submission).delete()
         ReasoningEvent.objects.bulk_create(
             _build_reasoning_events(
@@ -387,13 +362,12 @@ def _seed_submissions_for_assignment(
                 first_submitted_at=first_submitted_at,
                 revised_at=revised_at,
                 samples=samples,
-                pastes=pastes,
             )
         )
 
         # Tidak ada angka yang ditulis tangan. Seluruh baris demo dihitung
         # pipeline yang sama dengan jalur produksi, termasuk sinyal forensik
-        # proses dari cuplikan dan tempelan di atas.
+        # proses dari cuplikan di atas.
         analysis = analyze_text(
             submission.text_answer,
             assignment.expected_bloom_level,
@@ -402,9 +376,7 @@ def _seed_submissions_for_assignment(
                 revision_count=revision_count,
                 word_count=len(submission.text_answer.split()),
                 char_count=len(submission.text_answer),
-                paste_char_count=sum(chars for _, chars in pastes),
                 progress=tuple(samples),
-                paste_recorded=True,
             ),
         )
         analysis["analysis_source"] = AnalysisSource.SEED
@@ -552,9 +524,9 @@ def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
         ],
         # Campuran: sebagian baku dan berfrasa klise, sebagian masih menyisakan
         # suara penulisnya. Panjangnya sekitar 110 kata, dan skornya diukur
-        # ulang setelah keragaman kosakata berhenti jenuh pada jawaban pendek:
-        # teks lama sekitar 60 kata hanya masuk band sedang KARENA kejenuhan
-        # itu, dan tanpanya persona ini jatuh ke band rendah.
+        # ulang setelah keragaman kosakata berhenti jenuh pada jawaban pendek
+        # dan setelah tindakan menempel berhenti diskor: skornya kini datang
+        # dari gaya teks saja, dengan jarak aman di atas ambang sedang 42.
         AiBand.MID: [
             # Kognitif menengah: menjelaskan ulang dan menguraikan langkah.
             (
@@ -569,8 +541,9 @@ def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
                 "menerapkan langkah yang sama ketika mengerjakan studi kasus "
                 "sebelumnya. Setiap tahap memiliki tujuan yang jelas dan saling "
                 "melengkapi satu sama lain. Dengan mengikuti urutan tersebut, hasil "
-                "yang diperoleh menjadi lebih mudah diperiksa kembali. Secara umum, "
-                "langkah tersebut dapat diterapkan pada berbagai situasi yang serupa."
+                "yang diperoleh menjadi lebih mudah diperiksa kembali. Secara "
+                "fundamental, langkah tersebut dapat diterapkan pada berbagai situasi "
+                "yang serupa."
             ),
             # Kognitif lebih kuat: sebab akibat dan pembandingan yang eksplisit.
             (
@@ -580,8 +553,8 @@ def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
                 "dengan kasus yang dibahas di kelas, ada perbedaan yang cukup jelas. "
                 "Pada kasus di kelas faktor eksternal hampir tidak berpengaruh, "
                 "sedangkan pada contoh di literatur faktor eksternal justru mengubah "
-                "hasilnya. Perbedaan ini muncul karena kondisi awalnya memang tidak "
-                "sama. Tidak dapat dipungkiri, kondisi awal memainkan peran penting "
+                "hasilnya. Perlu dicatat, perbedaan ini muncul karena kondisi awalnya "
+                "memang tidak sama. Tidak dapat dipungkiri, kondisi awal memainkan peran penting "
                 "terhadap arah hasil akhir. Kondisi yang stabil menghasilkan pola "
                 "yang lebih mudah diprediksi. Sebaliknya, kondisi yang berubah ubah "
                 "menghasilkan pola yang sulit dibandingkan. Oleh karena itu penilaian "
