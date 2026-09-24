@@ -3,8 +3,8 @@
 Ini sinyal terkuat yang dimiliki ThinkPath, dan satu satunya dari empat sinyal
 blueprint yang datanya sudah tersedia penuh tanpa model, dataset, atau GPU.
 Alasannya: sinyal ini tidak membaca teks sama sekali. Parafrase, humanizer, dan
-penulisan ulang tidak mengubah fakta bahwa 412 kata muncul dalam 4 menit tanpa
-satu pun revisi.
+penulisan ulang tidak mengubah fakta bahwa 412 kata muncul dalam 4 menit lewat
+satu lonjakan tanpa pengetikan bertahap.
 
 Yang TIDAK diskor di sini, dan itu disengaja:
 
@@ -14,10 +14,24 @@ terlihat sama. Menghukum jam pengerjaan juga menghukum mahasiswa yang hanya puny
 waktu malam hari. Jam tetap ditampilkan di layar dosen, tetapi tidak menambah
 skor.
 
+Jumlah revisi. Yang tersedia hanya berapa kali tombol Simpan Revisi ditekan
+SETELAH jawaban dikumpulkan, bukan penyuntingan saat menulis. Submit pertama
+selalu bernilai nol revisi, sehingga ketika revisi masih diskor, setiap jawaban
+sepanjang 100 kata ke atas otomatis mendapat +7,5 poin skor AI, dan esai yang
+sama bisa pindah band hanya karena tombol yang ditekan. Jumlah revisi tetap
+ditulis di bukti untuk dosen, sama seperti jam: ditampilkan, tidak diskor.
+
+Tindakan menempel. Mahasiswa wajar menempel kutipan, definisi, atau data dari
+artikel yang ia rujuk, jadi menempel sendiri bukan tanda apa pun dan hanya
+menambah bising. Form tidak merekamnya, dan skor tidak membacanya. Yang tetap
+dibaca adalah bentuk kurva pertumbuhan kata: seluruh jawaban yang muncul dalam
+satu lonjakan lalu datar tetap terlihat, tetapi sumbangannya sebanding dengan
+porsinya, sehingga satu kutipan pendek di tengah esai hanya bergeser sedikit.
+
 Jam dinding juga tidak dirakit di modul ini. Backend berjalan pada TIME_ZONE UTC
 sedangkan frontend merender waktu ke zona lokal pembaca, sehingga jam yang
 ditanam di string dari sini akan berbeda dengan jam di layar. Modul ini hanya
-menghasilkan besaran yang bebas zona waktu: durasi, laju, revisi, dan tempelan.
+menghasilkan besaran yang bebas zona waktu: durasi, laju, dan jumlah kata.
 """
 from __future__ import annotations
 
@@ -27,13 +41,6 @@ from dataclasses import dataclass
 # di atas batas atas praktis mustahil untuk teks yang disusun sendiri.
 PLAUSIBLE_WPM = 25.0
 IMPLAUSIBLE_WPM = 80.0
-
-# Di bawah panjang ini, jumlah revisi tidak informatif. Jawaban dua kalimat
-# memang wajar ditulis sekali jadi.
-REVISION_MIN_WORDS = 100
-
-# Bobot antar sub-indikator di dalam sinyal proses.
-SUB_WEIGHTS = {"pace": 0.45, "revision": 0.30, "paste": 0.25}
 
 
 # Lonjakan sebesar ini dalam satu selang cuplikan tidak mungkin diketik.
@@ -62,7 +69,6 @@ class ProcessContext:
     revision_count: int
     word_count: int
     char_count: int
-    paste_char_count: int = 0
     # Kosong berarti tidak terekam, bukan berarti mencurigakan.
     progress: tuple[ProgressSample, ...] = ()
 
@@ -94,31 +100,11 @@ def _pace_value(context: ProcessContext) -> tuple[float, str]:
     return value, f"{context.word_count} kata dalam {minutes} menit ({wpm:.0f} kata/menit)"
 
 
-def _revision_value(context: ProcessContext) -> tuple[float, str]:
-    if context.word_count < REVISION_MIN_WORDS:
-        return 0.5, "Teks terlalu pendek untuk menilai pola revisi"
-    if context.revision_count == 0:
-        return 1.0, "Tidak ada revisi sama sekali pada teks sepanjang ini"
-    if context.revision_count == 1:
-        return 0.5, "Hanya 1 revisi"
-    return 0.0, f"{context.revision_count} revisi, pola penyuntingan wajar"
-
-
-def _paste_value(context: ProcessContext) -> tuple[float, str]:
-    if context.paste_char_count <= 0:
-        return 0.0, "Tidak ada tempelan besar"
-    if context.char_count <= 0:
-        return 0.5, "Ada tempelan, panjang teks akhir tidak diketahui"
-    ratio = context.paste_char_count / context.char_count
-    return (
-        _clamp01(ratio / 0.5),
-        f"{context.paste_char_count} karakter ditempel "
-        f"({ratio * 100:.0f}% dari teks akhir)",
-    )
-
-
-# Di atas porsi tempelan ini, laju mengetik berhenti mengukur apa pun.
-PASTE_DOMINATES_RATIO = 0.5
+def _revision_note(context: ProcessContext) -> str:
+    """Keterangan revisi untuk dosen. Tidak pernah menyumbang nilai."""
+    if context.revision_count <= 0:
+        return ""
+    return f"direvisi {context.revision_count} kali setelah dikumpulkan (tidak diskor)"
 
 
 def _growth_value(context: ProcessContext) -> tuple[float, str]:
@@ -175,58 +161,24 @@ def _growth_value(context: ProcessContext) -> tuple[float, str]:
     )
 
 
-def _paste_ratio(context: ProcessContext) -> float:
-    if context.paste_char_count <= 0 or context.char_count <= 0:
-        return 0.0
-    return _clamp01(context.paste_char_count / context.char_count)
-
-
 def evaluate_process(context: ProcessContext) -> tuple[float, str]:
     """Nilai 0 sampai 1 untuk sinyal proses, beserta ringkasan buktinya.
 
-    Laju mengetik berhenti dinilai ketika sebagian besar teks akhir berasal dari
-    tempelan. Alasannya sederhana: mahasiswa yang menempel tidak mengetik apa
-    pun, jadi "kata per menit" hanya membagi teks orang lain dengan lama ia
-    duduk. Sebelum penjagaan ini, submission yang seratus persen ditempel tanpa
-    satu pun revisi hanya mencapai 0,57, karena laju yang tampak wajar menyeret
-    turun dua sub-indikator yang justru memberatkan. Bukti terkuat yang bisa
-    dikumpulkan sistem ini praktis tidak menggerakkan skor sama sekali.
+    Satu sub-indikator saja: bentuk kurva pertumbuhan kata bila jejaknya
+    terekam, atau laju mengetik agregat bila tidak. Keduanya menjawab pertanyaan
+    yang sama, yaitu apakah teks ini benar benar disusun di sini. Laju agregat
+    kalah oleh satu siasat sederhana, menempel lalu membiarkan jendela terbuka
+    sampai durasinya terlihat wajar; bentuk kurva tidak, karena menunggu justru
+    memperpanjang garis datarnya. Karena itu kurva menggantikan laju sepenuhnya
+    begitu tersedia.
 
-    Bobot laju tidak dibuang melainkan dialihkan ke revisi dan tempelan menurut
-    porsi aslinya, sehingga totalnya tetap 1,0 dan tidak ada sub-indikator yang
-    diam diam berubah arti.
-
-    Menghitung laju hanya dari bagian yang tidak ditempel sempat dipertimbangkan
-    dan ditolak: pada tempelan seratus persen hasilnya nol kata per menit, yang
-    justru terbaca paling wajar dari semua kemungkinan.
-
-    Ketika jejak pertumbuhan kata terekam, ia menggantikan laju sepenuhnya.
-    Keduanya menjawab pertanyaan yang sama, yaitu apakah teks ini benar benar
-    disusun di sini, tetapi laju agregat kalah oleh satu siasat sederhana:
-    menempel lalu membiarkan jendela terbuka sampai durasinya terlihat wajar.
-    Bentuk kurva tidak bisa dikalahkan begitu, karena menunggu justru
-    memperpanjang garis datarnya.
+    Jumlah revisi hanya ditulis sebagai keterangan, dan tindakan menempel tidak
+    dibaca sama sekali. Alasan keduanya ada di docstring modul.
     """
-    revision, revision_text = _revision_value(context)
-    paste, paste_text = _paste_value(context)
-
     if context.has_progress:
-        growth, growth_text = _growth_value(context)
-        first, first_text = growth, growth_text
+        value, evidence = _growth_value(context)
     else:
-        first, first_text = _pace_value(context)
+        value, evidence = _pace_value(context)
 
-    if _paste_ratio(context) >= PASTE_DOMINATES_RATIO:
-        sisa = SUB_WEIGHTS["revision"] + SUB_WEIGHTS["paste"]
-        value = (
-            revision * (SUB_WEIGHTS["revision"] / sisa)
-            + paste * (SUB_WEIGHTS["paste"] / sisa)
-        )
-        first_text = f"{first_text}, tidak dinilai karena teks didominasi tempelan"
-    else:
-        value = (
-            first * SUB_WEIGHTS["pace"]
-            + revision * SUB_WEIGHTS["revision"]
-            + paste * SUB_WEIGHTS["paste"]
-        )
-    return _clamp01(value), f"{first_text}, {revision_text.lower()}, {paste_text.lower()}"
+    parts = [evidence, _revision_note(context)]
+    return _clamp01(value), ", ".join(part for part in parts if part)

@@ -115,7 +115,16 @@ teks penuh, dan jejaknya terbaca datar sejak awal.
 
 Pada mode **revisi** cuplikan tidak dikirim sama sekali, karena kotak sudah
 terisi jawaban sebelumnya sehingga cuplikan dasar akan mencatat ratusan kata
-sejak detik nol.
+sejak detik nol. Backend memakai ulang cuplikan yang tersimpan dari sesi
+pertama, begitu juga tombol Analisis Ulang milik dosen. Dulu keduanya
+membuangnya, dan siasat tempel-lalu-tunggu yang sudah tertangkap kembali
+terbaca wajar.
+
+**Tindakan menempel tidak direkam.** Mahasiswa wajar menempel kutipan,
+definisi, atau data dari artikel yang ia rujuk, jadi menempel sendiri bukan
+tanda apa pun. Yang tetap terbaca hanyalah bentuk kurva: jawaban yang seluruhnya
+muncul sekaligus lalu datar. Form memberi tahu mahasiswa apa yang dicatat, yaitu
+jumlah kata tiap 30 detik, bukan isi tulisannya.
 
 ---
 
@@ -137,9 +146,13 @@ flowchart LR
 ```
 
 Menunggu tidak menolong, karena menunggu justru **memperpanjang garis datarnya**.
-Diukur pada uji sintetis 400 kata, siasat tempel-lalu-tunggu naik dari 0,30 ke
-0,75, dan memecah tempelan jadi empat potong tetap tertangkap di 0,45 karena
-seluruh lonjakan dijumlahkan, bukan diambil yang terbesar.
+Pada uji sintetis 400 kata yang dibiarkan terbuka 40 menit, nilai sinyal proses
+tanpa kurva 0,00 karena laju 10 kata per menit terbaca wajar, sedangkan dengan
+kurva 1,00 (+25 poin skor AI). Memecahnya jadi empat lonjakan tetap bernilai
+1,00 karena seluruh lonjakan dijumlahkan, bukan diambil yang terbesar. Menulis
+bertahap bernilai 0,00, dan satu kutipan 60 kata di tengah esai yang ditulis
+bertahap hanya bernilai 0,16 (+4 poin): lonjakannya terlihat, tetapi
+sumbangannya sebanding porsinya.
 
 ---
 
@@ -157,7 +170,8 @@ stateDiagram-v2
 
     note right of Terkumpul
         Tiap revisi menaikkan revision_count
-        dan memicu analisis ulang
+        dan memicu analisis ulang.
+        Jumlah revisi ditampilkan, tidak diskor
     end note
     note right of Diverifikasi
         Kesimpulan sesi tidak pernah

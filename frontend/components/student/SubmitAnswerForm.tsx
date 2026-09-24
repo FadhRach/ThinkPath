@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Send } from "lucide-react";
+import { CheckCircle2, Info, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -32,16 +32,23 @@ function countWords(text: string): number {
   return trimmed ? trimmed.split(/\s+/).length : 0;
 }
 
-const COPY: Record<Mode, { submit: string; loading: string; done: string }> = {
+const COPY: Record<
+  Mode,
+  { submit: string; loading: string; done: string; recording: string }
+> = {
   create: {
     submit: "Kumpulkan Jawaban",
     loading: "Mengumpulkan...",
     done: "Jawabanmu berhasil dikumpulkan. Terima kasih.",
+    recording:
+      "Selama kamu mengerjakan, ThinkPath mencatat jumlah kata setiap 30 detik, bukan isi tulisanmu. Dosen melihat catatan ini sebagai gambaran proses menulismu. Menempel kutipan dari sumber yang kamu rujuk itu wajar.",
   },
   revise: {
     submit: "Simpan Revisi",
     loading: "Menyimpan...",
     done: "Revisi jawabanmu berhasil disimpan.",
+    recording:
+      "Waktu kamu menyimpan revisi ikut tercatat dan terlihat oleh dosen, tanpa memengaruhi penilaian.",
   },
 };
 
@@ -136,13 +143,17 @@ export function SubmitAnswerForm({
           placeholder="Tulis jawabanmu di sini..."
           value={text}
           onChange={(event) => setText(event.target.value)}
-          className="rounded-none border-0 bg-transparent px-5 py-4 text-body-lg focus-visible:ring-0"
+          className="rounded-none border-0 bg-transparent px-5 py-4 text-body-lg focus-visible:ring-0 md:text-body-lg"
         />
         <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-3 text-body-sm text-muted-foreground">
           <span>Minimal {MIN_LENGTH} karakter</span>
           <span>{countWords(text)} kata &middot; {text.trim().length} karakter</span>
         </div>
       </Card>
+      <p className="flex items-start gap-2 text-caption text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        {copy.recording}
+      </p>
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
       <Button type="submit" disabled={pending || tooShort} size="lg" className="w-full sm:w-auto">
         <Send className="h-4 w-4" />

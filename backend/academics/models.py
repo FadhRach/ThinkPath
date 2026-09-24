@@ -57,6 +57,9 @@ class AnalysisSource(models.TextChoices):
 class EventType(models.TextChoices):
     STARTED = "started", "Started"
     REVISION = "revision", "Revision"
+    # Tidak lagi ditulis. Menempel kutipan dari artikel itu wajar dalam menulis
+    # akademik, jadi tindakan menempel tidak direkam maupun diskor. Nilainya
+    # dipertahankan karena baris lama masih memakainya.
     PASTE = "paste", "Paste"
     SUBMITTED = "submitted", "Submitted"
     # Cuplikan jumlah kata berkala selama mahasiswa mengerjakan. Inilah satu

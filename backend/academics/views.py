@@ -118,7 +118,6 @@ def _build_process_context(
     text: str,
     duration_seconds: int | None,
     revision_count: int,
-    paste_char_count: int = 0,
     progress: tuple = (),
 ) -> ProcessContext:
     """Rakit metadata pengerjaan untuk sinyal forensik E1.
@@ -133,19 +132,33 @@ def _build_process_context(
         word_count=len(text.split()),
         char_count=len(text),
         progress=progress,
-        paste_char_count=paste_char_count,
     )
 
 
-def _paste_char_count(submission: Submission) -> int:
-    total = 0
+def _stored_progress(submission: Submission) -> tuple[ProgressSample, ...]:
+    """Baca ulang jejak pertumbuhan kata dari event yang tersimpan.
+
+    Simpan Revisi dan Analisis Ulang dulu hanya memakai durasi, sehingga
+    cuplikan pertumbuhan kata yang terekam saat mengarang hilang dari analisis:
+    siasat tempel-lalu-tunggu yang sudah tertangkap kembali terbaca wajar begitu
+    jawaban direvisi atau dianalisis ulang.
+    """
+    started = submission.started_at
+    samples: list[ProgressSample] = []
     for event in submission.reasoning_events.all():
-        if event.event_type != EventType.PASTE:
+        if event.event_type != EventType.PROGRESS:
             continue
-        value = (event.payload or {}).get("char_count")
-        if isinstance(value, int):
-            total += value
-    return total
+        words = (event.payload or {}).get("word_count")
+        if isinstance(words, int):
+            samples.append(
+                ProgressSample(
+                    offset_seconds=max(
+                        0, int((event.occurred_at - started).total_seconds())
+                    ),
+                    word_count=words,
+                )
+            )
+    return tuple(sorted(samples, key=lambda sample: sample.offset_seconds))
 
 
 def _analyse_for(
@@ -154,7 +167,6 @@ def _analyse_for(
     *,
     duration_seconds: int | None,
     revision_count: int,
-    paste_char_count: int = 0,
     progress: tuple = (),
 ) -> dict:
     """Jalankan rantai analisis dengan konteks proses yang dirakit seragam.
@@ -170,7 +182,6 @@ def _analyse_for(
             text_answer,
             duration_seconds,
             revision_count,
-            paste_char_count,
             progress,
         ),
     )
@@ -519,7 +530,6 @@ class SubmissionListView(APIView):
             )
             for s in sorted(samples, key=lambda s: s["at"])
         )
-
         analysis = _analyse_for(
             text_answer,
             assignment,
@@ -571,14 +581,14 @@ class SubmissionListView(APIView):
     def _revise_submission(submission, assignment, text_answer) -> Submission:
         revised_at = timezone.now()
         # revision_count masih nilai lama di titik ini; revisi yang sedang
-        # berjalan ikut dihitung supaya sinyal proses melihat angka yang sama
+        # berjalan ikut dihitung supaya bukti proses menyebut angka yang sama
         # dengan yang nanti tersimpan.
         analysis = _analyse_for(
             text_answer,
             assignment,
             duration_seconds=submission.duration_seconds,
             revision_count=submission.revision_count + 1,
-            paste_char_count=_paste_char_count(submission),
+            progress=_stored_progress(submission),
         )
         with transaction.atomic():
             submission.text_answer = text_answer
@@ -783,7 +793,7 @@ class SubmissionReanalyzeView(APIView):
             submission.assignment,
             duration_seconds=submission.duration_seconds,
             revision_count=submission.revision_count,
-            paste_char_count=_paste_char_count(submission),
+            progress=_stored_progress(submission),
         )
         result, _ = AnalysisResult.objects.update_or_create(
             submission=submission,

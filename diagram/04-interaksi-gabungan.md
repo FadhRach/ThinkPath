@@ -118,9 +118,11 @@ flowchart TD
     class K2 aman
 ```
 
-Pada data demo, **empat mahasiswa tertinggal dari target dan tidak satu pun di
-antaranya pernah berskor AI tinggi.** Kedua himpunan itu tidak beririsan, dan
-itulah pembenaran paling langsung untuk memakai dua sumbu.
+Pada data demo, **sembilan mahasiswa tertinggal dari target dan delapan di
+antaranya tidak pernah berskor AI tinggi.** Hanya satu orang masuk kedua
+himpunan, dan itulah pembenaran paling langsung untuk memakai dua sumbu: alat
+yang hanya menghitung kecurigaan akan melewatkan delapan orang yang justru
+terukur tertinggal.
 
 ---
 
@@ -129,7 +131,7 @@ itulah pembenaran paling langsung untuk memakai dua sumbu.
 ```mermaid
 flowchart LR
     subgraph K["Sulit dipalsukan"]
-        A["revision_count<br/><i>dihitung server</i>"]
+        A["revision_count<br/><i>dihitung server,<br/>ditampilkan, tidak diskor</i>"]
     end
     subgraph S["Menaikkan biaya kecurangan"]
         B["Kurva pertumbuhan kata<br/><i>telemetri klien</i>"]
@@ -224,7 +226,7 @@ erDiagram
         json attack_kinds
     }
     ReasoningEvent {
-        string event_type "started revision paste submitted progress"
+        string event_type "started revision submitted progress; paste hanya di baris lama"
         json payload
         datetime occurred_at
     }

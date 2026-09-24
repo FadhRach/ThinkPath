@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 # Frasa yang khas dipakai LLM saat menulis esai formal Indonesia.
 #
@@ -113,6 +114,11 @@ HEDGING_MARKERS = (
 # Konektor sebab akibat. Penanda utama penalaran analitis.
 CAUSAL_MARKERS = (
     "karena",
+    # Dua bentuk berimbuhan di kiri ditulis eksplisit. Pencocokan potongan
+    # dulu menangkapnya lewat "karena" dan "sebab"; pencocokan dari tepi kata
+    # tidak, jadi tanpa dua baris ini keduanya diam diam hilang.
+    "dikarenakan",
+    "penyebab",
     "sebab",
     "akibatnya",
     "sehingga",
@@ -317,8 +323,25 @@ def _type_token_ratio(words: list[str]) -> float:
     return round(len(set(window)) / len(window), 3)
 
 
+@lru_cache(maxsize=None)
+def _marker_pattern(markers: tuple[str, ...]) -> re.Pattern[str]:
+    alternatives = sorted(markers, key=len, reverse=True)
+    return re.compile(r"\b(?:" + "|".join(re.escape(m) for m in alternatives) + ")")
+
+
 def _count_markers(text_lower: str, markers: tuple[str, ...]) -> int:
-    return sum(text_lower.count(marker) for marker in markers)
+    """Hitung kemunculan penanda; setiap potongan teks dipakai satu penanda saja.
+
+    Pencocokan potongan dulu menghitung ganda: "menyebabkan" terhitung dua kali
+    karena memuat "sebab", begitu juga "disebabkan", "oleh karena itu" (memuat
+    "karena"), dan "sebagai akibatnya" (memuat "akibatnya"). Satu kalimat sebab
+    akibat bisa tercatat sebagai dua konektor dan mendongkrak level Bloom.
+
+    Penanda kini dicocokkan dari tepi kiri kata, yang terpanjang lebih dulu.
+    Akhiran tetap diterima ("karenanya", "sebabnya") karena imbuhan di kanan
+    tidak mengubah fungsi konektornya.
+    """
+    return len(_marker_pattern(markers).findall(text_lower))
 
 
 def _count_distinct_markers(text_lower: str, markers: tuple[str, ...]) -> int:

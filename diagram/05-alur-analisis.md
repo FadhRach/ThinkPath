@@ -181,34 +181,34 @@ flowchart TB
     CEK -->|"ya"| GR["<b>growth</b><br/>porsi kata yang tiba lewat lonjakan"]
     CEK -->|"tidak"| PC["<b>pace</b><br/>kata per menit agregat"]
 
-    GR --> W["bobot 0,45"]
-    PC --> W
-    RV["<b>revision</b><br/>0 revisi pada teks ≥ 100 kata"] --> W2["bobot 0,30"]
-    PS["<b>paste</b><br/>porsi karakter ditempel"] --> W3["bobot 0,25"]
-
-    W --> DOM{"Tempelan ≥ 50%<br/>teks akhir?"}
-    W2 --> DOM
-    W3 --> DOM
-    DOM -->|"ya"| SKIP["laju/pertumbuhan TIDAK dinilai<br/>bobotnya dialihkan ke revisi + tempel"]
-    DOM -->|"tidak"| NORM["jumlahkan berbobot"]
-    SKIP --> VAL["Nilai 0–1"]
-    NORM --> VAL
+    GR --> VAL["Nilai 0–1"]
+    PC --> VAL
+    RV["<b>revision_count</b><br/>jumlah Simpan Revisi"] -.->|"hanya ditulis di bukti"| VAL
+    PS["<b>menempel</b><br/>tidak direkam"] -.->|"tidak dibaca"| VAL
 
     classDef kunci fill:#E8F4F5,stroke:#0E7C86,stroke-width:2px
-    class GR,DOM kunci
+    class GR kunci
 ```
 
-**Dua penjagaan yang lahir dari bug nyata.**
+**Satu sub-indikator, dan dua masukan yang sengaja tidak dibaca.**
 
-Pertama, laju berhenti dinilai ketika tempelan mendominasi. Mahasiswa yang
-menempel tidak mengetik apa pun, jadi "kata per menit" hanya membagi teks orang
-lain dengan lama ia duduk. Sebelum penjagaan ini, submission yang seratus persen
-ditempel tanpa revisi hanya mencapai **0,57**, dan bukti terkuat yang bisa
-dikumpulkan sistem praktis tidak menggerakkan skor.
+Kurva pertumbuhan kata menggantikan laju begitu jejaknya terekam, karena laju
+agregat kalah oleh siasat menempel lalu menunggu. Seluruh lonjakan dijumlahkan,
+bukan diambil yang terbesar: versi pertama memakai yang terbesar dan bisa
+dihindari dengan memecah jawaban jadi empat potong, yang menurunkan nilainya
+dari 0,45 ke **0,11**.
 
-Kedua, seluruh lonjakan dijumlahkan, bukan diambil yang terbesar. Versi pertama
-memakai yang terbesar dan bisa dihindari dengan memecah tempelan jadi empat
-potong, yang menurunkan nilainya dari 0,45 ke **0,11**.
+Jumlah revisi tidak diskor. Sub-indikator itu dimaksudkan mengukur penyuntingan
+saat menulis, tetapi yang tersedia hanya jumlah tombol Simpan Revisi setelah
+jawaban dikumpulkan. Submit pertama selalu bernilai nol revisi, jadi setiap
+jawaban sepanjang 100 kata ke atas dulu mendapat **+7,5 poin** skor AI, dan esai
+yang sama bisa pindah band hanya karena tombol yang ditekan. Revisi kini
+ditampilkan di bukti, sama seperti jam pengumpulan.
+
+Tindakan menempel juga tidak dibaca. Mahasiswa wajar menempel kutipan dari
+artikel yang ia rujuk, jadi menghitung tempelan hanya menambah bising. Jawaban
+yang seluruhnya muncul sekaligus tetap tertangkap lewat bentuk kurva, sedangkan
+satu kutipan pendek hanya menggeser nilai sebanding porsinya.
 
 Modul ini tidak tersentuh oleh perubahan detektor. Bobotnya tetap 0,25 dari skor
 akhir, dan justru itu titiknya: apa pun yang membaca teks bisa dikalahkan
