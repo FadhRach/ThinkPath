@@ -26,6 +26,7 @@ from academics.models import (
     Class,
     ClassMembership,
     EventType,
+    Material,
     ReasoningEvent,
     Submission,
     SubmissionStatus,
@@ -34,6 +35,8 @@ from academics.models import (
     VerificationStatus,
 )
 from core.models import EducationLevel, Profile, Role
+from notifications import events as notify_events
+from notifications.models import Notification, NotificationKind
 
 
 SEED_NAMESPACE = uuid.UUID("8c5ff61a-94e0-4f3a-9d4e-4ad27d2e8d3c")
@@ -118,7 +121,17 @@ def _ensure_assignment(
     deadline_days: int,
 ) -> Assignment:
     assignment_id = _stable_uuid(f"assignment:{label}")
-    deadline = timezone.now() + timedelta(days=deadline_days)
+    # Tenggat demo jatuh pukul 23.59 WIB (16.59 UTC) seperti kebiasaan dosen,
+    # bukan pada menit seed kebetulan dijalankan. Tenggat yang dimaksudkan
+    # sudah lewat (deadline_days <= 0) digeser sehari ke belakang bila jam
+    # 23.59-nya belum tiba, supaya tugas lama tidak kembali terbuka hanya
+    # karena seed dijalankan pagi hari.
+    now = timezone.now()
+    deadline = (now + timedelta(days=deadline_days)).replace(
+        hour=16, minute=59, second=0, microsecond=0
+    )
+    if deadline_days <= 0 and deadline > now:
+        deadline -= timedelta(days=1)
     assignment, _ = Assignment.objects.update_or_create(
         id=assignment_id,
         defaults={
@@ -440,6 +453,10 @@ def _seed_verifications(
         plans.append((students[6], open_ones[-1], VerificationStatus.SCHEDULED, "", ""))
 
     now = timezone.now()
+    # Sesi yang masih dijadwalkan jatuh pukul 10.00 WIB (03.00 UTC) lusa.
+    upcoming_slot = (now + timedelta(days=2)).replace(
+        hour=3, minute=0, second=0, microsecond=0
+    )
     count = 0
     for student, assignment, status_value, outcome, notes in plans:
         submission = Submission.objects.filter(
@@ -454,7 +471,7 @@ def _seed_verifications(
                 "status": status_value,
                 "scheduled_at": (submission.submitted_at + timedelta(days=2))
                 if completed
-                else now + timedelta(days=2),
+                else upcoming_slot,
                 "outcome": outcome,
                 "notes": notes,
                 "completed_at": (submission.submitted_at + timedelta(days=2))
@@ -464,6 +481,278 @@ def _seed_verifications(
         )
         count += 1
     return count
+
+
+# Materi demo: (label, topik, judul, ringkasan, tautan, berapa hari lalu
+# dibagikan). Topik mengikuti pertemuan tempat tugasnya dibahas; topik kosong
+# berarti materi umum. Setiap tautan sudah diperiksa bisa dibuka; materi tanpa
+# tautan adalah catatan yang ditulis dosen sendiri.
+_MATERIALS = {
+    "metpen-a": [
+        (
+            "kontrak-kuliah",
+            "",
+            "Kontrak kuliah dan komponen nilai",
+            "Komponen nilai: tugas mingguan 40%, UTS 25%, UAS 35%. Pengumpulan "
+            "ditutup tepat pada tenggat, jadi kerjakan lebih awal.",
+            "",
+            84,
+        ),
+        (
+            "metodologi",
+            "",
+            "Gambaran umum metodologi penelitian",
+            "Bacaan pembuka sebelum memilih pendekatan penelitian.",
+            "https://id.wikipedia.org/wiki/Metodologi_penelitian",
+            63,
+        ),
+        (
+            "rumusan-masalah",
+            "Pertemuan 2: Merumuskan masalah",
+            "Panduan menyusun rumusan masalah",
+            "Rumusan masalah yang baik bisa dijawab dengan data, cukup sempit untuk "
+            "satu skripsi, dan menyebut fenomena yang diteliti. Bawa satu draf "
+            "rumusan ke pertemuan berikutnya untuk dibahas bersama.",
+            "",
+            70,
+        ),
+        (
+            "kualitatif",
+            "Pertemuan 6: Desain penelitian kualitatif",
+            "Pengantar penelitian kualitatif",
+            "Bacaan pendukung untuk tugas Desain penelitian kualitatif. Perhatikan "
+            "bagian teknik pengumpulan data.",
+            "https://id.wikipedia.org/wiki/Penelitian_kualitatif",
+            45,
+        ),
+        (
+            "studi-kasus",
+            "Pertemuan 6: Desain penelitian kualitatif",
+            "Studi kasus sebagai desain penelitian",
+            "Salah satu desain yang bisa dipilih untuk tugas Desain penelitian "
+            "kualitatif. Bandingkan dengan desain lain sebelum memutuskan.",
+            "https://id.wikipedia.org/wiki/Studi_kasus",
+            44,
+        ),
+        (
+            "reliabilitas",
+            "Pertemuan 8: Validitas dan reliabilitas",
+            "Reliabilitas instrumen",
+            "Baca sebelum mengerjakan tugas Validitas dan reliabilitas instrumen.",
+            "https://id.wikipedia.org/wiki/Reliabilitas",
+            31,
+        ),
+        (
+            "kuantitatif",
+            "Pertemuan 8: Validitas dan reliabilitas",
+            "Pengukuran pada penelitian kuantitatif",
+            "Validitas dan reliabilitas paling sering dibahas pada instrumen "
+            "kuantitatif. Fokus pada bagian pengukuran.",
+            "https://id.wikipedia.org/wiki/Penelitian_kuantitatif",
+            30,
+        ),
+        (
+            "etika",
+            "Pertemuan 11: Etika penelitian",
+            "Etika penelitian",
+            "Bahan untuk tugas yang sedang berjalan: Etika penelitian dan persetujuan "
+            "responden.",
+            "https://id.wikipedia.org/wiki/Etika_penelitian",
+            1,
+        ),
+    ],
+    "ekbang-b": [
+        (
+            "kontrak-kuliah",
+            "",
+            "Kontrak kuliah dan komponen nilai",
+            "Komponen nilai: tugas 40%, UTS 30%, UAS 30%. Ringkasan diskusi kelas "
+            "dibagikan di halaman ini setiap pekan.",
+            "",
+            80,
+        ),
+        (
+            "pembangunan-ekonomi",
+            "Pertemuan 2: Konsep pembangunan",
+            "Pertumbuhan dan pembangunan ekonomi",
+            "Bacaan dasar: kenapa pertumbuhan ekonomi belum tentu berarti pembangunan.",
+            "https://id.wikipedia.org/wiki/Pembangunan_ekonomi",
+            66,
+        ),
+        (
+            "ipm",
+            "Pertemuan 4: Indikator pembangunan",
+            "Indeks Pembangunan Manusia",
+            "Salah satu indikator yang dibahas pada tugas Memilih indikator "
+            "pembangunan.",
+            "https://id.wikipedia.org/wiki/Indeks_Pembangunan_Manusia",
+            52,
+        ),
+        (
+            "pdrb",
+            "Pertemuan 4: Indikator pembangunan",
+            "PDRB sebagai ukuran ekonomi daerah",
+            "Bandingkan dengan IPM: apa yang diukur, dan apa yang terlewat.",
+            "https://id.wikipedia.org/wiki/Produk_domestik_regional_bruto",
+            50,
+        ),
+        (
+            "subsidi",
+            "Pertemuan 6: Kebijakan subsidi",
+            "Subsidi dan ketepatan sasaran",
+            "Bacaan awal untuk tugas Efektivitas kebijakan subsidi energi.",
+            "https://id.wikipedia.org/wiki/Subsidi",
+            38,
+        ),
+        (
+            "gini",
+            "Pertemuan 9: Ketimpangan antarwilayah",
+            "Koefisien Gini",
+            "Ukuran ketimpangan yang paling sering dikutip. Perhatikan apa yang "
+            "tidak ditangkapnya.",
+            "https://id.wikipedia.org/wiki/Koefisien_Gini",
+            16,
+        ),
+        (
+            "ketimpangan",
+            "Pertemuan 9: Ketimpangan antarwilayah",
+            "Ringkasan diskusi: ketimpangan antarwilayah",
+            "Tiga sebab yang muncul di kelas: investasi menumpuk di kota besar, "
+            "infrastruktur yang timpang, dan kapasitas fiskal daerah yang berbeda. "
+            "Gunakan salah satunya sebagai titik awal argumen.",
+            "",
+            2,
+        ),
+        (
+            "desentralisasi",
+            "Pertemuan 11: Desentralisasi fiskal",
+            "Desentralisasi dan kewenangan daerah",
+            "Bahan untuk tugas yang sedang berjalan: Ruang fiskal pemerintah daerah.",
+            "https://id.wikipedia.org/wiki/Desentralisasi",
+            3,
+        ),
+    ],
+}
+
+
+def _seed_materials(classes: dict[str, Class]) -> list[Material]:
+    now = timezone.now()
+    materials: list[Material] = []
+    expected_ids: list[uuid.UUID] = []
+    for class_label, items in _MATERIALS.items():
+        target_class = classes[class_label]
+        for label, topic, title, description, url, days_ago in items:
+            material_id = _stable_uuid(f"material:{class_label}:{label}")
+            expected_ids.append(material_id)
+            material, _ = Material.objects.update_or_create(
+                id=material_id,
+                defaults={
+                    "class_ref": target_class,
+                    "topic": topic,
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                },
+            )
+            # created_at diisi otomatis saat dibuat; tanggal demo disebar
+            # supaya daftar materi punya urutan yang masuk akal.
+            Material.objects.filter(pk=material.pk).update(
+                created_at=now - timedelta(days=days_ago)
+            )
+            material.refresh_from_db()
+            materials.append(material)
+    Material.objects.filter(class_ref__in=classes.values()).exclude(
+        id__in=expected_ids
+    ).delete()
+    return materials
+
+
+def _seed_notifications(
+    teacher: Profile,
+    students: Sequence[Profile],
+    assignments: Sequence[Assignment],
+    materials: Sequence[Material],
+) -> int:
+    """Isi lonceng akun demo lewat fungsi peristiwa yang sama dengan produksi.
+
+    Notifikasi lama milik akun demo dihapus dulu supaya seed tetap idempoten.
+    Waktunya lalu disetel ke saat peristiwanya terjadi, dan yang sudah lama
+    ditandai dibaca, supaya lonceng tidak menampilkan puluhan hal "baru saja".
+    """
+    now = timezone.now()
+    profiles = [teacher, *students]
+    Notification.objects.filter(recipient__in=profiles).delete()
+    mine = Notification.objects.filter(recipient__in=profiles)
+
+    # Dosen: pengumpulan tugas terakhir tiap kelas, digabung per tugas.
+    latest_by_class: dict = {}
+    for assignment in assignments:
+        if assignment.deadline and assignment.deadline < now:
+            current = latest_by_class.get(assignment.class_ref_id)
+            if current is None or assignment.deadline > current.deadline:
+                latest_by_class[assignment.class_ref_id] = assignment
+    for assignment in latest_by_class.values():
+        submissions = list(
+            assignment.submissions.select_related(
+                "student_profile", "assignment__class_ref"
+            ).order_by("submitted_at")
+        )
+        for submission in submissions:
+            notify_events.submission_received(submission, revised=False)
+        if submissions:
+            mine.filter(group_key=f"submissions:{assignment.id}").update(
+                created_at=submissions[-1].submitted_at
+            )
+
+    # Mahasiswa: tugas yang masih berjalan dan materi terbaru tiap kelas.
+    for assignment in assignments:
+        if assignment.deadline and assignment.deadline > now:
+            notify_events.assignment_created(assignment)
+    mine.filter(kind=NotificationKind.ASSIGNMENT_NEW).update(
+        created_at=now - timedelta(hours=5)
+    )
+    newest: dict = {}
+    for material in materials:
+        current = newest.get(material.class_ref_id)
+        if current is None or material.created_at > current.created_at:
+            newest[material.class_ref_id] = material
+    for material in newest.values():
+        notify_events.material_created(material)
+        mine.filter(kind=NotificationKind.MATERIAL_NEW, title__endswith=material.title).update(
+            created_at=material.created_at
+        )
+
+    # Nilai terbaru tiap mahasiswa, sudah lama dan sudah dibaca.
+    for student in students:
+        graded = (
+            Submission.objects.filter(student_profile=student, status=SubmissionStatus.REVIEWED)
+            .select_related("assignment")
+            .order_by("-submitted_at")
+            .first()
+        )
+        if graded is None:
+            continue
+        notify_events.submission_graded(graded)
+        at = graded.submitted_at + timedelta(days=3)
+        mine.filter(recipient=student, kind=NotificationKind.SUBMISSION_GRADED).update(
+            created_at=at, read_at=at + timedelta(hours=2)
+        )
+
+    # Undangan sesi diskusi yang masih dijadwalkan.
+    scheduled = VerbalVerification.objects.filter(
+        status=VerificationStatus.SCHEDULED, submission__student_profile__in=students
+    ).select_related("submission__assignment")
+    for verification in scheduled:
+        notify_events.session_changed(
+            verification,
+            submission=verification.submission,
+            previous_status=None,
+            previous_at=None,
+        )
+    mine.filter(kind=NotificationKind.SESSION_SCHEDULED).update(
+        created_at=now - timedelta(hours=3)
+    )
+    return mine.count()
 
 
 def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
@@ -727,14 +1016,22 @@ class Command(BaseCommand):
                     )
                 )
 
+            materials = _seed_materials({"metpen-a": class_metpen, "ekbang-b": class_ekbang})
+            notification_count = _seed_notifications(
+                teacher, students, assignments, materials
+            )
+
         self.stdout.write(
             "Seeded teacher={teacher_id}, classes=2, assignments={assignments}, "
             "submissions={submissions}, analysis_results={submissions}, "
-            "verifications={verifications}".format(
+            "verifications={verifications}, materials={materials}, "
+            "notifications={notifications}".format(
                 teacher_id=teacher.id,
                 assignments=len(assignments),
                 submissions=total_submissions,
                 verifications=verification_count,
+                materials=len(materials),
+                notifications=notification_count,
             )
         )
         self.stdout.write(

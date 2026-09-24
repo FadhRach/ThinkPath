@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Brandmark } from "@/components/common/Brandmark";
 import { NavSearch } from "@/components/common/NavSearch";
+import { NotificationBell } from "@/components/common/NotificationBell";
 import {
   Sheet,
   SheetContent,
@@ -33,8 +34,8 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
   student: [
     { label: "Beranda", href: "/student" },
     { label: "Tugas", href: "/student/tugas" },
-    { label: "Materi", href: "/student/materi", disabled: true },
-    { label: "Jadwal", href: "/student/jadwal", disabled: true },
+    { label: "Materi", href: "/student/materi" },
+    { label: "Jadwal", href: "/student/jadwal" },
     { label: "Progres", href: "/student/progres" },
   ],
 };
@@ -90,17 +91,7 @@ export function TopNav({ role, userMenu }: Props) {
 
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <NavSearch />
-          {/* Titik merah dihapus bersama tombol aktifnya. Titik itu berarti
-              "ada notifikasi belum dibaca", padahal tombolnya tidak punya
-              penangan sama sekali. Menjanjikan sesuatu yang tidak ada lebih
-              buruk daripada terlihat belum jadi. */}
-          <span
-            aria-disabled="true"
-            title="Notifikasi segera hadir"
-            className="grid h-10 w-10 cursor-not-allowed place-items-center rounded-full text-muted-foreground/40"
-          >
-            <Bell className="h-5 w-5" />
-          </span>
+          <NotificationBell />
           {userMenu}
         </div>
       </div>

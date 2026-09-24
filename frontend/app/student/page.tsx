@@ -1,13 +1,16 @@
 import { BookOpen, CheckCircle2, GraduationCap, Star } from "lucide-react";
+import Link from "next/link";
 
 import { GradeBarChart, type GradePoint } from "@/components/common/GradeBarChart";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
+import { AgendaRow } from "@/components/student/AgendaRow";
 import { JoinCodeForm } from "@/components/student/JoinCodeForm";
 import { StudentClassCard } from "@/components/student/StudentClassCard";
 import { Card } from "@/components/ui/card";
-import { getMe, getStudentClasses } from "@/lib/data";
+import { getMe, getStudentClasses, getStudentSchedule } from "@/lib/data";
 import { formatDateLong } from "@/lib/formatting";
+import { groupByDay } from "@/lib/schedule";
 import type { StudentClassWithAssignments } from "@/lib/types";
 
 interface Overview {
@@ -59,7 +62,12 @@ function deriveOverview(classes: StudentClassWithAssignments[]): Overview {
 }
 
 export default async function StudentPage() {
-  const [me, classes] = await Promise.all([getMe(), getStudentClasses()]);
+  const [me, classes, schedule] = await Promise.all([
+    getMe(),
+    getStudentClasses(),
+    getStudentSchedule(),
+  ]);
+  const upcoming = groupByDay(schedule.slice(0, 3));
   const overview = deriveOverview(classes);
   // Dihitung per render, bukan sekali saat modul dimuat. Sebagai konstanta
   // modul, tanggalnya membeku pada saat server dinyalakan dan besok masih
@@ -105,7 +113,9 @@ export default async function StudentPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      {/* grid-cols-1 wajib: tanpa itu kolom implisit ikut selebar teks yang
+          dipotong (truncate) di kartu agenda, dan halaman melebar di ponsel. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {classes.length === 0 ? (
             <Card className="border-dashed p-10 text-center text-body text-muted-foreground shadow-none">
@@ -120,6 +130,32 @@ export default async function StudentPage() {
         </div>
 
         <div className="space-y-6">
+          {upcoming.length > 0 ? (
+            <Card className="space-y-2 p-5 shadow-soft">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="font-bold text-foreground">Agenda terdekat</h2>
+                <Link
+                  href="/student/jadwal"
+                  className="text-body-sm font-medium text-primary hover:underline"
+                >
+                  Lihat jadwal
+                </Link>
+              </div>
+              <div className="-mx-2">
+                {upcoming.map((day) => (
+                  <section key={day.key}>
+                    <p className="px-2 pt-2 text-caption font-semibold text-muted-foreground">
+                      {day.heading}
+                    </p>
+                    {day.items.map((item) => (
+                      <AgendaRow key={item.id} item={item} compact />
+                    ))}
+                  </section>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+
           <Card className="space-y-3 p-5 shadow-soft">
             <div>
               <h2 className="font-bold text-foreground">Gabung kelas</h2>

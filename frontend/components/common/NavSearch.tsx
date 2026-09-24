@@ -11,11 +11,15 @@ interface Props {
 // input-nya DINONAKTIFKAN, bukan sekadar tidak diproses. Input yang menerima
 // ketikan lalu tidak melakukan apa pun lebih menyesatkan daripada input yang
 // jelas terlihat belum aktif.
+//
+// Baru tampil mulai lebar xl. Pada 1024 sampai 1279 px menu navigasi sudah
+// tampil penuh, dan kolom ini mendorong isi header melebihi layar sehingga
+// seluruh halaman ikut bergeser ke samping.
 export function NavSearch({ placeholder = "Cari tugas atau materi...", className }: Props) {
   return (
     <div
       className={cn(
-        "hidden items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm text-muted-foreground/50 md:flex",
+        "hidden items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm text-muted-foreground/50 xl:flex",
         className,
       )}
     >

@@ -6,16 +6,20 @@ import { BackLink } from "@/components/common/BackLink";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AssignmentSelector } from "@/components/dashboard/AssignmentSelector";
 import { AssignmentSummary } from "@/components/dashboard/AssignmentSummary";
+import { ClassSectionTabs, type ClassSection } from "@/components/dashboard/ClassSectionTabs";
 import { CreateLinkChip } from "@/components/dashboard/CreateLinkChip";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { SubmissionTable } from "@/components/dashboard/SubmissionTable";
+import { ClassMaterialBrowser } from "@/components/materials/ClassMaterialBrowser";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAssignments, getClasses, getSubmissions } from "@/lib/data";
+import { getAssignments, getClassMaterials, getClasses, getSubmissions } from "@/lib/data";
 import { academicLabel, distinctSubject } from "@/lib/academic";
+import type { Material } from "@/lib/types";
 
 interface SearchParams {
   assignment?: string;
+  tab?: string;
 }
 
 export default async function ClassDetailPage({
@@ -25,9 +29,11 @@ export default async function ClassDetailPage({
   params: { classId: string };
   searchParams: SearchParams;
 }) {
-  const [classes, assignments] = await Promise.all([
+  const section: ClassSection = searchParams.tab === "materi" ? "materi" : "tugas";
+  const [classes, assignments, materials] = await Promise.all([
     getClasses(),
     getAssignments(params.classId),
+    getClassMaterials(params.classId),
   ]);
 
   const currentClass = classes.find((cls) => cls.id === params.classId);
@@ -59,7 +65,15 @@ export default async function ClassDetailPage({
         }
       />
 
-      {assignments.length === 0 ? (
+      <ClassSectionTabs
+        classId={currentClass.id}
+        active={section}
+        counts={{ tugas: assignments.length, materi: materials.length }}
+      />
+
+      {section === "materi" ? (
+        <ClassMaterials classId={currentClass.id} materials={materials} />
+      ) : assignments.length === 0 ? (
         <EmptyState
           title="Belum ada tugas di kelas ini"
           caption="Setelah Anda membuat tugas, hasil pengumpulan mahasiswa akan muncul di sini lengkap dengan rangkuman bukti."
@@ -89,6 +103,34 @@ export default async function ClassDetailPage({
           />
         </Suspense>
       )}
+    </div>
+  );
+}
+
+function ClassMaterials({ classId, materials }: { classId: string; materials: Material[] }) {
+  const newMaterialHref = `/dashboard/classes/${classId}/materials/new`;
+  if (materials.length === 0) {
+    return (
+      <EmptyState
+        title="Belum ada materi di kelas ini"
+        caption="Bagikan slide, bacaan, atau video. Materi muncul di halaman Materi mahasiswa dan mereka mendapat notifikasi."
+        action={
+          <Button asChild>
+            <Link href={newMaterialHref}>Bagikan materi</Link>
+          </Button>
+        }
+      />
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-body-sm text-muted-foreground">
+          Mahasiswa kelas ini melihat susunan topik yang sama di halaman Materi mereka.
+        </p>
+        <CreateLinkChip href={newMaterialHref} label="Bagikan materi" />
+      </div>
+      <ClassMaterialBrowser materials={materials} now={Date.now()} manage />
     </div>
   );
 }

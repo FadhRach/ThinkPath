@@ -6,12 +6,13 @@ permission dan view. List endpoints difilter ke pemilik (`user.sub`).
 """
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import status
 from rest_framework.exceptions import (
     NotFound,
@@ -23,6 +24,8 @@ from rest_framework.views import APIView
 
 from core.permissions import IsStudent, IsTeacher
 from core.services import get_profile_by_sub, get_request_profile
+from notifications import events as notify_events
+from notifications.services import safe
 
 from .join_codes import generate_unique_join_code
 from .llm import run_analysis
@@ -30,6 +33,7 @@ from .cognitive import build_profile
 from .overview import build_teacher_overview
 from .process_signals import ProcessContext, ProgressSample
 from .reports import build_report
+from .schedule import build_student_calendar, build_student_schedule
 from .models import (
     AiBand,
     AnalysisResult,
@@ -37,6 +41,7 @@ from .models import (
     Class,
     ClassMembership,
     EventType,
+    Material,
     ReasoningEvent,
     Submission,
     SubmissionStatus,
@@ -51,6 +56,8 @@ from .serializers import (
     ClassListSerializer,
     ClassPublicSerializer,
     JoinClassSerializer,
+    MaterialSerializer,
+    MaterialWriteSerializer,
     StudentAssignmentSerializer,
     StudentSubmissionStatusListSerializer,
     StudentSubmissionStatusSerializer,
@@ -272,6 +279,7 @@ class AssignmentListCreateView(APIView):
             class_ref=target_class,
             **serializer.validated_data,
         )
+        safe(lambda: notify_events.assignment_created(new_assignment))
         # Tugas baru pasti belum punya submission; class_ref sudah ter-load
         # dari _require_owned_class, jadi tidak perlu refetch ber-annotate.
         new_assignment.submission_count = 0
@@ -343,6 +351,8 @@ class JoinClassView(APIView):
             class_ref=target_class,
             student_profile=student_profile,
         )
+        if created:
+            safe(lambda: notify_events.student_joined(target_class, student_profile))
         return Response(
             {"class": ClassPublicSerializer(target_class).data, "created": created}
         )
@@ -497,6 +507,11 @@ class SubmissionListView(APIView):
             )
             detail = "Jawaban berhasil dikumpulkan."
 
+        safe(
+            lambda: notify_events.submission_received(
+                submission, revised=latest is not None
+            )
+        )
         return Response(
             {"id": str(submission.id), "detail": detail},
             status=status.HTTP_201_CREATED,
@@ -714,6 +729,9 @@ class SubmissionVerificationView(APIView):
         serializer = VerificationWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        previous = getattr(submission, "verification", None)
+        previous_status = previous.status if previous else None
+        previous_at = previous.scheduled_at if previous else None
 
         defaults = {
             "status": data["status"],
@@ -729,11 +747,29 @@ class SubmissionVerificationView(APIView):
         verification, _ = VerbalVerification.objects.update_or_create(
             submission=submission, defaults=defaults
         )
+        safe(
+            lambda: notify_events.session_changed(
+                verification,
+                submission=submission,
+                previous_status=previous_status,
+                previous_at=previous_at,
+            )
+        )
         return Response(VerificationSerializer(verification).data)
 
     def delete(self, request, submission_id: str):
         submission = _require_owned_submission(request, submission_id)
+        previous = getattr(submission, "verification", None)
         VerbalVerification.objects.filter(submission=submission).delete()
+        if previous is not None:
+            safe(
+                lambda: notify_events.session_changed(
+                    None,
+                    submission=submission,
+                    previous_status=previous.status,
+                    previous_at=previous.scheduled_at,
+                )
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -774,11 +810,130 @@ class SubmissionDetailView(APIView):
         submission = _require_owned_submission(request, submission_id)
         serializer = SubmissionGradeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        before = (submission.status, submission.grade, submission.teacher_feedback)
         submission.grade = serializer.validated_data["grade"]
         submission.teacher_feedback = serializer.validated_data["teacher_feedback"]
         submission.status = SubmissionStatus.REVIEWED
         submission.save(update_fields=["grade", "teacher_feedback", "status"])
+        # Menyimpan ulang nilai yang sama tidak perlu mengabari mahasiswa lagi.
+        if before != (submission.status, submission.grade, submission.teacher_feedback):
+            safe(lambda: notify_events.submission_graded(submission))
         return Response(SubmissionDetailSerializer(submission).data)
+
+
+class ClassMaterialListCreateView(APIView):
+    """GET materi satu kelas; POST bagikan materi baru (dosen pemilik kelas)."""
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request, class_id: str):
+        target_class = _require_owned_class(request, class_id)
+        materials = (
+            Material.objects.filter(class_ref=target_class)
+            .select_related("class_ref")
+            .order_by("-created_at")
+        )
+        return Response(MaterialSerializer(materials, many=True).data)
+
+    def post(self, request, class_id: str):
+        target_class = _require_owned_class(request, class_id)
+        serializer = MaterialWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        material = Material.objects.create(
+            class_ref=target_class, **serializer.validated_data
+        )
+        safe(lambda: notify_events.material_created(material))
+        return Response(MaterialSerializer(material).data, status=status.HTTP_201_CREATED)
+
+
+class MaterialDetailView(APIView):
+    """PATCH ubah materi; DELETE hapus materi (dosen pemilik kelasnya)."""
+
+    permission_classes = [IsTeacher]
+
+    @staticmethod
+    def _owned(request, material_id: str) -> Material:
+        material = (
+            Material.objects.select_related("class_ref")
+            .filter(pk=_parse_uuid_or_404(material_id))
+            .first()
+        )
+        if material is None or material.class_ref.owner_id != _owner_uuid(request):
+            raise NotFound()
+        return material
+
+    def patch(self, request, material_id: str):
+        material = self._owned(request, material_id)
+        serializer = MaterialWriteSerializer(material, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        # Tidak ada notifikasi ulang. Yang diubah biasanya topik atau salah
+        # ketik, dan lonceng mahasiswa tidak perlu berbunyi untuk itu.
+        return Response(MaterialSerializer(material).data)
+
+    def delete(self, request, material_id: str):
+        self._owned(request, material_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StudentMaterialListView(APIView):
+    """GET materi dari seluruh kelas yang diikuti mahasiswa, terbaru di atas."""
+
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        materials = (
+            Material.objects.filter(
+                class_ref__memberships__student_profile_id=_owner_uuid(request)
+            )
+            .select_related("class_ref")
+            .order_by("-created_at")
+        )
+        return Response(MaterialSerializer(materials, many=True).data)
+
+
+# Rentang terlebar yang boleh diminta sekaligus. Tampilan bulan memuat paling
+# banyak enam pekan; batas ini mencegah satu permintaan menyapu setahun penuh.
+SCHEDULE_MAX_RANGE = timedelta(days=62)
+
+
+def _parse_instant(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    # Tanda "+" pada zona waktu berubah menjadi spasi bila tidak di-encode.
+    value = parse_datetime(raw.strip().replace(" ", "+"))
+    if value is None or timezone.is_naive(value):
+        return None
+    return value
+
+
+class StudentScheduleView(APIView):
+    """GET agenda mahasiswa: tenggat tugas dan sesi diskusi jawaban.
+
+    Tanpa parameter: agenda yang akan datang, untuk kartu di beranda. Dengan
+    start dan end (ISO 8601 berzona): seluruh agenda di rentang itu, termasuk
+    yang sudah lewat, untuk tampilan kalender. Batas hari dihitung frontend
+    pada zona tampilan, jadi backend tetap tidak perlu tahu zona kampus.
+    """
+
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        raw_start = request.query_params.get("start")
+        raw_end = request.query_params.get("end")
+        if raw_start is None and raw_end is None:
+            return Response(build_student_schedule(_owner_uuid(request)))
+
+        start, end = _parse_instant(raw_start), _parse_instant(raw_end)
+        if start is None or end is None:
+            raise ValidationError(
+                "start dan end wajib berupa waktu ISO 8601 lengkap dengan zona."
+            )
+        # Dibandingkan lewat selisih, bukan start + 62 hari: penjumlahan itu
+        # meluap untuk tanggal dekat tahun 9999 dan berakhir sebagai galat 500.
+        if not (start < end and end - start <= SCHEDULE_MAX_RANGE):
+            raise ValidationError("Rentang jadwal harus maju dan paling panjang 62 hari.")
+        return Response(build_student_calendar(_owner_uuid(request), start, end))
 
 
 class SubmissionReanalyzeView(APIView):

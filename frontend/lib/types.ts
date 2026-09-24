@@ -344,3 +344,61 @@ export interface SubmissionDetail {
   analysis: AnalysisView | null;
   verification: VerificationView | null;
 }
+
+/** Materi yang dibagikan dosen ke satu kelas: judul, ringkasan, dan tautan. */
+export interface Material {
+  id: string;
+  class_id: string;
+  class_name: string;
+  /** Topik atau pertemuan, misalnya "Pertemuan 3: Desain kualitatif". Kosong
+   *  berarti materi umum seperti silabus. */
+  topic: string;
+  title: string;
+  description: string;
+  /** Kosong bila materinya berupa ringkasan tanpa tautan. */
+  url: string;
+  created_at: string;
+}
+
+/** "done" hanya untuk sesi yang sudah berlangsung, tanpa kesimpulannya. */
+export type ScheduleStatus = "not_submitted" | "submitted" | "graded" | "scheduled" | "done";
+
+/** Satu baris agenda mahasiswa: tenggat tugas atau sesi diskusi jawaban. */
+export interface ScheduleItem {
+  id: string;
+  kind: "deadline" | "session";
+  at: string;
+  title: string;
+  class_id: string;
+  class_name: string;
+  status: ScheduleStatus;
+  link: string;
+}
+
+export type NotificationKind =
+  | "assignment_new"
+  | "material_new"
+  | "submission_graded"
+  | "session_scheduled"
+  | "session_cancelled"
+  | "deadline_soon"
+  | "submissions_new"
+  | "students_joined";
+
+export interface NotificationItem {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  link: string;
+  /** Waktu yang dibicarakan notifikasi, misalnya tenggat atau jadwal sesi. */
+  event_at: string | null;
+  count: number;
+  created_at: string;
+  read: boolean;
+}
+
+export interface NotificationInbox {
+  unread_count: number;
+  items: NotificationItem[];
+}

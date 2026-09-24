@@ -10,7 +10,7 @@ tanpa perkakas tambahan.
 | [03 · Interaksi dengan Mahasiswa](./03-alur-mahasiswa.md) | Perjalanan mahasiswa, batas yang ditampilkan, perekaman jejak, daur hidup submission |
 | [04 · Interaksi Gabungan](./04-interaksi-gabungan.md) | Siklus penuh satu tugas, pembagian wewenang, tindak lanjut per kuadran, model data |
 | [05 · Alur Analisis](./05-alur-analisis.md) | Pipeline, rantai tiga lapis skor AI, E1, sinyal proses, E2, E4, dan cara validasi diukur |
-| [06 · Design System](./06-design-system.md) | Token warna, tipografi, hierarki komponen, pola visualisasi data |
+| [06 · Design System](./06-design-system.md) | Token warna, tipografi, hierarki komponen, pola visualisasi data, pola Materi dan Jadwal |
 
 ## Cara membaca
 
@@ -45,7 +45,7 @@ Beberapa hal yang **sengaja** ditampilkan apa adanya:
   detektor eksternal 35/70 masih angka sementara
 - ROC-AUC 0,901 diukur pada abstrak akademik, bukan pada esai mahasiswa
 - Telemetri sisi klien menaikkan biaya kecurangan, bukan menghilangkannya
-- Menu Materi, Jadwal, dan mesin dialog Socratic belum dibangun
+- Pencarian global di header dan mesin dialog Socratic belum dibangun
 
 Bila kode berubah, berkas di sini ikut diperbarui. Diagram yang tidak lagi
 sesuai kode lebih buruk daripada tidak ada diagram sama sekali.

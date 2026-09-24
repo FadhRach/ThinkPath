@@ -29,7 +29,7 @@ Cek: `curl http://localhost:7860/health` harus mengembalikan `{"status":"ok"}`.
 **Menjalankan tes:**
 
 ```bash
-python manage.py test            # 151 tes (analisis, auth, detektor, ambang, bukti proses)
+python manage.py test            # 177 tes (analisis, auth, detektor, ambang, bukti proses, materi, jadwal, notifikasi)
 ```
 
 ---
@@ -66,6 +66,8 @@ Dua jebakan yang dikunci tes:
 | `Assignment` | `assignments` | `deadline`, `expected_bloom_level` (1–6). Jenjang diwarisi dari kelas |
 | `Submission` | `submissions` | `status` draft/submitted/reviewed, `revision_count`, `grade` |
 | `ReasoningEvent` | `reasoning_events` | jejak proses: started/progress/revision/submitted (paste hanya di baris lama, tidak lagi ditulis) |
+| `Material` | `materials` | materi kelas: `topic` (topik/pertemuan, kosong = umum), judul, ringkasan, tautan http/https |
+| `Notification` | `notifications` | notifikasi per penerima; `group_key` menggabungkan yang sejenis, `read_at` status dibaca |
 | `AnalysisResult` | `analysis_results` | OneToOne submission: `ai_score`, `ai_band`, `bloom_level`, `signals` |
 | `VerbalVerification` | `verbal_verifications` | jadwal & hasil sesi tanya jawab |
 | `DetectorScore` | `detector_scores` | cache skor detektor eksternal per hash teks |
@@ -99,6 +101,12 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik |
 | POST | `/api/submissions/<id>/reanalyze` | dosen pemilik | analisis ulang |
 | PUT/DELETE | `/api/submissions/<id>/verification` | dosen pemilik | jadwalkan / catat / hapus verifikasi |
+| GET/POST | `/api/classes/<id>/materials` | dosen pemilik | daftar / bagikan materi |
+| PATCH/DELETE | `/api/materials/<id>` | dosen pemilik | ubah (tanpa notifikasi ulang) / hapus materi |
+| GET | `/api/student/materials` | mahasiswa | materi dari seluruh kelas yang diikuti |
+| GET | `/api/student/schedule` | mahasiswa | agenda yang akan datang; dengan `start` & `end`, seluruh agenda di rentang itu |
+| GET | `/api/notifications` | login | 30 notifikasi terbaru + jumlah belum dibaca |
+| POST | `/api/notifications/read` | login | tandai dibaca (`ids`, atau semua bila kosong) |
 
 ### Submit & revisi
 
@@ -109,6 +117,16 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 - Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`.
 
 **Skor AI dan sinyal tidak pernah diekspos ke mahasiswa** (`StudentSubmissionStatusSerializer`). Daftar tugas mahasiswa juga tidak mengirim `text_answer` demi menekan ukuran respons — teks lengkap hanya ada di endpoint detail.
+
+### Materi dan jadwal
+
+`topic` adalah teks bebas seperti topik Google Classroom, misalnya "Pertemuan 3: Desain kualitatif". Spasi berlebih dirapikan supaya satu topik tidak terpecah menjadi dua kelompok. Pengurutan dan pengelompokan dilakukan frontend (materi umum dulu, lalu urutan alami: Pertemuan 2 sebelum Pertemuan 10).
+
+`GET /api/student/schedule?start=<ISO>&end=<ISO>` dipakai kalender. Kedua waktu wajib berzona, rentangnya paling panjang 62 hari (satu tampilan bulan paling banyak enam pekan). Batas hari dihitung frontend pada zona tampilan, jadi backend tetap tidak perlu tahu zona kampus. Rentang ini ikut memuat tenggat yang sudah lewat dan sesi yang sudah berlangsung (`status: "done"`, tanpa kesimpulannya); sesi yang dibatalkan tidak dimuat. Tiap agenda membawa `class_id` untuk saringan per kelas.
+
+### Notifikasi
+
+Dikirim setelah aksi utamanya tersimpan, dan kegagalannya tidak pernah menggagalkan aksi itu (`notifications.services.safe`). Pengumpulan untuk tugas yang sama digabung selama belum dibaca. Pengingat tenggat 24 jam dibuat saat mahasiswa membuka lonceng, bukan oleh penjadwal, karena backend tidak punya cron; tiap tugas hanya diingatkan sekali, dan constraint unik `notif_deadline_once` menjaganya walau dua permintaan lonceng tiba bersamaan. Notifikasi ke mahasiswa tidak pernah menyebut indikasi AI, termasuk undangan sesi diskusi. Notifikasi materi baru menaut langsung ke materinya (`/student/materi/<kelas>#materi-<id>`).
 
 ---
 

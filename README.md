@@ -22,10 +22,10 @@ Password untuk semua akun: `thinkpath123`
 
 | Peran | Email | Isi |
 |---|---|---|
-| Dosen | `dosen@thinkpath.local` | 2 kelas, 10 tugas, 64 submission teranalisis, 3 sesi verifikasi verbal |
-| Mahasiswa | `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local` | 8 mahasiswa dengan lintasan Bloom dan cara mengerjakan berbeda |
+| Dosen | `dosen@thinkpath.local` | 2 kelas, 10 tugas, 64 submission teranalisis, 16 materi dalam 11 topik, 3 sesi verifikasi verbal |
+| Mahasiswa | `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local` | 8 mahasiswa dengan lintasan Bloom dan cara mengerjakan berbeda; `mhs07` punya undangan sesi diskusi di halaman Jadwal |
 
-Cara mengerjakan di data demo direkam seperti di produksi, yaitu cuplikan jumlah kata tiap 30 detik, bukan angka karangan: empat mahasiswa menulis bertahap, dua sebagian besar mengetik dengan satu kutipan pendek, dan dua memunculkan seluruh jawaban sekaligus lalu mengumpulkan. Sebaran band yang dihasilkan: 32 rendah, 16 sedang, 16 tinggi.
+Cara mengerjakan di data demo direkam seperti di produksi, yaitu cuplikan jumlah kata tiap 30 detik, bukan angka karangan: empat mahasiswa menulis bertahap, dua sebagian besar mengetik dengan satu kutipan pendek, dan dua memunculkan seluruh jawaban sekaligus lalu mengumpulkan. Sebaran band yang dihasilkan: 32 rendah, 16 sedang, 16 tinggi. Lonceng notifikasi kedua peran juga sudah terisi.
 
 Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview.
 
@@ -96,11 +96,18 @@ Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/READM
 
 ### Alur pengguna
 
-Dosen membuat kelas, membagikan kode gabung, membuat tugas beserta target level Bloom, menerima submission yang sudah dianalisis otomatis, meninjau bukti, menjadwalkan verifikasi verbal bila perlu, lalu memberi nilai.
+Dosen membuat kelas, membagikan kode gabung dan materi, membuat tugas beserta target level Bloom, menerima submission yang sudah dianalisis otomatis, meninjau bukti, menjadwalkan verifikasi verbal bila perlu, lalu memberi nilai.
 
-Mahasiswa bergabung lewat kode kelas, mengerjakan tugas dengan proses pengerjaan terekam, boleh merevisi selama tenggat belum lewat dan belum dinilai, lalu melihat nilai, umpan balik, dan perkembangan penalarannya. Mahasiswa tidak pernah melihat skor AI tentang dirinya.
+Mahasiswa bergabung lewat kode kelas, membaca materi, mengerjakan tugas dengan proses pengerjaan terekam, boleh merevisi selama tenggat belum lewat dan belum dinilai, lalu melihat nilai, umpan balik, dan perkembangan penalarannya. Mahasiswa tidak pernah melihat skor AI tentang dirinya, dan undangan sesi diskusi pun tidak menyebut alasannya.
+
+Materi dan Jadwal sengaja berbentuk berbeda karena cara mencarinya berbeda:
+
+- **Materi** dicari lewat kelas dan pertemuannya. Halaman Materi berisi folder per kelas dan satu kotak pencarian untuk semua kelas. Di dalam kelas, materi dikelompokkan per topik atau pertemuan dan dilengkapi indeks topik yang menempel di samping (di ponsel menjadi deretan chip), mengikuti pola "Tugas Kelas" Google Classroom. Tiap kelas punya alamatnya sendiri (`/student/materi/<kelas>`), dan notifikasi materi baru membuka langsung materinya.
+- **Jadwal** dicari lewat tanggal. Bentuknya kalender bulan dan pekan seperti Google Calendar, dengan daftar agenda per hari dan saringan per kelas. Kalender juga bisa dibuka mundur untuk melihat tenggat yang sudah lewat beserta statusnya. Tampilan, tanggal, dan kelas yang dipilih tersimpan di alamat halaman, jadi notifikasi undangan sesi membuka pekan sesinya.
 
 Yang direkam saat mengerjakan hanya jumlah kata tiap 30 detik, bukan isi tulisannya, dan form pengerjaan memberitahukan hal ini sebelum mahasiswa menulis. Tindakan menempel tidak direkam: menempel kutipan dari rujukan itu wajar.
+
+Kedua peran punya lonceng notifikasi: mahasiswa diberi tahu soal tugas dan materi baru, nilai, undangan atau perubahan sesi diskusi, dan tenggat yang tinggal 24 jam; dosen diberi tahu soal pengumpulan baru dan mahasiswa yang bergabung, digabung per tugas supaya tidak membanjiri.
 
 ### Lapisan analisis
 
@@ -136,6 +143,9 @@ Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosak
 - Panel Asal Skor AI, merinci dari mana tiap poin skor berasal
 - Linimasa pengerjaan berupa kurva pertumbuhan kata
 - Pemberitahuan terbuka ke mahasiswa tentang apa yang direkam saat ia menulis
+- Materi kelas tersusun per topik atau pertemuan, dengan pencarian lintas kelas
+- Jadwal mahasiswa berbentuk kalender bulan dan pekan: tenggat tugas dan sesi diskusi
+- Notifikasi di dalam aplikasi untuk dosen dan mahasiswa
 - Ritme kalimat sebagai bukti gaya menulis
 - Verifikasi verbal, mencatat hasil sesi tanya jawab tanpa mengubah skor AI
 - Profil kognitif, tren level penalaran lintas tugas
@@ -146,7 +156,7 @@ Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosak
 | Aspek | Status |
 |---|---|
 | Fitur end-to-end dua peran | Lengkap dan berjalan |
-| Uji otomatis | 151 tes backend dan 68 tes ai_experiment, semuanya lolos |
+| Uji otomatis | 177 tes backend dan 68 tes ai_experiment, semuanya lolos |
 | Kalibrasi E1 heuristik | Terukur, ROC-AUC 0,900 pada gold set 999 sampel; bobot sinyal teks dan ambang sedang 42 hasil ukur |
 | Ambang tinggi 70 dan bobot forensik proses | Belum terukur; tidak ada sampel gold set yang mencapai 70 |
 | Detektor eksternal Winston | Tersambung, belum diukur pada teks Indonesia |

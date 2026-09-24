@@ -187,6 +187,8 @@ erDiagram
     Submission ||--|| AnalysisResult : "menghasilkan"
     Submission ||--o{ ReasoningEvent : "meninggalkan jejak"
     Submission ||--o| VerbalVerification : "dapat diverifikasi"
+    Kelas ||--o{ Material : "membagikan"
+    Profile ||--o{ Notification : "menerima"
 
     Kelas {
         string name
@@ -235,7 +237,27 @@ erDiagram
         string outcome "tanpa nilai terbukti menyontek"
         text notes
     }
+    Material {
+        string topic "topik atau pertemuan; kosong berarti umum"
+        string title
+        text description
+        string url "http atau https saja"
+    }
+    Notification {
+        string kind
+        string title
+        string link
+        datetime event_at
+        string group_key "menggabungkan yang sejenis"
+        int count
+        datetime read_at
+    }
 ```
+
+`Notification` sengaja tidak berelasi ke objek yang dibicarakannya. Yang
+disimpan hanya kalimat, tautan, dan `group_key`, sehingga menghapus materi
+atau tugas tidak merusak isi lonceng siapa pun, dan satu tabel cukup untuk
+seluruh jenis peristiwa.
 
 Jenjang, program studi, dan semester melekat pada **Class**. Bukan pada
 `Profile`, karena semester mahasiswa berubah tiap enam bulan sehingga datanya

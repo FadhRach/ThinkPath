@@ -168,13 +168,16 @@ flowchart LR
     class B,D ok
 ```
 
-Menu **Materi** dan **Jadwal** sengaja dibiarkan nonaktif karena membutuhkan
-model backend yang belum ada. Menu yang bisa diklik tetapi tidak melakukan apa
-pun lebih menyesatkan daripada menu yang jujur menyatakan dirinya belum jadi.
+Menu **Materi** dan **Jadwal** dulu dibiarkan nonaktif sampai model backend-nya
+ada, dan kini sudah aktif. Yang masih nonaktif adalah kolom pencarian global di
+header: belum ada endpoint pencariannya, jadi input-nya dimatikan, bukan
+dibiarkan menerima ketikan lalu tidak melakukan apa pun. Menu atau input yang
+bisa dipakai tetapi tidak melakukan apa pun lebih menyesatkan daripada yang
+jujur menyatakan dirinya belum jadi.
 
-Prinsip yang sama berlaku pada lonceng notifikasi: ia pernah punya titik merah
-yang berarti "ada notifikasi belum dibaca", padahal tombolnya tidak punya
-penangan sama sekali. Titik itu dihapus bersama tombol aktifnya.
+Prinsip yang sama pernah berlaku pada lonceng notifikasi: titik merahnya dihapus
+selama tombolnya belum punya penangan. Lonceng sekarang aktif, dan lencananya
+menghitung notifikasi yang benar-benar belum dibaca.
 
 ---
 
@@ -205,3 +208,36 @@ yang **sama persis** ketika membicarakan satu submission. Membiarkannya mengikut
 mesin yang merender pernah membuat jam meleset tujuh jam di Vercel, dan untuk
 produk ini akibatnya bukan kosmetik: pengumpulan pukul 02.37 akan tampil 19.37
 dan terlihat wajar.
+
+Kalender Jadwal mengikuti aturan yang sama. Hari dihitung sebagai kunci
+`YYYY-MM-DD` pada zona tampilan, lalu batas rentangnya dikirim ke backend
+sebagai waktu UTC, sehingga tenggat pukul 23.59 WIB tidak pernah bergeser ke
+kotak hari berikutnya.
+
+---
+
+## 6.9 Materi dan Jadwal: dua cara mencari
+
+Mahasiswa mencari jadwal lewat **tanggal** dan mencari materi lewat **kelas dan
+pertemuannya**. Karena itu keduanya sengaja tidak berbentuk sama.
+
+```mermaid
+flowchart LR
+    Q1["Kapan tenggat berikutnya?"] --> J["Jadwal<br/>kalender bulan / pekan<br/>+ daftar agenda per hari"]
+    Q2["Slide pertemuan 6 di mana?"] --> M["Materi<br/>folder kelas → topik<br/>+ indeks topik + pencarian"]
+
+    classDef ok fill:#D9F2E6,stroke:#2E7D5B
+    class J,M ok
+```
+
+| | Jadwal | Materi |
+|---|---|---|
+| Rujukan pola | Google Calendar, kalender Google Classroom | "Tugas Kelas" Google Classroom, daftar sesi LMS kampus |
+| Susunan | Kotak tanggal; di ponsel titik penanda + daftar agenda | Folder per kelas, lalu kelompok per topik atau pertemuan |
+| Navigasi | Hari ini, mundur-maju, bulan/pekan, saringan kelas | Indeks topik menempel di samping; di ponsel chip menempel di atas |
+| Alamat | `/student/jadwal?tampilan=minggu&tanggal=…&kelas=…` | `/student/materi/<kelas>#topik-…` atau `#materi-…` |
+| Warna | Status agenda: kuning belum dikerjakan, hijau dinilai, abu terlewat, sesi sebagai kartu teal | Jenis sumber: slide, dokumen, video, bacaan web, catatan dosen |
+
+Tenggat yang terlewat berwarna abu, bukan merah. Pengumpulan sudah ditutup,
+jadi tidak ada lagi yang bisa dilakukan mahasiswa; warna mendesak disisakan
+untuk tenggat yang masih bisa dikerjakan.
