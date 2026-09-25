@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 import Link from "next/link";
 
 import { AssignmentStatusBadge } from "@/components/student/AssignmentStatusBadge";
@@ -28,6 +28,13 @@ export function StudentClassCard({
               .join(" · ")}
           </p>
         </div>
+        <Link
+          href={`/student/materi/${studentClass.id}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-body-sm font-medium text-muted-foreground transition hover:border-primary/50 hover:text-primary"
+        >
+          <BookOpen className="h-4 w-4" />
+          Materi kelas
+        </Link>
       </header>
       {studentClass.assignments.length === 0 ? (
         <p className="px-5 py-6 text-body text-muted-foreground">

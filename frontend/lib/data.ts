@@ -5,9 +5,11 @@ import type {
   AssignmentSummary,
   ClassSummary,
   CognitiveProfile,
+  Material,
   OwnProgress,
   Profile,
   ReportPayload,
+  ScheduleItem,
   StudentAssignmentDetail,
   StudentClassWithAssignments,
   SubmissionDetail,
@@ -71,4 +73,24 @@ export function getStudentAssignment(assignmentId: string) {
   return apiFetch<StudentAssignmentDetail>(
     `/api/student/assignments/${assignmentId}`,
   );
+}
+
+export function getClassMaterials(classId: string) {
+  return apiFetch<Material[]>(`/api/classes/${classId}/materials`);
+}
+
+export function getStudentMaterials() {
+  return apiFetch<Material[]>("/api/student/materials");
+}
+
+/**
+ * Tanpa rentang: agenda yang akan datang (kartu beranda). Dengan rentang:
+ * seluruh agenda di antara dua titik waktu, termasuk yang sudah lewat, untuk
+ * tampilan kalender.
+ */
+export function getStudentSchedule(range?: { start: string; end: string }) {
+  const query = range
+    ? `?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`
+    : "";
+  return apiFetch<ScheduleItem[]>(`/api/student/schedule${query}`);
 }

@@ -195,6 +195,47 @@ class Assignment(models.Model):
         return self.title
 
 
+class Material(models.Model):
+    """Materi yang dibagikan dosen ke satu kelas: judul, ringkasan, dan tautan.
+
+    Sengaja tautan, bukan unggahan berkas. Backend berjalan di Hugging Face
+    Spaces yang sistem berkasnya tidak persisten, sehingga berkas yang diunggah
+    akan hilang setiap kali container dimulai ulang. Dosen umumnya sudah
+    menyimpan slide dan video di Google Drive atau YouTube; yang dibutuhkan
+    kelas adalah satu tempat untuk menemukannya. Unggahan sungguhan menunggu
+    penyimpanan objek seperti Supabase Storage.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    class_ref = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name="materials",
+        db_column="class_id",
+    )
+    # Topik atau pertemuan tempat materi dikelompokkan, misalnya "Pertemuan 3:
+    # Desain kualitatif". Teks bebas seperti topik di Google Classroom; kosong
+    # berarti materi umum seperti silabus. Tidak dibuat tabel tersendiri karena
+    # gunanya hanya mengelompokkan, dan formulir dosen sudah menyarankan topik
+    # yang pernah ia pakai supaya penulisannya seragam.
+    topic = models.CharField(max_length=80, blank=True, default="")
+    title = models.CharField(max_length=160)
+    description = models.TextField(blank=True, default="")
+    # Hanya http dan https yang diterima serializer. Skema lain seperti
+    # javascript: akan menjadi tautan berbahaya begitu dirender di layar.
+    url = models.URLField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "materials"
+        indexes = [
+            models.Index(fields=["class_ref", "-created_at"], name="material_class_recent_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class Submission(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     assignment = models.ForeignKey(

@@ -84,6 +84,33 @@ export function formatDate(iso: string | null): string {
   });
 }
 
+/** Kunci hari pada zona tampilan, misalnya "2026-09-25", untuk mengelompokkan agenda. */
+export function dayKey(iso: string): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: DISPLAY_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/**
+ * Judul kelompok hari untuk agenda: "Hari ini", "Besok", atau nama hari dan
+ * tanggalnya. Dihitung pada zona tampilan, bukan zona mesin yang merender.
+ */
+export function formatDayHeading(iso: string, now: Date = new Date()): string {
+  const key = dayKey(iso);
+  if (key === dayKey(now.toISOString())) return "Hari ini";
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  if (key === dayKey(tomorrow.toISOString())) return "Besok";
+  return new Date(iso).toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: DISPLAY_TIME_ZONE,
+  });
+}
+
 /** Tanggal panjang untuk sapaan, misalnya "Kamis, 13 Agustus 2026". */
 export function formatDateLong(date: Date = new Date()): string {
   return date.toLocaleDateString("id-ID", {

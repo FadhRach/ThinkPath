@@ -7,4 +7,5 @@ urlpatterns = [
     path("health", HealthView.as_view()),
     path("api/", include("core.urls")),
     path("api/", include("academics.urls")),
+    path("api/", include("notifications.urls")),
 ]
