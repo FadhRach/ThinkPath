@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.permissions import IsStudent, IsTeacher
+from core.privacy import ITEM_EXTERNAL_AI, current_consent
 from core.services import get_profile_by_sub, get_request_profile
 from notifications import events as notify_events
 from notifications.services import safe
@@ -174,12 +175,15 @@ def _analyse_for(
     *,
     duration_seconds: int | None,
     revision_count: int,
+    allow_external: bool,
     progress: tuple = (),
 ) -> dict:
     """Jalankan rantai analisis dengan konteks proses yang dirakit seragam.
 
     Satu-satunya jalan masuk ke run_analysis dari views: submit pertama,
     revisi, dan analisis ulang wajib merakit argumen dengan cara yang sama.
+    allow_external sengaja tanpa nilai bawaan: setiap pemanggil harus
+    memutuskannya dari persetujuan mahasiswa, bukan mewarisi "boleh".
     """
     return run_analysis(
         text_answer,
@@ -191,7 +195,22 @@ def _analyse_for(
             revision_count,
             progress,
         ),
+        allow_external=allow_external,
     )
+
+
+def _require_student_consent(student_id: UUID, message: str) -> bool:
+    """Persetujuan mahasiswa yang berlaku, atau 403.
+
+    Diperiksa di basis data, bukan dari klaim token: token lama di perangkat
+    lain masih memuat klaim persetujuan setelah mahasiswa menariknya, padahal
+    Pasal 40 UU PDP mewajibkan pemrosesan berhenti. Mengembalikan apakah teks
+    jawaban boleh dikirim ke penyedia analisis di luar negeri.
+    """
+    consent = current_consent(student_id)
+    if consent is None:
+        raise PermissionDenied(message)
+    return ITEM_EXTERNAL_AI in consent.items
 
 
 def _assignment_annotations():
@@ -481,6 +500,11 @@ class SubmissionListView(APIView):
         assignment = _require_member_assignment(request, assignment_id)
         self._reject_if_past_deadline(assignment)
         student_profile = get_request_profile(request)
+        allow_external = _require_student_consent(
+            student_profile.id,
+            "Setujui Kebijakan Privasi versi terbaru sebelum mengumpulkan jawaban. "
+            "Buka menu Pengaturan atau muat ulang halaman.",
+        )
 
         serializer = SubmissionCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -499,11 +523,17 @@ class SubmissionListView(APIView):
             )
 
         if latest is not None:
-            submission = self._revise_submission(latest, assignment, text_answer)
+            submission = self._revise_submission(
+                latest, assignment, text_answer, allow_external=allow_external
+            )
             detail = "Revisi jawaban berhasil disimpan."
         else:
             submission = self._create_submission(
-                assignment, student_profile, text_answer, serializer.validated_data
+                assignment,
+                student_profile,
+                text_answer,
+                serializer.validated_data,
+                allow_external=allow_external,
             )
             detail = "Jawaban berhasil dikumpulkan."
 
@@ -523,7 +553,9 @@ class SubmissionListView(APIView):
             raise ValidationError("Tenggat tugas sudah berakhir. Pengumpulan ditutup.")
 
     @staticmethod
-    def _create_submission(assignment, student_profile, text_answer, validated) -> Submission:
+    def _create_submission(
+        assignment, student_profile, text_answer, validated, *, allow_external: bool
+    ) -> Submission:
         submitted_at = timezone.now()
         started_at = validated.get("started_at") or submitted_at
         if started_at > submitted_at:
@@ -550,6 +582,7 @@ class SubmissionListView(APIView):
             assignment,
             duration_seconds=duration_seconds,
             revision_count=0,
+            allow_external=allow_external,
             progress=progress,
         )
         with transaction.atomic():
@@ -593,7 +626,9 @@ class SubmissionListView(APIView):
         return submission
 
     @staticmethod
-    def _revise_submission(submission, assignment, text_answer) -> Submission:
+    def _revise_submission(
+        submission, assignment, text_answer, *, allow_external: bool
+    ) -> Submission:
         revised_at = timezone.now()
         # revision_count masih nilai lama di titik ini; revisi yang sedang
         # berjalan ikut dihitung supaya bukti proses menyebut angka yang sama
@@ -603,6 +638,7 @@ class SubmissionListView(APIView):
             assignment,
             duration_seconds=submission.duration_seconds,
             revision_count=submission.revision_count + 1,
+            allow_external=allow_external,
             progress=_stored_progress(submission),
         )
         with transaction.atomic():
@@ -943,11 +979,18 @@ class SubmissionReanalyzeView(APIView):
 
     def post(self, request, submission_id: str):
         submission = _require_owned_submission(request, submission_id)
+        allow_external = _require_student_consent(
+            submission.student_profile_id,
+            "Mahasiswa ini belum menyetujui Kebijakan Privasi versi terbaru atau "
+            "telah menarik persetujuannya, jadi analisis ulang tidak dijalankan. "
+            "Hasil analisis yang sudah ada tetap tersimpan.",
+        )
         analysis = _analyse_for(
             submission.text_answer,
             submission.assignment,
             duration_seconds=submission.duration_seconds,
             revision_count=submission.revision_count,
+            allow_external=allow_external,
             progress=_stored_progress(submission),
         )
         result, _ = AnalysisResult.objects.update_or_create(

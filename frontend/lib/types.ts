@@ -214,6 +214,33 @@ export interface AuthResponse {
   profile: Profile;
 }
 
+export type ConsentState = "given" | "withdrawn" | "outdated" | "none";
+export type ConsentActionKind = "given" | "updated" | "withdrawn";
+
+export interface ConsentHistoryEntry {
+  action: ConsentActionKind;
+  policy_version: string;
+  items: string[];
+  created_at: string;
+}
+
+/** Keadaan persetujuan pemrosesan data pribadi beserta rekam jejaknya. */
+export interface ConsentStatus {
+  current_version: string;
+  status: ConsentState;
+  items: string[];
+  /** Mahasiswa mengizinkan jawabannya dianalisis penyedia di luar negeri. */
+  external_ai: boolean;
+  given_at: string | null;
+  history: ConsentHistoryEntry[];
+}
+
+/** Balasan saat persetujuan diberikan atau ditarik: token lama sudah usang. */
+export interface ConsentChangeResponse {
+  token: string;
+  consent: ConsentStatus;
+}
+
 export interface ClassPublic {
   id: string;
   name: string;

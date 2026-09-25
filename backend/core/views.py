@@ -1,10 +1,20 @@
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .authentication import create_access_token
+from .models import ConsentAction, Role
+from .privacy import (
+    ITEM_EXTERNAL_AI,
+    consent_status,
+    current_consent,
+    record_consent,
+)
 from .serializers import (
+    ConsentGiveSerializer,
+    ConsentUpdateSerializer,
     LoginSerializer,
     ProfilePatchSerializer,
     ProfileSerializer,
@@ -100,3 +110,62 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         updated = serializer.save()
         return Response(ProfileSerializer(updated).data, status=status.HTTP_200_OK)
+
+
+class ConsentView(APIView):
+    """Persetujuan pemrosesan data pribadi milik pemanggil.
+
+    GET: keadaan yang berlaku beserta riwayatnya.
+    POST: memberi persetujuan untuk versi kebijakan yang berlaku. Token baru
+    dikembalikan karena klaim persetujuan di token lama sudah usang.
+    PATCH: mengubah pilihan opsional (mahasiswa: analisis di luar negeri).
+    """
+
+    def get(self, request):
+        profile = get_request_profile(request)
+        return Response(consent_status(profile.id))
+
+    def post(self, request):
+        profile = get_request_profile(request)
+        serializer = ConsentGiveSerializer(
+            data=request.data, context={"role": profile.role}
+        )
+        serializer.is_valid(raise_exception=True)
+        record_consent(profile.id, ConsentAction.GIVEN, serializer.validated_data["items"])
+        return Response(
+            {"token": create_access_token(profile), "consent": consent_status(profile.id)},
+            status=status.HTTP_201_CREATED,
+        )
+
+    def patch(self, request):
+        profile = get_request_profile(request)
+        if profile.role != Role.STUDENT:
+            raise ValidationError("Tidak ada pilihan opsional untuk peran ini.")
+        current = current_consent(profile.id)
+        if current is None:
+            raise ValidationError("Setujui Kebijakan Privasi versi terbaru lebih dulu.")
+        serializer = ConsentUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        items = set(current.items) - {ITEM_EXTERNAL_AI}
+        if serializer.validated_data["external_ai"]:
+            items.add(ITEM_EXTERNAL_AI)
+        if items != set(current.items):
+            record_consent(profile.id, ConsentAction.UPDATED, items)
+        return Response({"consent": consent_status(profile.id)})
+
+
+class ConsentWithdrawView(APIView):
+    """POST menarik persetujuan (Pasal 9 UU PDP).
+
+    Berlaku seketika untuk pemrosesan baru: pengumpulan jawaban dan analisis
+    ulang memeriksa basis data, bukan klaim token. Pasal 40 memberi batas
+    paling lambat 3 x 24 jam; di sini tidak ada jeda sama sekali.
+    """
+
+    def post(self, request):
+        profile = get_request_profile(request)
+        if current_consent(profile.id) is not None:
+            record_consent(profile.id, ConsentAction.WITHDRAWN, [])
+        return Response(
+            {"token": create_access_token(profile), "consent": consent_status(profile.id)}
+        )

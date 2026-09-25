@@ -18,6 +18,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
 from .models import Profile
+from .privacy import current_consent
 
 JWT_ALGORITHM = "HS256"
 
@@ -29,6 +30,9 @@ class AuthenticatedUser:
     sub: str
     email: str
     role: Optional[str] = None
+    # Klaim "consent" sengaja tidak dibawa ke sini. Server tidak boleh
+    # memakainya untuk memutuskan apa pun: setelah persetujuan ditarik, token
+    # lama di perangkat lain masih memuatnya. Lihat core.privacy.
 
     @property
     def is_authenticated(self) -> bool:
@@ -37,10 +41,16 @@ class AuthenticatedUser:
 
 def create_access_token(profile: Profile) -> str:
     now = datetime.now(timezone.utc)
+    consent = current_consent(profile.id)
     claims = {
         "sub": str(profile.id),
         "email": profile.email,
         "role": profile.role,
+        # Dibaca layout frontend untuk memutuskan perlu tidaknya layar
+        # persetujuan tanpa panggilan jaringan. Hanya untuk tampilan: pemrosesan
+        # data baru tetap memeriksa basis data, karena token lama di perangkat
+        # lain masih memuat klaim ini setelah persetujuan ditarik.
+        "consent": consent.policy_version if consent else None,
         "iat": now,
         "exp": now + timedelta(days=settings.AUTH_TOKEN_LIFETIME_DAYS),
     }

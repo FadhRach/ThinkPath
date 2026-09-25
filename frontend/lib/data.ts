@@ -5,6 +5,7 @@ import type {
   AssignmentSummary,
   ClassSummary,
   CognitiveProfile,
+  ConsentStatus,
   Material,
   OwnProgress,
   Profile,
@@ -73,6 +74,10 @@ export function getStudentAssignment(assignmentId: string) {
   return apiFetch<StudentAssignmentDetail>(
     `/api/student/assignments/${assignmentId}`,
   );
+}
+
+export function getConsent() {
+  return apiFetch<ConsentStatus>("/api/me/consent");
 }
 
 export function getClassMaterials(classId: string) {

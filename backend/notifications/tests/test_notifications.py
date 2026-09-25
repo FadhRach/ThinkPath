@@ -31,7 +31,8 @@ from academics.models import (
 )
 from academics.schedule import build_student_schedule
 from core.authentication import create_access_token
-from core.models import EducationLevel, Profile, Role
+from core.models import ConsentAction, EducationLevel, Profile, Role
+from core.privacy import REQUIRED_ITEMS, record_consent
 from notifications.models import Notification, NotificationKind
 from notifications.services import notify_once
 
@@ -71,6 +72,8 @@ class Base(TestCase):
         )
         for student in (self.mhs, self.mhs2):
             ClassMembership.objects.create(class_ref=self.kelas, student_profile=student)
+            # Mengumpulkan jawaban mensyaratkan persetujuan Kebijakan Privasi.
+            record_consent(student.id, ConsentAction.GIVEN, REQUIRED_ITEMS[Role.STUDENT])
 
     def client_for(self, profile: Profile) -> APIClient:
         client = APIClient()

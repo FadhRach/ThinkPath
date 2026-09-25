@@ -152,7 +152,17 @@ export function SubmitAnswerForm({
       </Card>
       <p className="flex items-start gap-2 text-caption text-muted-foreground">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        {copy.recording}
+        <span>
+          {copy.recording}{" "}
+          <a
+            href="/kebijakan-privasi#data-yang-dikumpulkan"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-primary hover:underline"
+          >
+            Kebijakan Privasi
+          </a>
+        </span>
       </p>
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
       <Button type="submit" disabled={pending || tooShort} size="lg" className="w-full sm:w-auto">

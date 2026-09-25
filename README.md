@@ -27,7 +27,7 @@ Password untuk semua akun: `thinkpath123`
 
 Cara mengerjakan di data demo direkam seperti di produksi, yaitu cuplikan jumlah kata tiap 30 detik, bukan angka karangan: empat mahasiswa menulis bertahap, dua sebagian besar mengetik dengan satu kutipan pendek, dan dua memunculkan seluruh jawaban sekaligus lalu mengumpulkan. Sebaran band yang dihasilkan: 32 rendah, 16 sedang, 16 tinggi. Lonceng notifikasi kedua peran juga sudah terisi.
 
-Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview.
+Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pertama masuk, setiap akun diminta membaca dan menyetujui [Kebijakan Privasi](https://thinkpath.vercel.app/kebijakan-privasi) lebih dulu.
 
 ## Tech Stack
 
@@ -109,6 +109,16 @@ Yang direkam saat mengerjakan hanya jumlah kata tiap 30 detik, bukan isi tulisan
 
 Kedua peran punya lonceng notifikasi: mahasiswa diberi tahu soal tugas dan materi baru, nilai, undangan atau perubahan sesi diskusi, dan tenggat yang tinggal 24 jam; dosen diberi tahu soal pengumpulan baru dan mahasiswa yang bergabung, digabung per tugas supaya tidak membanjiri.
 
+### Privasi dan persetujuan
+
+Sebelum memakai ThinkPath, setiap pengguna membaca ringkasan pemrosesan data dan menyetujui butir-butirnya satu per satu, sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi:
+
+- **Mahasiswa** menyetujui tiga butir wajib: data perkuliahan, perekaman proses menulis beserta analisis otomatis, dan pernyataan usia atau izin wali. Butir keempat opsional, yaitu mengizinkan teks jawaban dianalisis Groq (Amerika Serikat) dan Winston AI (Kanada). Tanpa izin itu, jawaban hanya dianalisis heuristik di server ThinkPath.
+- **Dosen** menyetujui data akun dan menyatakan tanggung jawabnya: menjaga kerahasiaan data mahasiswa dan tidak menjatuhkan sanksi hanya berdasarkan skor.
+- Setiap keputusan dicatat sebagai bukti per versi kebijakan dan tidak pernah ditimpa. Pengguna bisa melihat riwayatnya, mengubah pilihan opsional, dan menarik persetujuan di Pengaturan. Penarikan menghentikan pengumpulan jawaban dan analisis ulang seketika, termasuk dari token lama di perangkat lain.
+
+Isi [Kebijakan Privasi](https://thinkpath.vercel.app/kebijakan-privasi) disusun dari kode yang berlaku dan dari teks resmi undang-undang. Pemetaan tiap pasal ke kode yang melaksanakannya, beserta penilaian dampak awal, ada di [diagram/07-privasi-dan-persetujuan.md](./diagram/07-privasi-dan-persetujuan.md).
+
 ### Lapisan analisis
 
 Dua mesin yang saling bebas dan tidak pernah membaca hasil satu sama lain:
@@ -146,6 +156,7 @@ Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosak
 - Materi kelas tersusun per topik atau pertemuan, dengan pencarian lintas kelas
 - Jadwal mahasiswa berbentuk kalender bulan dan pekan: tenggat tugas dan sesi diskusi
 - Notifikasi di dalam aplikasi untuk dosen dan mahasiswa
+- Kebijakan Privasi dan persetujuan berbasis UU PDP, dengan bukti persetujuan per versi, izin analisis di luar negeri yang bisa dicabut, dan penarikan persetujuan
 - Ritme kalimat sebagai bukti gaya menulis
 - Verifikasi verbal, mencatat hasil sesi tanya jawab tanpa mengubah skor AI
 - Profil kognitif, tren level penalaran lintas tugas
@@ -156,7 +167,7 @@ Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosak
 | Aspek | Status |
 |---|---|
 | Fitur end-to-end dua peran | Lengkap dan berjalan |
-| Uji otomatis | 177 tes backend dan 68 tes ai_experiment, semuanya lolos |
+| Uji otomatis | 191 tes backend dan 68 tes ai_experiment, semuanya lolos |
 | Kalibrasi E1 heuristik | Terukur, ROC-AUC 0,900 pada gold set 999 sampel; bobot sinyal teks dan ambang sedang 42 hasil ukur |
 | Ambang tinggi 70 dan bobot forensik proses | Belum terukur; tidak ada sampel gold set yang mencapai 70 |
 | Detektor eksternal Winston | Tersambung, belum diukur pada teks Indonesia |

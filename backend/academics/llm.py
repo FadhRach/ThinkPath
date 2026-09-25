@@ -249,9 +249,11 @@ def _run_base_analysis(
     education_level: str,
     expected_bloom_level: int,
     process: ProcessContext | None,
+    *,
+    allow_external: bool = True,
 ) -> dict:
     """Dua lapis lama, tidak berubah perilakunya: Groq lalu heuristik."""
-    if not os.getenv("GROQ_API_KEY", "").strip():
+    if not allow_external or not os.getenv("GROQ_API_KEY", "").strip():
         return analyze_text(text, expected_bloom_level, process)
 
     try:
@@ -404,20 +406,33 @@ def run_analysis(
     education_level: str,
     expected_bloom_level: int,
     process: ProcessContext | None = None,
+    *,
+    allow_external: bool = True,
 ) -> dict:
     """Entry point tunggal analisis. Selalu mengembalikan dict lengkap.
 
     Jalur dasar dijalankan lebih dulu dan tanpa syarat, karena level Bloom
     hanya bisa datang dari sana. Detektor eksternal menyusul dan hanya menimpa
     skor AI bila ia benar benar menjawab.
+
+    allow_external=False berarti mahasiswa tidak mengizinkan jawabannya
+    dikirim ke penyedia di luar negeri (Pasal 56 ayat (4) UU PDP). Groq dan
+    detektor dilewati seluruhnya, termasuk cache detektor, sehingga skornya
+    murni heuristik di server ThinkPath dan panel "Asal Skor AI" menyebutnya.
     """
-    base = _run_base_analysis(text, education_level, expected_bloom_level, process)
+    base = _run_base_analysis(
+        text,
+        education_level,
+        expected_bloom_level,
+        process,
+        allow_external=allow_external,
+    )
 
     # Lewat cache, bukan lewat detector.detect() langsung. Seluruh pemanggil
     # analisis masuk lewat fungsi ini, termasuk tombol Analisis Ulang milik
     # dosen, sehingga satu tempat ini cukup untuk memastikan teks yang sama
     # tidak pernah dibayar dua kali.
-    result = detector_cache.detect_cached(text)
+    result = detector_cache.detect_cached(text) if allow_external else None
     final = (
         base
         if result is None

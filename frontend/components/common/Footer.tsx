@@ -1,6 +1,10 @@
+import Link from "next/link";
+
 import { Brandmark } from "@/components/common/Brandmark";
 
-const LINKS = ["Panduan", "Bantuan", "Kebijakan Privasi", "Hubungi Kampus"];
+// Halaman lain belum ada, jadi tetap tampil redup seperti menu yang belum
+// aktif di navigasi atas, bukan teks yang seolah bisa diklik.
+const PENDING_LINKS = ["Panduan", "Bantuan", "Hubungi Kampus"];
 
 export function Footer() {
   return (
@@ -12,11 +16,16 @@ export function Footer() {
             Lihat proses berpikirnya, bukan hanya nilainya
           </span>
         </div>
-        {/* Halamannya belum ada. Dulu teks ini berubah warna saat disorot,
-            seolah bisa diklik; sekarang tampil redup seperti menu yang
-            belum aktif di navigasi atas. */}
         <ul className="flex flex-wrap gap-x-6 gap-y-2 lg:ml-auto">
-          {LINKS.map((link) => (
+          <li>
+            <Link
+              href="/kebijakan-privasi"
+              className="font-medium text-foreground/80 transition hover:text-primary"
+            >
+              Kebijakan Privasi
+            </Link>
+          </li>
+          {PENDING_LINKS.map((link) => (
             <li
               key={link}
               title="Segera hadir"
