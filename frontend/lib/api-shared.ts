@@ -73,7 +73,13 @@ export function fetchApi(
 export async function resolveJson<T>(response: Response): Promise<T> {
   const body = await parseResponseBody(response);
   if (!response.ok) {
-    throw new ApiError(response.status, body);
+    // URL ikut di pesan supaya log server menyebut endpoint mana yang gagal;
+    // pesan ini tidak pernah ditampilkan ke pengguna.
+    throw new ApiError(
+      response.status,
+      body,
+      `API error ${response.status} ${response.url}`,
+    );
   }
   return body as T;
 }

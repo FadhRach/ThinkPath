@@ -146,6 +146,28 @@ REST_FRAMEWORK = {
 
 AUTH_TOKEN_LIFETIME_DAYS = int(os.getenv("AUTH_TOKEN_LIFETIME_DAYS", "7"))
 
+# Galat 500 dicetak beserta traceback ke stderr, yang ditampung log Vercel.
+# Bawaan Django hanya mencetak ke konsol saat DEBUG dan mengirim sisanya lewat
+# email ke ADMINS, yang tidak diisi di sini, sehingga galat produksi hilang
+# tanpa jejak. Saat DEBUG, konsol bawaan tetap dipakai supaya tidak dobel.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_false": {"()": "django.utils.log.RequireDebugFalse"},
+    },
+    "handlers": {
+        "stderr": {
+            "class": "logging.StreamHandler",
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+        },
+    },
+    "loggers": {
+        "django.request": {"handlers": ["stderr"]},
+    },
+}
+
 CORS_ALLOWED_ORIGINS = _env_list(
     "CORS_ALLOWED_ORIGINS",
     ["http://localhost:3000"],
