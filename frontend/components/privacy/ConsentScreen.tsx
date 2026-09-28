@@ -147,8 +147,15 @@ export function ConsentScreen({ role, previous, home }: Props) {
         {previous === "outdated" ? (
           <p className="rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-body-sm text-foreground">
             Kebijakan Privasi diperbarui pada {PRIVACY_POLICY_EFFECTIVE_LABEL}.{" "}
-            {isStudent ? "Baca perubahannya dan setujui kembali" : "Mohon baca perubahannya dan setujui kembali"}{" "}
-            untuk melanjutkan.
+            <a
+              href="/kebijakan-privasi#perubahan"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-primary hover:underline"
+            >
+              {isStudent ? "Baca perubahannya" : "Mohon baca perubahannya"}
+            </a>{" "}
+            dan setujui kembali untuk melanjutkan.
           </p>
         ) : previous === "withdrawn" ? (
           <p className="rounded-xl border border-border bg-muted px-4 py-3 text-body-sm text-foreground">
