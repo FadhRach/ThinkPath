@@ -78,21 +78,35 @@ export async function resolveJson<T>(response: Response): Promise<T> {
   return body as T;
 }
 
-// DRF mengembalikan {"detail": "..."} untuk error umum; error validasi per-field
+// DRF mengembalikan {"detail": "..."} untuk error umum, dan pesan dari validate()
+// serializer di {"non_field_errors": [...]}; di backend ini yang kedua selalu
+// pesan berbahasa Indonesia yang ditulis sendiri. Error validasi per-field
 // tidak diterjemahkan dan diwakili pesan fallback berbahasa Indonesia.
+function backendMessage(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
+  const { detail, non_field_errors: nonField } = body as {
+    detail?: unknown;
+    non_field_errors?: unknown;
+  };
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (Array.isArray(nonField) && typeof nonField[0] === "string") {
+    return nonField[0];
+  }
+  return null;
+}
+
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof NetworkError) {
     return NETWORK_ERROR_MESSAGE;
   }
   if (error instanceof ApiError) {
-    const body = error.body;
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "detail" in body &&
-      typeof (body as { detail: unknown }).detail === "string"
-    ) {
-      return (body as { detail: string }).detail;
+    const message = backendMessage(error.body);
+    if (message) {
+      return message;
     }
     if (error.status === 401) {
       return "Sesi login berakhir. Masuk ulang terlebih dahulu.";
