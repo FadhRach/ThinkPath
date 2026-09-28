@@ -25,7 +25,7 @@ flowchart TB
         CC["Komponen klien<br/>formulir dan grafik"]
     end
 
-    subgraph BE["Backend · Django 5 + DRF · Hugging Face Spaces"]
+    subgraph BE["Backend · Django 5 + DRF · Vercel"]
         AUTH["core/<br/>JWT, profil, izin akses"]
         API["academics/views.py<br/>15 endpoint"]
         AN["Lapisan analisis"]
@@ -97,8 +97,10 @@ satu pun permintaan halaman yang bergantung pada layanan luar.
 
 Keduanya dipanggil **berurutan**, bukan bersamaan: 8 detik untuk Winston lalu 12
 detik untuk Groq, sehingga kasus terburuknya 20 detik. Angka itu sengaja ditahan
-jauh di bawah tenggat gunicorn 60 detik supaya worker tidak pernah dibunuh tepat
-saat salah satu API hendak menjawab.
+jauh di bawah batas waktu server supaya proses tidak pernah dibunuh tepat saat
+salah satu API hendak menjawab: 300 detik untuk fungsi Vercel yang menjalankan
+backend produksi (batas bawaan Fluid compute), dan 60 detik untuk gunicorn di
+`Dockerfile`.
 
 ---
 
@@ -155,28 +157,46 @@ siapa pun yang menyunting berkas ini nanti.
 
 ```mermaid
 flowchart LR
-    subgraph V["Vercel"]
-        NX["Next.js<br/>NEXT_PUBLIC_BACKEND_URL"]
+    subgraph VF["Vercel · proyek frontend"]
+        NX["Next.js<br/>thinkpath.vercel.app<br/>fungsi di iad1, Washington, D.C."]
     end
-    subgraph H["Hugging Face Spaces"]
-        DK["Docker python:3.11-slim<br/>gunicorn · 2 worker · 4 thread<br/>port 7860"]
+    subgraph VB["Vercel · proyek backend"]
+        DJ["Django sebagai fungsi Python<br/>thinkpath-be.vercel.app<br/>fungsi di iad1, Washington, D.C."]
     end
     subgraph S["Supabase"]
-        PG[("PostgreSQL")]
+        PG[("PostgreSQL<br/>ap-southeast-2, Sydney")]
     end
 
-    NX -->|"HTTPS + Bearer"| DK
-    DK -->|"psycopg 3"| PG
-    DK -.->|"X-Forwarded-Proto: https"| DK
+    NX -->|"HTTPS + Bearer"| DJ
+    DJ -->|"psycopg 3"| PG
+    DJ -.->|"X-Forwarded-Proto: https"| DJ
 
     classDef box fill:#E8F4F5,stroke:#0E7C86
-    class NX,DK,PG box
+    class NX,DJ,PG box
 ```
 
-**Jebakan saat menempatkan.** HF butuh URL Vercel untuk `CORS_ALLOWED_ORIGINS`,
-sedangkan Vercel butuh URL HF untuk `NEXT_PUBLIC_BACKEND_URL`. Melingkar. Urutan
-yang bekerja: tempatkan backend lebih dulu dengan CORS sementara, tempatkan
-frontend, lalu kembali membetulkan CORS di HF.
+Frontend dan backend adalah dua proyek Vercel terpisah, keduanya di-deploy
+otomatis dari `main`. Repo tidak memuat `vercel.json`: Vercel mengenali backend
+sebagai proyek Django dari `manage.py` dan menjalankan `WSGI_APPLICATION`
+sebagai fungsi Python. Fungsi berjalan di Washington, D.C., sedangkan basis data
+di Sydney, jadi setiap kueri menempuh jarak jauh. Memindahkan region fungsi ke
+`syd1` akan memangkas jarak itu, tetapi juga mengubah lokasi pemrosesan yang
+tertulis di Kebijakan Privasi.
 
-`DJANGO_ALLOWED_HOSTS` wajib diisi nama Space. Kalau tetap `localhost`, seluruh
-permintaan ditolak `400` dengan penyebab yang sulit ditebak.
+**Vercel tidak menjalankan migrasi.** Setiap PR yang membawa migrasi baru harus
+diikuti `migrate` ke basis data produksi, atau endpoint yang menyentuh tabel baru
+gagal `500`, termasuk login. Langkahnya ada di
+[backend/README.md](../backend/README.md#migrasi-basis-data-produksi).
+
+**Jebakan saat menempatkan.** Backend butuh URL frontend untuk
+`CORS_ALLOWED_ORIGINS`, sedangkan frontend butuh URL backend untuk
+`NEXT_PUBLIC_BACKEND_URL`. Melingkar. Urutan yang bekerja: tempatkan backend
+lebih dulu dengan CORS sementara, tempatkan frontend, lalu kembali membetulkan
+CORS di backend.
+
+`DJANGO_ALLOWED_HOSTS` wajib memuat host backend. Kalau tetap `localhost`,
+seluruh permintaan ditolak `400` dengan penyebab yang sulit ditebak.
+
+`Dockerfile` di `backend/` masih bisa dipakai untuk Hugging Face Spaces atau
+host Docker lain (gunicorn, 2 worker, 4 thread, port 7860). Di sana `migrate`
+berjalan otomatis setiap kali container mulai.

@@ -7,9 +7,9 @@ yang mendasarinya, supaya isinya bisa diperiksa, bukan sekadar dipercaya.
 Sumber hukum dibaca langsung dari teks resmi UU No. 27 Tahun 2022 tentang
 Pelindungan Data Pribadi (UU PDP) di JDIH BPK, bukan dari ringkasan pihak ketiga.
 Fakta penyedia layanan diambil dari dokumen resmi masing-masing penyedia, yang
-dicantumkan di bagian 7.6.
+dicantumkan di bagian 7.7.
 
-Versi kebijakan yang dibahas: **2026-09-25**.
+Versi kebijakan yang dibahas: **2026-09-28**.
 
 ---
 
@@ -121,13 +121,30 @@ memakai ThinkPath secara resmi perlu melakukan penilaian dampaknya sendiri.
 
 ---
 
-## 7.5 Yang perlu dikonfirmasi tim sebelum rilis
+## 7.5 Lokasi server
+
+Versi 2026-09-25 menyebut basis data di Singapura dan server API di Hugging
+Face. Keduanya keliru: region Singapura diambil dari contoh host di
+`backend/.env.example`, bukan dari proyek produksi, dan Hugging Face hanya
+target `Dockerfile` yang tidak dipakai produksi. Versi 2026-09-28 mengoreksinya
+dari keadaan produksi yang terperiksa pada 28 September 2026:
+
+| Komponen | Lokasi | Cara memeriksa ulang |
+|---|---|---|
+| Basis data Supabase | `ap-southeast-2`, Sydney, Australia | Host pooler di `DATABASE_URL` produksi |
+| Backend Django di Vercel | `iad1`, Washington, D.C., Amerika Serikat | Header `x-vercel-id` dari `https://thinkpath-be.vercel.app/health`, bagian tengah `sin1::iad1::...` |
+| Frontend Next.js di Vercel | `iad1`, Washington, D.C., Amerika Serikat | Header `x-vercel-id` dari halaman yang dirender server, misalnya `/kebijakan-privasi` saat cache `MISS` |
+
+Bagian pertama `x-vercel-id` adalah simpul jaringan Vercel terdekat dari
+pemeriksa, bukan tempat data diproses. Setiap pemindahan region wajib diikuti
+pembaruan kebijakan dan kenaikan versinya.
+
+---
+
+## 7.6 Yang perlu dikonfirmasi tim sebelum rilis
 
 - **Kontak permohonan.** Isi `NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL` di Vercel. Tanpa
   itu kebijakan mengarahkan permohonan lewat dosen pengampu.
-- **Region Supabase produksi.** Kebijakan menyebut Singapura berdasarkan host
-  pooler `aws-1-ap-southeast-1` di `backend/.env.example`. Pastikan proyek
-  produksi memang di region itu.
 - **Zero Data Retention di Groq.** Tersedia di pengaturan Data Controls akun
   Groq; mengaktifkannya menghapus log 30 hari yang disebut kebijakan.
 - **Penilaian kesetaraan dan perjanjian pemrosesan** dengan penyedia, bila
@@ -135,7 +152,7 @@ memakai ThinkPath secara resmi perlu melakukan penilaian dampaknya sendiri.
 
 ---
 
-## 7.6 Sumber
+## 7.7 Sumber
 
 - UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi, JDIH BPK:
   https://peraturan.bpk.go.id/Details/229798/uu-no-27-tahun-2022
@@ -145,6 +162,9 @@ memakai ThinkPath secara resmi perlu melakukan penilaian dampaknya sendiri.
 - Groq, Services Agreement (bagian 4.2 dan 11.5):
   https://console.groq.com/docs/legal/services-agreement
 - Winston AI, Privacy Policy: https://gowinston.ai/privacy-policy/
-- Supabase, Vercel, dan Hugging Face, kebijakan privasi masing-masing:
-  https://supabase.com/privacy, https://vercel.com/legal/privacy-policy,
-  https://huggingface.co/privacy
+- Supabase dan Vercel, kebijakan privasi masing-masing:
+  https://supabase.com/privacy, https://vercel.com/legal/privacy-policy
+- Supabase, Available regions (`ap-southeast-2` = Sydney):
+  https://supabase.com/docs/guides/platform/regions
+- Vercel, Regions (`iad1` = Washington, D.C., region bawaan Vercel Functions):
+  https://vercel.com/docs/regions

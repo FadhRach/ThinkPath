@@ -9,8 +9,8 @@ import type { Role } from "@/lib/types";
  * Pasal 21 ayat (2) UU No. 27 Tahun 2022: perubahan informasi diberitahukan
  * sebelum terjadi.
  */
-export const PRIVACY_POLICY_VERSION = "2026-09-25";
-export const PRIVACY_POLICY_EFFECTIVE_LABEL = "25 September 2026";
+export const PRIVACY_POLICY_VERSION = "2026-09-28";
+export const PRIVACY_POLICY_EFFECTIVE_LABEL = "28 September 2026";
 
 /**
  * Surel untuk permohonan hak subjek data (Pasal 14: permohonan tercatat).
@@ -47,7 +47,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "data_perkuliahan",
       title: "Data akun dan perkuliahan",
-      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas, nilai, dan umpan balik dosen untuk menjalankan perkuliahan. Datanya disimpan dan diproses oleh penyedia cloud di luar Indonesia: Supabase untuk basis data (Singapura), serta Hugging Face dan Vercel untuk server aplikasi (perusahaan Amerika Serikat).",
+      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas, nilai, dan umpan balik dosen untuk menjalankan perkuliahan. Datanya disimpan dan diproses oleh penyedia cloud di luar Indonesia: Supabase untuk basis data (Sydney, Australia) dan Vercel untuk server aplikasi (Washington, D.C., Amerika Serikat).",
       required: true,
       anchor: "data-yang-dikumpulkan",
     },
@@ -77,7 +77,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "data_perkuliahan",
       title: "Data akun dan kelas",
-      body: "ThinkPath menyimpan akun Anda, kelas, tugas, materi, dan penilaian yang Anda berikan. Datanya disimpan dan diproses oleh penyedia cloud di luar Indonesia: Supabase untuk basis data (Singapura), serta Hugging Face dan Vercel untuk server aplikasi (perusahaan Amerika Serikat).",
+      body: "ThinkPath menyimpan akun Anda, kelas, tugas, materi, dan penilaian yang Anda berikan. Datanya disimpan dan diproses oleh penyedia cloud di luar Indonesia: Supabase untuk basis data (Sydney, Australia) dan Vercel untuk server aplikasi (Washington, D.C., Amerika Serikat).",
       required: true,
       anchor: "data-yang-dikumpulkan",
     },

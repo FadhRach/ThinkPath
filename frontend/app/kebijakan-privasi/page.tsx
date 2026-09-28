@@ -435,23 +435,13 @@ export default function PrivacyPolicyPage() {
                 rows={[
                   [
                     "Vercel Inc.",
-                    "Menyajikan antarmuka web.",
-                    "Halaman yang Anda buka beserta cookie token login.",
+                    "Menyajikan antarmuka web dan menjalankan server API.",
+                    "Halaman yang Anda buka, cookie token login, dan seluruh data yang dikirim ke dan dari API.",
                     <>
-                      Perusahaan Amerika Serikat.{" "}
+                      Perusahaan Amerika Serikat. Server aplikasi berjalan di Washington, D.C.,
+                      Amerika Serikat.{" "}
                       <ExternalLink href="https://vercel.com/legal/privacy-policy">
                         Kebijakan privasi Vercel
-                      </ExternalLink>
-                    </>,
-                  ],
-                  [
-                    "Hugging Face, Inc.",
-                    "Menjalankan server API.",
-                    "Seluruh data yang dikirim ke dan dari API.",
-                    <>
-                      Perusahaan Amerika Serikat.{" "}
-                      <ExternalLink href="https://huggingface.co/privacy">
-                        Kebijakan privasi Hugging Face
                       </ExternalLink>
                     </>,
                   ],
@@ -460,7 +450,7 @@ export default function PrivacyPolicyPage() {
                     "Basis data PostgreSQL.",
                     "Seluruh data yang disimpan ThinkPath.",
                     <>
-                      Server basis data di Singapura.{" "}
+                      Server basis data di Sydney, Australia.{" "}
                       <ExternalLink href="https://supabase.com/privacy">
                         Kebijakan privasi Supabase
                       </ExternalLink>
@@ -540,8 +530,10 @@ export default function PrivacyPolicyPage() {
                 <b>Keterbatasan yang kami ketahui.</b> Cookie token login belum berstatus
                 HttpOnly, sehingga dapat dibaca skrip di halaman; bila suatu saat ada celah
                 XSS, token bisa dicuri. Perbaikannya, yaitu memindahkan sesi ke sisi server,
-                sudah direncanakan. Batas percobaan masuk dihitung per proses server, sehingga
-                pada dua proses batas efektifnya dua kali lipat.
+                sudah direncanakan. Batas percobaan masuk disimpan di memori tiap instans
+                server. Vercel menjalankan server dalam jumlah instans yang berubah-ubah dan
+                instans baru mulai menghitung dari nol, sehingga batas itu meredam percobaan
+                otomatis tetapi bukan penjaga yang ketat.
               </p>
               <p>
                 Bila terjadi kegagalan pelindungan data, kami memberitahu Anda dan lembaga
@@ -669,7 +661,13 @@ export default function PrivacyPolicyPage() {
               </p>
               <PolicyTable
                 columns={["Versi", "Perubahan"]}
-                rows={[[PRIVACY_POLICY_VERSION, "Versi pertama."]]}
+                rows={[
+                  [
+                    PRIVACY_POLICY_VERSION,
+                    "Koreksi lokasi dan penyedia. Basis data berada di Sydney, Australia, bukan di Singapura seperti tertulis pada versi sebelumnya. Server API dijalankan Vercel di Washington, D.C., Amerika Serikat, bukan Hugging Face, sehingga Hugging Face dihapus dari daftar penyedia. Keterangan batas percobaan masuk disesuaikan dengan cara server berjalan di Vercel.",
+                  ],
+                  ["2026-09-25", "Versi pertama."],
+                ]}
               />
             </PolicySection>
 
@@ -709,9 +707,6 @@ export default function PrivacyPolicyPage() {
                   </ExternalLink>,
                   <ExternalLink key="vercel" href="https://vercel.com/legal/privacy-policy">
                     Vercel: Privacy Policy
-                  </ExternalLink>,
-                  <ExternalLink key="hf" href="https://huggingface.co/privacy">
-                    Hugging Face: Privacy Policy
                   </ExternalLink>,
                 ]}
               />
