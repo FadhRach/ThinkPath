@@ -29,7 +29,7 @@ Cek: `curl http://localhost:7860/health` harus mengembalikan `{"status":"ok"}`.
 **Menjalankan tes:**
 
 ```bash
-python manage.py test            # 177 tes (analisis, auth, detektor, ambang, bukti proses, materi, jadwal, notifikasi)
+python manage.py test            # 191 tes (analisis, auth, detektor, ambang, bukti proses, materi, jadwal, notifikasi, persetujuan)
 ```
 
 ---
@@ -68,6 +68,7 @@ Dua jebakan yang dikunci tes:
 | `ReasoningEvent` | `reasoning_events` | jejak proses: started/progress/revision/submitted (paste hanya di baris lama, tidak lagi ditulis) |
 | `Material` | `materials` | materi kelas: `topic` (topik/pertemuan, kosong = umum), judul, ringkasan, tautan http/https |
 | `Notification` | `notifications` | notifikasi per penerima; `group_key` menggabungkan yang sejenis, `read_at` status dibaca |
+| `ConsentRecord` | `consent_records` | bukti persetujuan data pribadi: `action` given/updated/withdrawn, `policy_version`, `items`; hanya ditambah, tidak pernah diubah |
 | `AnalysisResult` | `analysis_results` | OneToOne submission: `ai_score`, `ai_band`, `bloom_level`, `signals` |
 | `VerbalVerification` | `verbal_verifications` | jadwal & hasil sesi tanya jawab |
 | `DetectorScore` | `detector_scores` | cache skor detektor eksternal per hash teks |
@@ -86,6 +87,8 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | POST | `/api/auth/register` | publik | daftar, balikan token + profil |
 | POST | `/api/auth/login` | publik | login, balikan token + profil |
 | GET/PATCH | `/api/me` | login | profil sendiri |
+| GET/POST/PATCH | `/api/me/consent` | login | keadaan dan riwayat persetujuan / beri persetujuan (balikan token baru) / ubah izin analisis luar negeri |
+| POST | `/api/me/consent/withdraw` | login | tarik persetujuan (balikan token tanpa klaim persetujuan) |
 | GET/POST | `/api/classes` | dosen | daftar / buat kelas |
 | GET/POST | `/api/classes/<id>/assignments` | dosen pemilik | daftar / buat tugas |
 | GET | `/api/assignments` | dosen | seluruh tugas lintas kelas |
@@ -123,6 +126,12 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 `topic` adalah teks bebas seperti topik Google Classroom, misalnya "Pertemuan 3: Desain kualitatif". Spasi berlebih dirapikan supaya satu topik tidak terpecah menjadi dua kelompok. Pengurutan dan pengelompokan dilakukan frontend (materi umum dulu, lalu urutan alami: Pertemuan 2 sebelum Pertemuan 10).
 
 `GET /api/student/schedule?start=<ISO>&end=<ISO>` dipakai kalender. Kedua waktu wajib berzona, rentangnya paling panjang 62 hari (satu tampilan bulan paling banyak enam pekan). Batas hari dihitung frontend pada zona tampilan, jadi backend tetap tidak perlu tahu zona kampus. Rentang ini ikut memuat tenggat yang sudah lewat dan sesi yang sudah berlangsung (`status: "done"`, tanpa kesimpulannya); sesi yang dibatalkan tidak dimuat. Tiap agenda membawa `class_id` untuk saringan per kelas.
+
+### Persetujuan data pribadi
+
+Versi kebijakan yang berlaku ada di `core/privacy.py` (`PRIVACY_POLICY_VERSION`) dan wajib sama dengan `frontend/lib/privacy.ts`; tes memeriksa keduanya. Butir persetujuan dipisah per tujuan (Pasal 22 ayat (4) UU PDP): mahasiswa wajib `data_perkuliahan`, `analisis_proses`, `usia_atau_izin_wali`, dan boleh `analisis_luar_negeri`; dosen wajib `data_perkuliahan` dan `tanggung_jawab_dosen`.
+
+Token memuat klaim `consent` berisi versi yang disetujui, dibaca layout frontend untuk gerbang tampilan. Pemrosesan baru tidak memercayai klaim itu: pengumpulan jawaban dan Analisis Ulang memeriksa `ConsentRecord` terbaru di basis data dan menolak dengan `403` bila persetujuan tidak berlaku, sehingga penarikan berlaku seketika meski token lama masih beredar. Tanpa butir `analisis_luar_negeri`, `run_analysis(allow_external=False)` melewati Groq, detektor, dan cache detektor (Pasal 56 ayat (4)). Pemetaan pasal lengkapnya ada di `diagram/07-privasi-dan-persetujuan.md`.
 
 ### Notifikasi
 

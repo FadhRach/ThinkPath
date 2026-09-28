@@ -33,7 +33,8 @@ from academics.models import (
 )
 from academics.process_signals import ProcessContext, ProgressSample, evaluate_process
 from core.authentication import create_access_token
-from core.models import EducationLevel, Profile, Role
+from core.models import ConsentAction, EducationLevel, Profile, Role
+from core.privacy import REQUIRED_ITEMS, record_consent
 
 # Jawaban sekitar 150 kata. Isinya tidak penting untuk tes ini; yang diuji
 # adalah bukti proses, yang memang tidak membaca teks.
@@ -163,6 +164,10 @@ class SubmissionProcessApiTest(TestCase):
             join_code="EP-3B1XY",
         )
         ClassMembership.objects.create(class_ref=kelas, student_profile=self.student)
+        # Mengumpulkan jawaban mensyaratkan persetujuan Kebijakan Privasi.
+        record_consent(
+            self.student.id, ConsentAction.GIVEN, REQUIRED_ITEMS[Role.STUDENT]
+        )
         self.assignment = Assignment.objects.create(
             class_ref=kelas,
             title="Ketimpangan antarwilayah",

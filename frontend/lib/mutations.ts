@@ -1,8 +1,12 @@
 import { apiFetchBrowser } from "./api-browser";
+import { setAuthTokenCookie } from "./auth-token";
+import { PRIVACY_POLICY_VERSION, type ConsentItemKey } from "./privacy";
 import type {
   AnalysisView,
   AssignmentSummary,
   ClassSummary,
+  ConsentChangeResponse,
+  ConsentStatus,
   EducationLevel,
   JoinClassResult,
   Material,
@@ -157,6 +161,38 @@ export function updateMaterial(materialId: string, input: MaterialInput) {
 
 export function deleteMaterial(materialId: string) {
   return apiFetchBrowser<void>(`/api/materials/${materialId}`, { method: "DELETE" });
+}
+
+/**
+ * Memberi persetujuan untuk versi kebijakan yang dibaca pengguna. Token baru
+ * langsung disimpan karena klaim persetujuan di token lama sudah usang, dan
+ * layout membaca klaim itu untuk memutuskan perlu tidaknya layar persetujuan.
+ */
+export async function giveConsent(items: ConsentItemKey[]) {
+  const result = await apiFetchBrowser<ConsentChangeResponse>("/api/me/consent", {
+    method: "POST",
+    body: JSON.stringify({ policy_version: PRIVACY_POLICY_VERSION, items }),
+  });
+  setAuthTokenCookie(result.token);
+  return result.consent;
+}
+
+/** Mengubah izin analisis oleh penyedia di luar negeri (mahasiswa). */
+export async function setExternalAnalysis(allowed: boolean) {
+  const result = await apiFetchBrowser<{ consent: ConsentStatus }>("/api/me/consent", {
+    method: "PATCH",
+    body: JSON.stringify({ external_ai: allowed }),
+  });
+  return result.consent;
+}
+
+/** Menarik persetujuan. Pemrosesan baru berhenti seketika di server. */
+export async function withdrawConsent() {
+  const result = await apiFetchBrowser<ConsentChangeResponse>("/api/me/consent/withdraw", {
+    method: "POST",
+  });
+  setAuthTokenCookie(result.token);
+  return result.consent;
 }
 
 export function fetchNotifications() {

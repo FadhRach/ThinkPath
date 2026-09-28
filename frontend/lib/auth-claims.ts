@@ -7,6 +7,8 @@ export interface AuthClaims {
   sub: string;
   email: string;
   role: Role;
+  /** Versi Kebijakan Privasi yang disetujui saat token diterbitkan. */
+  consent: string | null;
 }
 
 // Membaca payload JWT TANPA verifikasi tanda tangan. Ini disengaja: klaim di
@@ -26,12 +28,12 @@ export function readAuthClaims(): AuthClaims | null {
     );
     if (typeof payload !== "object" || payload === null) return null;
 
-    const { sub, email, role, exp } = payload as Record<string, unknown>;
+    const { sub, email, role, exp, consent } = payload as Record<string, unknown>;
     if (typeof exp === "number" && exp * 1000 < Date.now()) return null;
     if (typeof sub !== "string" || typeof email !== "string") return null;
     if (role !== "teacher" && role !== "student") return null;
 
-    return { sub, email, role };
+    return { sub, email, role, consent: typeof consent === "string" ? consent : null };
   } catch {
     return null;
   }

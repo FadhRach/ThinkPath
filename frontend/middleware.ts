@@ -14,5 +14,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/student/:path*"],
+  // /kebijakan-privasi sengaja tidak di sini: kebijakan harus bisa dibaca
+  // sebelum seseorang mendaftar.
+  matcher: ["/dashboard/:path*", "/student/:path*", "/persetujuan"],
 };

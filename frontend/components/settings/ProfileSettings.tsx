@@ -1,10 +1,11 @@
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PrivacyPanel } from "@/components/settings/PrivacyPanel";
 import { ProfileForm } from "@/components/settings/ProfileForm";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/formatting";
-import type { Profile } from "@/lib/types";
+import type { ConsentStatus, Profile } from "@/lib/types";
 
 const ROLE_LABEL: Record<Profile["role"], string> = {
   teacher: "Dosen",
@@ -17,22 +18,31 @@ const ROLE_LABEL: Record<Profile["role"], string> = {
  * Sengaja satu komponen: yang bisa diubah sama persis untuk kedua peran, dan
  * menduplikasinya hanya membuka peluang keduanya menyimpang diam-diam.
  */
-export function ProfileSettings({ profile }: { profile: Profile }) {
+export function ProfileSettings({
+  profile,
+  consent,
+}: {
+  profile: Profile;
+  consent: ConsentStatus;
+}) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Pengaturan Profil"
+        title="Pengaturan"
         subtitle={
           profile.role === "teacher"
-            ? "Ubah nama tampil dan jenjang pendidikan Anda."
-            : "Ubah nama tampil dan jenjang pendidikanmu."
+            ? "Ubah nama tampil dan jenjang pendidikan Anda, serta kelola persetujuan data."
+            : "Ubah nama tampil dan jenjang pendidikanmu, serta kelola persetujuan datamu."
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="space-y-4 p-5 shadow-soft lg:col-span-2">
-          <ProfileForm profile={profile} />
-        </Card>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <Card className="space-y-4 p-5 shadow-soft">
+            <ProfileForm profile={profile} />
+          </Card>
+          <PrivacyPanel role={profile.role} consent={consent} />
+        </div>
 
         <div className="space-y-6">
           <Card className="space-y-4 p-5 shadow-soft">

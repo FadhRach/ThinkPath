@@ -2,6 +2,7 @@ import { ArrowRight, ScanSearch, Sparkles, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import { Brandmark } from "@/components/common/Brandmark";
+import { Footer } from "@/components/common/Footer";
 import { Button } from "@/components/ui/button";
 
 const FEATURES = [
@@ -74,6 +75,8 @@ export default function HomePage() {
           </div>
         ))}
       </section>
+
+      <Footer />
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AppShell } from "@/components/common/AppShell";
 import { NavUserSection, NavUserSkeleton } from "@/components/common/NavUserSection";
 import { readAuthClaims } from "@/lib/auth-claims";
+import { PRIVACY_POLICY_VERSION } from "@/lib/privacy";
 
 // Halaman dosen bergantung pada cookie auth per-request, jadi tidak boleh
 // di-prerender statis saat build.
@@ -20,6 +21,8 @@ export default function DashboardLayout({
   const claims = readAuthClaims();
   if (!claims) redirect("/login");
   if (claims.role !== "teacher") redirect("/student");
+  // Belum menyetujui versi kebijakan yang berlaku: baca dan setujui dulu.
+  if (claims.consent !== PRIVACY_POLICY_VERSION) redirect("/persetujuan");
 
   return (
     <AppShell

@@ -9,6 +9,7 @@ import uuid
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
+from django.utils import timezone
 
 
 class Role(models.TextChoices):
@@ -68,3 +69,44 @@ class Profile(models.Model):
 
     def __str__(self) -> str:
         return self.label
+
+
+class ConsentAction(models.TextChoices):
+    GIVEN = "given", "Diberikan"
+    # Pilihan opsional diubah tanpa menarik persetujuan wajib.
+    UPDATED = "updated", "Diperbarui"
+    WITHDRAWN = "withdrawn", "Ditarik"
+
+
+class ConsentRecord(models.Model):
+    """Bukti persetujuan pemrosesan data pribadi, satu baris per peristiwa.
+
+    UU No. 27 Tahun 2022 mewajibkan persetujuan tertulis atau terekam
+    (Pasal 22 ayat (1)) dan mewajibkan pengendali menunjukkan buktinya
+    (Pasal 24). Karena itu baris di sini tidak pernah diubah atau ditimpa:
+    memberi, mengubah pilihan, dan menarik persetujuan masing-masing menjadi
+    baris baru, sehingga riwayatnya utuh dan bisa ditunjukkan kepada pemiliknya.
+    Keadaan yang berlaku adalah baris terbaru; lihat core.privacy.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="consents",
+    )
+    action = models.CharField(max_length=16, choices=ConsentAction.choices)
+    # Versi kebijakan yang dibaca saat keputusan diambil. Persetujuan untuk
+    # versi lama tidak berlaku lagi setelah kebijakannya berubah.
+    policy_version = models.CharField(max_length=20)
+    # Kunci butir yang disetujui, lihat core.privacy. Kosong saat ditarik.
+    items = models.JSONField(default=list, blank=True)
+    # Bukan auto_now_add: core.privacy.record_consent menjamin waktunya selalu
+    # naik per pengguna, karena keadaan yang berlaku dibaca dari baris terbaru.
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "consent_records"
+        indexes = [
+            models.Index(fields=["profile", "-created_at"], name="consent_profile_recent_idx"),
+        ]
