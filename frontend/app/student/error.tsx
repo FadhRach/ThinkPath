@@ -2,12 +2,19 @@
 
 import { ErrorState } from "@/components/ErrorState";
 
-export default function StudentError({ reset }: { error: Error; reset: () => void }) {
+export default function StudentError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <ErrorState
-      title="Gagal memuat halaman mahasiswa"
-      caption="Server sedang tidak bisa dihubungi. Coba muat ulang beberapa saat lagi."
-      onRetry={reset}
+      title="Halaman gagal dimuat"
+      caption="Server ThinkPath sedang bermasalah atau tidak dapat dihubungi. Coba lagi beberapa saat lagi."
+      reset={reset}
+      digest={error.digest}
     />
   );
 }

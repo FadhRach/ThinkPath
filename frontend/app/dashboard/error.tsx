@@ -2,12 +2,19 @@
 
 import { ErrorState } from "@/components/ErrorState";
 
-export default function DashboardError({ reset }: { error: Error; reset: () => void }) {
+export default function DashboardError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <ErrorState
-      title="Gagal memuat dashboard"
-      caption="Server sedang tidak bisa dihubungi atau datanya bermasalah. Coba muat ulang; kalau berulang, pastikan backend berjalan."
-      onRetry={reset}
+      title="Data dasbor gagal dimuat"
+      caption="Server ThinkPath sedang bermasalah atau tidak dapat dihubungi. Coba lagi beberapa saat lagi."
+      reset={reset}
+      digest={error.digest}
     />
   );
 }
