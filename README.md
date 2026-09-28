@@ -34,8 +34,8 @@ Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pert
 | Layer | Teknologi | Deploy |
 |---|---|---|
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui, Recharts | Vercel |
-| Backend | Django 5 + DRF, PyJWT, gunicorn, psycopg | Hugging Face Spaces (Docker) |
-| Database | PostgreSQL, SQLite untuk dev offline | Supabase |
+| Backend | Django 5 + DRF, PyJWT, psycopg | Vercel, proyek terpisah (fungsi Python) |
+| Database | PostgreSQL, SQLite untuk dev offline | Supabase, region Sydney |
 | Analisis AI | Winston AI, Groq `llama-3.3-70b-versatile`, heuristik lokal | - |
 | Auth | Email + password, JWT HS256 diterbitkan Django | - |
 
@@ -52,7 +52,7 @@ thinkpath/
 Frontend tidak pernah menyentuh database langsung:
 
 ```
-Browser -> Next.js (Vercel) -> Django + DRF (HF Spaces) -> PostgreSQL (Supabase)
+Browser -> Next.js (Vercel) -> Django + DRF (Vercel) -> PostgreSQL (Supabase)
                                       |
                                       +-> Analisis: Winston -> Groq -> heuristik
 ```
@@ -91,6 +91,12 @@ npm run dev
 Buka http://localhost:3000 lalu login dengan akun demo di atas.
 
 Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/README.md](./frontend/README.md), dan [ai_experiment/README.md](./ai_experiment/README.md).
+
+## Deploy
+
+Frontend (`thinkpath.vercel.app`) dan backend (`thinkpath-be.vercel.app`) adalah dua proyek Vercel terpisah yang di-deploy otomatis dari `main`. Basis datanya Supabase.
+
+**Vercel tidak menjalankan migrasi.** Setiap PR yang menambah berkas di `backend/*/migrations/` wajib diikuti `python manage.py migrate` ke basis data produksi. Kalau terlewat, endpoint yang menyentuh tabel baru gagal `500`, termasuk login. Langkahnya ada di [backend/README.md](./backend/README.md#migrasi-basis-data-produksi).
 
 ## Sistem di Dalamnya
 

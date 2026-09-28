@@ -156,15 +156,50 @@ Dikirim setelah aksi utamanya tersimpan, dan kegagalannya tidak pernah menggagal
 
 ---
 
-## Deploy: Hugging Face Spaces (Docker)
+## Deploy produksi: Vercel
 
-`Dockerfile` sudah siap (`python:3.11-slim`, `EXPOSE 7860`, gunicorn). `.dockerignore` mencegah `.env` dan `db.sqlite3` ikut ter-bake ke image.
+Backend produksi berjalan sebagai proyek Vercel tersendiri di `https://thinkpath-be.vercel.app` dan di-deploy otomatis setiap ada commit baru di `main`. Repo tidak memuat `vercel.json`: Vercel mengenali proyek Django dari `manage.py`, lalu menjalankan `WSGI_APPLICATION` sebagai fungsi Python di region `iad1` (Washington, D.C.). Basis datanya Supabase di region `ap-southeast-2` (Sydney). Kedua lokasi itu tertulis di Kebijakan Privasi, jadi memindahkan salah satunya wajib diikuti pembaruan kebijakan dan kenaikan versinya.
+
+Environment proyek Vercel: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=0`, `DJANGO_ALLOWED_HOSTS` (memuat `thinkpath-be.vercel.app`), `CORS_ALLOWED_ORIGINS=https://thinkpath.vercel.app`, `DATABASE_URL`, `GROQ_API_KEY`, `WINSTON_API_KEY`. Perubahan env baru berlaku setelah redeploy. Saat `DEBUG=0`, `DJANGO_SECRET_KEY` wajib (boot gagal keras kalau kosong) dan flag keamanan (SSL redirect, HSTS, secure cookie, proxy SSL header) aktif otomatis.
+
+### Migrasi basis data produksi
+
+**Vercel tidak menjalankan `migrate`.** Saat build, Vercel memasang dependensi dan menjalankan `collectstatic` karena `STATIC_ROOT` diset, dan repo ini tidak mendefinisikan build command lain. Akibatnya kode baru bisa tayang sementara tabelnya belum ada. Gejalanya menyesatkan: login gagal `500`, padahal penyebabnya satu migrasi yang terlewat.
+
+Setiap PR yang menambah berkas di `*/migrations/` wajib diikuti langkah ini:
+
+1. Setelah merge, tunggu deploy backend di Vercel berstatus **Ready**.
+2. Di `main` lokal yang sudah di-pull, dari folder `backend/` dengan venv aktif, jalankan migrasi ke basis data produksi. Ambil URL-nya dari Supabase (Connect, Session pooler) dan set hanya di terminal, jangan ditulis ke `.env`:
+
+   ```powershell
+   $env:DATABASE_URL = "<URL Session pooler dari Supabase>"
+   python manage.py migrate
+   python manage.py migrate --check   # keluar 0 berarti tidak ada migrasi tertunda
+   Remove-Item Env:DATABASE_URL
+   ```
+
+   Di bash: `DATABASE_URL="<URL>" python manage.py migrate`, lalu ulangi dengan `migrate --check`.
+
+3. Coba login di `https://thinkpath.vercel.app`.
+
+Selama jeda antara deploy dan langkah 2, endpoint yang menyentuh tabel baru gagal `500`. Migrasi yang hanya menambah tabel atau kolom boleh dijalankan lebih dulu, tepat sebelum merge dan dari commit PR yang sudah final, karena kode lama tidak membaca tabel baru; cara ini menghapus jeda tersebut. Migrasi yang menghapus atau mengganti nama kolom harus sebaliknya: deploy dulu kode yang tidak lagi memakai kolom itu, baru jalankan migrasi.
+
+Untuk mengecek apakah produksi tertinggal tanpa mengubah apa pun, jalankan `migrate --check` atau `showmigrations` dengan `DATABASE_URL` produksi.
+
+Menjalankan `migrate` lewat build command (`[tool.vercel.scripts]` di `pyproject.toml`) memang mungkin, tetapi build preview untuk setiap PR ikut menjalankannya. Bila env Preview memakai `DATABASE_URL` yang sama, migrasi dari PR yang belum disetujui ikut masuk ke produksi. Jangan diotomatiskan sebelum preview punya basis data sendiri.
+
+### Urutan deploy pertama
+
+Backend butuh URL frontend di `CORS_ALLOWED_ORIGINS`, sementara frontend butuh URL backend di `NEXT_PUBLIC_BACKEND_URL`. Ketergantungannya melingkar, jadi lakukan tiga langkah: deploy backend dulu dengan `CORS_ALLOWED_ORIGINS=http://localhost:3000` sementara, deploy frontend memakai URL backend, lalu kembali ke proyek backend, isi `CORS_ALLOWED_ORIGINS` dengan URL frontend, dan redeploy. Tanpa langkah ketiga, gejalanya menyesatkan: halaman termuat tetapi semua data kosong, seolah backend mati padahal ia menolak dengan sengaja.
+
+**Catatan yang diketahui:** analisis berjalan sinkron di dalam request dan bisa memakan ±20 detik pada kasus terburuk (Winston 8s + Groq 12s). Batas bawaan durasi fungsi Vercel dengan Fluid compute adalah 300 detik, jadi masih jauh di atasnya. Memindahkannya ke background job adalah pekerjaan berikutnya yang belum dikerjakan.
+
+### Alternatif: Hugging Face Spaces (Docker)
+
+Tidak dipakai produksi, tetapi `Dockerfile` tetap siap (`python:3.11-slim`, `EXPOSE 7860`, gunicorn dengan `--timeout 60`). Berbeda dari Vercel, container ini menjalankan `migrate` setiap kali mulai. `.dockerignore` mencegah `.env` dan `db.sqlite3` ikut ter-bake ke image.
 
 1. Buat Space bertipe **Docker**, push folder `backend/`.
-2. Isi **Secrets** (jangan di Dockerfile): `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=0`, `DJANGO_ALLOWED_HOSTS=<space>.hf.space`, `CORS_ALLOWED_ORIGINS=https://<app>.vercel.app`, `DATABASE_URL`, `DB_CONN_MAX_AGE=60`, `GROQ_API_KEY`, `WINSTON_API_KEY`.
-3. Saat `DEBUG=0`, `DJANGO_SECRET_KEY` wajib (boot gagal keras kalau kosong) dan flag keamanan (SSL redirect, HSTS, secure cookie, proxy SSL header) aktif otomatis.
-4. HF free tier tidur setelah ~48 jam idle — pasang cron eksternal yang ping `/health` kalau perlu selalu hidup.
+2. Isi **Secrets** (jangan di Dockerfile) dengan env yang sama seperti di atas, dengan `DJANGO_ALLOWED_HOSTS=<space>.hf.space` dan tambahan `DB_CONN_MAX_AGE=60`.
+3. HF free tier tidur setelah ~48 jam idle. Pasang cron eksternal yang ping `/health` kalau perlu selalu hidup.
 
-**Urutan deploy yang menjegal.** Backend butuh URL Vercel di `CORS_ALLOWED_ORIGINS`, sementara Vercel butuh URL Space di `NEXT_PUBLIC_BACKEND_URL`. Ketergantungannya melingkar, jadi lakukan tiga langkah: deploy backend dulu dengan `CORS_ALLOWED_ORIGINS=http://localhost:3000` sementara, deploy frontend memakai URL Space, lalu kembali ke Space dan isi `CORS_ALLOWED_ORIGINS` dengan URL Vercel. Tanpa langkah ketiga, gejalanya menyesatkan: halaman termuat tetapi semua data kosong, seolah backend mati padahal ia menolak dengan sengaja.
-
-**Catatan yang diketahui:** analisis berjalan sinkron di dalam request dan bisa memakan ±20 detik pada kasus terburuk (Winston 8s + Groq 12s). `gunicorn --timeout 60` sudah disesuaikan untuk itu. Memindahkannya ke background job adalah pekerjaan berikutnya yang belum dikerjakan.
+Memindahkan produksi ke sini mengubah penyedia dan lokasi server, jadi Kebijakan Privasi harus diperbarui lebih dulu.

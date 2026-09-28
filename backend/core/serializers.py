@@ -34,9 +34,9 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(max_length=128)
     # Peran yang dipilih di layar login. Bila dikirim, wajib sama dengan peran
-    # akun. Sengaja opsional: frontend (Vercel) dan backend (HF Spaces) di-deploy
-    # terpisah, dan frontend lama yang belum mengirim peran tidak boleh ikut
-    # gagal login. Ini penjaga pengalaman pengguna, bukan kontrol akses; hak
+    # akun. Sengaja opsional: frontend dan backend adalah dua proyek Vercel yang
+    # di-deploy terpisah, dan frontend lama yang belum mengirim peran tidak boleh
+    # ikut gagal login. Ini penjaga pengalaman pengguna, bukan kontrol akses; hak
     # akses tetap ditentukan klaim peran di token.
     role = serializers.ChoiceField(choices=Role.choices, required=False)
 

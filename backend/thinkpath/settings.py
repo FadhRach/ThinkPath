@@ -125,9 +125,12 @@ REST_FRAMEWORK = {
     #
     # Batas yang perlu diketahui: penghitungnya disimpan di cache Django, dan
     # tanpa konfigurasi CACHES itu berarti LocMemCache yang terpisah per proses.
-    # Dengan gunicorn dua worker, batas efektifnya menjadi dua kali angka di
-    # bawah. Cukup untuk meredam tebak sandi otomatis, tetapi bukan penjaga yang
-    # ketat. Penjagaan sebenarnya menuntut cache bersama seperti Redis.
+    # Di Vercel, tempat backend produksi berjalan, jumlah instans berubah-ubah
+    # dan instans baru mulai dari hitungan nol; dengan gunicorn dua worker,
+    # batasnya menjadi dua kali angka di bawah. Cukup untuk meredam tebak sandi
+    # otomatis, tetapi bukan penjaga yang ketat, dan Kebijakan Privasi bagian
+    # Keamanan menyebutnya. Penjagaan sebenarnya menuntut cache bersama seperti
+    # Redis.
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
     ],
@@ -150,8 +153,8 @@ CORS_ALLOWED_ORIGINS = _env_list(
 CORS_ALLOW_CREDENTIALS = True
 
 # Pengamanan produksi. Aktif hanya saat DEBUG=False supaya dev lokal (HTTP)
-# tidak terkena redirect HTTPS. HF Spaces menaruh TLS di proxy, jadi Django
-# perlu tahu request asli HTTPS lewat header X-Forwarded-Proto.
+# tidak terkena redirect HTTPS. Vercel dan HF Spaces menaruh TLS di proxy, jadi
+# Django perlu tahu request asli HTTPS lewat header X-Forwarded-Proto.
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True

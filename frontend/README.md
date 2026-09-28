@@ -104,6 +104,7 @@ Empat keputusan yang saling terkait — jangan dicabut sebagian:
 |---|---|
 | `NEXT_PUBLIC_BACKEND_URL` | URL backend Django. Publik (ikut ke browser), aman karena hanya URL |
 | `NEXT_PUBLIC_DISPLAY_TIME_ZONE` | Zona waktu tampilan. Kosong berarti `Asia/Jakarta` |
+| `NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL` | Surel permohonan hak subjek data di Kebijakan Privasi. Kosong berarti permohonan diarahkan lewat dosen pengampu |
 
 Zona waktu **dipaku, bukan mengikuti mesin yang merender**. Backend mengirim seluruh waktu dalam UTC; tanpa zona yang disebut, hasilnya mengikuti proses yang kebetulan menjalankannya — benar di laptop UTC+7, meleset tujuh jam di Vercel yang UTC. Untuk produk ini itu bukan kosmetik, karena pembacaan forensik proses bergantung pada jam yang benar.
 
@@ -114,7 +115,9 @@ Zona waktu **dipaku, bukan mengikuti mesin yang merender**. Backend mengirim sel
 ## Deploy: Vercel
 
 1. Import folder `frontend/` sebagai project Vercel (Next.js terdeteksi otomatis).
-2. Set env `NEXT_PUBLIC_BACKEND_URL=https://<nama-space>.hf.space`.
+2. Set env `NEXT_PUBLIC_BACKEND_URL` ke URL backend. Di produksi: `https://thinkpath-be.vercel.app`, proyek Vercel terpisah (lihat [backend/README.md](../backend/README.md#deploy-produksi-vercel)).
 3. Deploy, lalu pastikan backend sudah mengizinkan origin Vercel di `CORS_ALLOWED_ORIGINS`.
+
+Frontend dan backend di-deploy terpisah dari `main`. Bila PR membawa migrasi, endpoint yang menyentuh tabel baru gagal `500` sampai `migrate` dijalankan ke basis data produksi, dan formulir menampilkan "Server ThinkPath sedang bermasalah". Langkahnya ada di [backend/README.md](../backend/README.md#migrasi-basis-data-produksi).
 
 > `NEXT_PUBLIC_BACKEND_URL` ikut ter-bake saat build, jadi mengubahnya menuntut **redeploy**, bukan sekadar restart. Jangan pernah menaruh rahasia di variabel berawalan `NEXT_PUBLIC_` — semuanya masuk ke bundel browser.
