@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * selama token belum memuat persetujuan untuk versi kebijakan yang berlaku.
  */
 export default async function ConsentPage() {
-  const claims = readAuthClaims();
+  const claims = await readAuthClaims();
   if (!claims) redirect("/login");
   const home = claims.role === "teacher" ? "/dashboard" : "/student";
   if (claims.consent === PRIVACY_POLICY_VERSION) redirect(home);

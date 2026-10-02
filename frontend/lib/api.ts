@@ -9,7 +9,7 @@ export { ApiError };
 // Fetcher sisi server (server component). Selalu no-store: data penilaian
 // harus segar; kecepatan navigasi ditangani loading.tsx + staleTimes router.
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = cookies().get(AUTH_COOKIE_NAME)?.value ?? null;
+  const token = (await cookies()).get(AUTH_COOKIE_NAME)?.value ?? null;
   const response = await fetchApi(path, { ...init, cache: "no-store" }, token);
 
   if (response.status === 401) {

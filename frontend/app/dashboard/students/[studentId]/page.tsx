@@ -8,11 +8,12 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { getStudentProfile } from "@/lib/data";
 
 interface Props {
-  params: { studentId: string };
+  params: Promise<{ studentId: string }>;
 }
 
 export default async function StudentProfilePage({ params }: Props) {
-  const profile = await getStudentProfile(params.studentId).catch(() => null);
+  const { studentId } = await params;
+  const profile = await getStudentProfile(studentId).catch(() => null);
   if (!profile) notFound();
 
   const belowTarget = profile.classes.filter(

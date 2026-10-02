@@ -26,17 +26,18 @@ export default async function ClassDetailPage({
   params,
   searchParams,
 }: {
-  params: { classId: string };
-  searchParams: SearchParams;
+  params: Promise<{ classId: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const section: ClassSection = searchParams.tab === "materi" ? "materi" : "tugas";
+  const [{ classId }, query] = await Promise.all([params, searchParams]);
+  const section: ClassSection = query.tab === "materi" ? "materi" : "tugas";
   const [classes, assignments, materials] = await Promise.all([
     getClasses(),
-    getAssignments(params.classId),
-    getClassMaterials(params.classId),
+    getAssignments(classId),
+    getClassMaterials(classId),
   ]);
 
-  const currentClass = classes.find((cls) => cls.id === params.classId);
+  const currentClass = classes.find((cls) => cls.id === classId);
   if (!currentClass) {
     notFound();
   }
@@ -98,7 +99,7 @@ export default async function ClassDetailPage({
           <ClassAssignments
             classId={currentClass.id}
             assignments={assignments}
-            selectedAssignmentId={searchParams.assignment}
+            selectedAssignmentId={query.assignment}
             newAssignmentHref={newAssignmentHref}
           />
         </Suspense>

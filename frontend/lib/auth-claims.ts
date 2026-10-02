@@ -15,8 +15,8 @@ export interface AuthClaims {
 // sini hanya menentukan tampilan (item nav per peran, redirect antar-peran)
 // tanpa panggilan jaringan, sehingga layout bisa merender seketika. Semua data
 // sungguhan tetap diminta ke backend, yang memverifikasi tanda tangan token.
-export function readAuthClaims(): AuthClaims | null {
-  const token = cookies().get(AUTH_COOKIE_NAME)?.value;
+export async function readAuthClaims(): Promise<AuthClaims | null> {
+  const token = (await cookies()).get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
 
   const parts = token.split(".");

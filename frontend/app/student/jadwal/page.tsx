@@ -27,20 +27,21 @@ function single(value: string | string[] | undefined): string | undefined {
 export default async function StudentSchedulePage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
   // Dihitung per permintaan, bukan sekali saat modul dimuat, supaya "hari
   // ini" tidak membeku pada hari server dinyalakan.
   const now = new Date();
+  const query = await searchParams;
   const today = dayKey(now.toISOString());
-  const view: CalendarView = single(searchParams.tampilan) === "minggu" ? "minggu" : "bulan";
-  const range = buildRange(view, parseDayKey(single(searchParams.tanggal)) ?? today);
+  const view: CalendarView = single(query.tampilan) === "minggu" ? "minggu" : "bulan";
+  const range = buildRange(view, parseDayKey(single(query.tanggal)) ?? today);
 
   const [classes, items] = await Promise.all([
     getStudentClasses(),
     getStudentSchedule(rangeInstants(range)),
   ]);
-  const requestedClass = single(searchParams.kelas);
+  const requestedClass = single(query.kelas);
   const selectedClass = classes.some((cls) => cls.id === requestedClass)
     ? (requestedClass as string)
     : null;

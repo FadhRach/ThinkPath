@@ -18,13 +18,14 @@ Keputusan yang dijaga agar tidak kembali:
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from academics.models import (
+    AnalysisSource,
     Assignment,
     Class,
     ClassMembership,
@@ -34,7 +35,7 @@ from academics.models import (
 from academics.process_signals import ProcessContext, ProgressSample, evaluate_process
 from core.authentication import create_access_token
 from core.models import ConsentAction, EducationLevel, Profile, Role
-from core.privacy import REQUIRED_ITEMS, record_consent
+from core.privacy import ITEM_EXTERNAL_AI, REQUIRED_ITEMS, record_consent
 
 # Jawaban sekitar 150 kata. Isinya tidak penting untuk tes ini; yang diuji
 # adalah bukti proses, yang memang tidak membaca teks.
@@ -254,3 +255,57 @@ class SubmissionProcessApiTest(TestCase):
         )
         self.assertIn("lonjakan", after)
         self.assertEqual(before, after)
+
+    def test_malformed_llm_response_does_not_block_submission_or_revision(self):
+        record_consent(
+            self.student.id,
+            ConsentAction.UPDATED,
+            (*REQUIRED_ITEMS[Role.STUDENT], ITEM_EXTERNAL_AI),
+        )
+        invalid_scores = (
+            '{"ai_probability": 1e309, "bloom_level": 2}',
+            '{"ai_probability": 40, "bloom_level": 1e309}',
+        )
+        payloads = (
+            {"choices": []},
+            *(
+                {"choices": [{"message": {"content": content}}]}
+                for content in invalid_scores
+            ),
+        )
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                Submission.objects.filter(assignment=self.assignment).delete()
+                response = Mock()
+                response.json.return_value = payload
+                with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}), patch(
+                    "academics.llm.requests.post", return_value=response
+                ), self.assertLogs("academics.llm", level="WARNING"):
+                    created = self._submit(**self._burst_payload())
+                    self.assertEqual(created.status_code, 201)
+                    submission = Submission.objects.get(pk=created.data["id"])
+                    self.assertEqual(
+                        submission.analysis.analysis_source, AnalysisSource.HEURISTIC
+                    )
+                    self.assertIn("lonjakan", self._process_evidence(submission))
+
+                    revised_text = ANSWER + " Saya menambahkan satu kalimat penutup."
+                    revised = self._submit(text_answer=revised_text)
+                    self.assertEqual(revised.status_code, 201)
+                    self.assertEqual(revised.data["id"], created.data["id"])
+                    submission.refresh_from_db()
+                    self.assertEqual(submission.text_answer, revised_text)
+                    self.assertEqual(submission.revision_count, 1)
+                    submission.analysis.refresh_from_db()
+                    self.assertEqual(
+                        submission.analysis.analysis_source, AnalysisSource.HEURISTIC
+                    )
+
+                    reanalysed = self._client_for(self.teacher).post(
+                        f"/api/submissions/{submission.id}/reanalyze", format="json"
+                    )
+                    self.assertEqual(reanalysed.status_code, 200)
+                    self.assertEqual(
+                        reanalysed.data["analysis"]["analysis_source"],
+                        AnalysisSource.HEURISTIC,
+                    )

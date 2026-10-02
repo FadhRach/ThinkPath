@@ -48,11 +48,12 @@ const BAND_DETAIL_COPY: Record<"low" | "mid" | "high", string> = {
 export default async function SubmissionDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   let detail: SubmissionDetail;
   try {
-    detail = await getSubmissionDetail(params.id);
+    detail = await getSubmissionDetail(id);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound();
     throw error;

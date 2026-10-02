@@ -12,11 +12,12 @@ import { getClasses } from "@/lib/data";
 export default async function NewAssignmentPage({
   params,
 }: {
-  params: { classId: string };
+  params: Promise<{ classId: string }>;
 }) {
+  const { classId } = await params;
   // Tidak ada endpoint GET single class; daftar kelas milik user cukup kecil.
   const classes = await getClasses();
-  const targetClass = classes.find((cls) => cls.id === params.classId);
+  const targetClass = classes.find((cls) => cls.id === classId);
 
   if (!targetClass) {
     notFound();
