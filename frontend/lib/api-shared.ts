@@ -11,6 +11,15 @@ export const SERVER_ERROR_MESSAGE =
   "Server ThinkPath sedang bermasalah. Coba lagi beberapa saat lagi.";
 export const NETWORK_ERROR_MESSAGE =
   "Tidak dapat menghubungi server ThinkPath. Periksa koneksi internet, lalu coba lagi.";
+export const CONFIGURATION_ERROR_MESSAGE =
+  "Layanan ThinkPath belum terhubung. Hubungi pengelola aplikasi.";
+
+export class ApiConfigurationError extends Error {
+  constructor() {
+    super("NEXT_PUBLIC_BACKEND_URL belum diset.");
+    this.name = "ApiConfigurationError";
+  }
+}
 
 export class ApiError extends Error {
   status: number;
@@ -47,7 +56,7 @@ export function fetchApi(
   token: string | null,
 ): Promise<Response> {
   if (!BACKEND_URL) {
-    throw new Error("NEXT_PUBLIC_BACKEND_URL belum diset.");
+    throw new ApiConfigurationError();
   }
 
   const headers = new Headers(init.headers);
@@ -106,6 +115,9 @@ function backendMessage(body: unknown): string | null {
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiConfigurationError) {
+    return CONFIGURATION_ERROR_MESSAGE;
+  }
   if (error instanceof NetworkError) {
     return NETWORK_ERROR_MESSAGE;
   }

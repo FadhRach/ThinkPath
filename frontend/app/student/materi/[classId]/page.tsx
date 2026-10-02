@@ -12,14 +12,15 @@ import { cn } from "@/lib/utils";
 export default async function StudentClassMaterialsPage({
   params,
 }: {
-  params: { classId: string };
+  params: Promise<{ classId: string }>;
 }) {
+  const { classId } = await params;
   const [classes, materials] = await Promise.all([
     getStudentClasses(),
     getStudentMaterials(),
   ]);
   // Hanya kelas yang diikuti; kelas lain tampil sebagai halaman tidak ditemukan.
-  const current = classes.find((cls) => cls.id === params.classId);
+  const current = classes.find((cls) => cls.id === classId);
   if (!current) {
     notFound();
   }

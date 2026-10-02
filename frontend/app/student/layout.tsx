@@ -13,12 +13,12 @@ export const dynamic = "force-dynamic";
 // Peran dibaca dari klaim JWT tanpa panggilan jaringan, sehingga shell dan
 // skeleton halaman tampil seketika; /api/me di-stream lewat NavUserSection
 // dan berjalan paralel dengan fetch halaman.
-export default function StudentLayout({
+export default async function StudentLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const claims = readAuthClaims();
+  const claims = await readAuthClaims();
   if (!claims) redirect("/login");
   if (claims.role !== "student") redirect("/dashboard");
   // Belum menyetujui versi kebijakan yang berlaku: baca dan setujui dulu.

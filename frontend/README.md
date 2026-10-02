@@ -1,6 +1,6 @@
 # ThinkPath — Frontend
 
-Next.js 14 (App Router) + TypeScript strict + Tailwind CSS + shadcn/ui. Seluruh data diambil dari backend Django; frontend tidak pernah mengakses database langsung.
+Next.js 15 (App Router) + React 19 + TypeScript strict + Tailwind CSS + shadcn/ui. Seluruh data diambil dari backend Django; frontend tidak pernah mengakses database langsung.
 
 > Panduan menyeluruh proyek ada di [README utama](../README.md).
 
@@ -16,6 +16,23 @@ npm run dev                        # http://localhost:3000
 
 Pastikan backend Django sudah jalan di port 7860 lebih dulu, lalu login dengan akun demo (password `thinkpath123`):
 `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`
+
+Di Windows PowerShell, jalankan dari folder `frontend/`:
+
+```powershell
+Copy-Item .env.local.example .env.local  # hanya jika .env.local belum ada
+npm install
+npm run dev
+```
+
+`NEXT_PUBLIC_BACKEND_URL` harus terisi di `.env.local`. Setelah mengubahnya, hentikan
+dan jalankan ulang `npm run dev`, lalu muat ulang halaman. Backend tetap harus
+berjalan di terminal terpisah; membuka frontend saja belum menjalankan API login
+dan pendaftaran. Untuk database lokal, biarkan `DATABASE_URL` backend kosong,
+jalankan migrasi dan `seed_demo_data` sesuai README utama.
+
+Jika peringatan hydration menyebut atribut `fdprocessedid`, coba halaman dengan
+ekstensi browser dinonaktifkan. Atribut tersebut bukan bagian dari form ThinkPath.
 
 ```bash
 npm run build    # production build

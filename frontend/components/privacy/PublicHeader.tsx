@@ -8,8 +8,8 @@ import { readAuthClaims } from "@/lib/auth-claims";
  * Header halaman publik seperti Kebijakan Privasi. Pengunjung yang sudah
  * masuk diberi jalan kembali ke aplikasi, yang belum diberi Masuk dan Daftar.
  */
-export function PublicHeader() {
-  const claims = readAuthClaims();
+export async function PublicHeader() {
+  const claims = await readAuthClaims();
   return (
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-3 px-4 py-4 sm:px-6">

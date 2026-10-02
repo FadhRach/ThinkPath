@@ -17,11 +17,12 @@ import type { StudentSubmissionWithText } from "@/lib/types";
 export default async function SubmitAssignmentPage({
   params,
 }: {
-  params: { assignmentId: string };
+  params: Promise<{ assignmentId: string }>;
 }) {
+  const { assignmentId } = await params;
   let detail;
   try {
-    detail = await getStudentAssignment(params.assignmentId);
+    detail = await getStudentAssignment(assignmentId);
   } catch (error) {
     if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
       notFound();

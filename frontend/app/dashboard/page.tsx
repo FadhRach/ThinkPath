@@ -13,9 +13,9 @@ import { getOverview } from "@/lib/data";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { kelas?: string };
+  searchParams: Promise<{ kelas?: string }>;
 }) {
-  const { classes } = await getOverview();
+  const [{ classes }, query] = await Promise.all([getOverview(), searchParams]);
   const belowTarget = classes.reduce((sum, item) => sum + item.below_target_count, 0);
   const flagged = classes.reduce((sum, item) => sum + item.high_band_count, 0);
 
@@ -73,7 +73,7 @@ export default async function DashboardPage({
             <ClassOverviewSection data={classes[0]} />
           ) : (
             <OverviewClassTabs
-              initialId={searchParams.kelas}
+              initialId={query.kelas}
               tabs={classes.map((item) => ({
                 id: item.class_id,
                 label: item.class_name,

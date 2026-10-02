@@ -11,15 +11,16 @@ import { groupByTopic } from "@/lib/materials";
 export default async function EditMaterialPage({
   params,
 }: {
-  params: { classId: string; materialId: string };
+  params: Promise<{ classId: string; materialId: string }>;
 }) {
+  const { classId, materialId } = await params;
   const classes = await getClasses();
-  const targetClass = classes.find((cls) => cls.id === params.classId);
+  const targetClass = classes.find((cls) => cls.id === classId);
   if (!targetClass) {
     notFound();
   }
   const materials = await getClassMaterials(targetClass.id);
-  const material = materials.find((item) => item.id === params.materialId);
+  const material = materials.find((item) => item.id === materialId);
   if (!material) {
     notFound();
   }

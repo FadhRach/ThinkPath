@@ -153,7 +153,10 @@ def _call_groq(text: str, education_level: str) -> dict:
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
-    content = response.json()["choices"][0]["message"]["content"]
+    choices = response.json()["choices"]
+    if not isinstance(choices, list) or not choices:
+        raise ValueError("Respons Groq tidak memuat pilihan jawaban.")
+    content = choices[0]["message"]["content"]
     return json.loads(content)
 
 
@@ -259,7 +262,14 @@ def _run_base_analysis(
     try:
         raw = _call_groq(text, education_level)
         return _parse_llm_result(raw, expected_bloom_level, process)
-    except (requests.RequestException, json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
+    except (
+        requests.RequestException,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+        TypeError,
+        OverflowError,
+    ) as exc:
         logger.warning("Analisis LLM gagal, memakai fallback heuristik: %s", exc)
         return analyze_text(text, expected_bloom_level, process)
 
