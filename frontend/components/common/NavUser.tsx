@@ -46,7 +46,7 @@ export function NavUser({ displayName, email, roleLabel, settingsHref }: Props) 
           {initials(name)}
         </span>
         <span className="hidden text-left leading-tight sm:block">
-          <span className="block text-sm font-semibold text-foreground">
+          <span title={name} className="block max-w-[10rem] truncate text-sm font-semibold text-foreground">
             {name}
           </span>
           <span className="block text-xs text-muted-foreground">
@@ -57,7 +57,7 @@ export function NavUser({ displayName, email, roleLabel, settingsHref }: Props) 
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="flex flex-col">
-          <span className="text-sm font-semibold">{name}</span>
+          <span className="break-words text-sm font-semibold">{name}</span>
           <span className="truncate text-xs font-normal text-muted-foreground">
             {email}
           </span>

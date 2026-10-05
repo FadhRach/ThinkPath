@@ -2,6 +2,7 @@ import { apiFetchBrowser } from "./api-browser";
 import { setAuthTokenCookie } from "./auth-token";
 import { PRIVACY_POLICY_VERSION, type ConsentItemKey } from "./privacy";
 import type {
+  Announcement,
   AnalysisView,
   AssignmentSummary,
   ClassSummary,
@@ -49,6 +50,20 @@ export function createAssignment(classId: string, input: CreateAssignmentInput) 
       body: JSON.stringify(input),
     },
   );
+}
+
+export function updateAssignment(assignmentId: string, input: CreateAssignmentInput) {
+  return apiFetchBrowser<AssignmentSummary>(`/api/assignments/${assignmentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function createAnnouncement(classId: string, input: { title: string; body: string }) {
+  return apiFetchBrowser<Announcement>(`/api/classes/${classId}/announcements`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 /** Satu cuplikan jumlah kata pada satu titik waktu selama pengerjaan. */

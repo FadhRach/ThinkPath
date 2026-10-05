@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 const POLL_MS = 60_000;
 
 const KIND_ICON: Record<NotificationKind, LucideIcon> = {
+  announcement_new: Bell,
   assignment_new: ClipboardList,
   material_new: BookOpen,
   submission_graded: CheckCircle2,

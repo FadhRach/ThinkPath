@@ -2,6 +2,9 @@ import { cache } from "react";
 
 import { apiFetch } from "./api";
 import type {
+  Announcement,
+  ClassRosterStudent,
+  TeacherSubmissionRow,
   AssignmentSummary,
   ClassSummary,
   CognitiveProfile,
@@ -50,6 +53,22 @@ export function getVerificationQueue() {
 
 export function getClasses() {
   return apiFetch<ClassSummary[]>("/api/classes");
+}
+
+export function getClassRoster(classId: string) {
+  return apiFetch<ClassRosterStudent[]>(`/api/classes/${classId}/students`);
+}
+
+export function getClassAnnouncements(classId: string) {
+  return apiFetch<Announcement[]>(`/api/classes/${classId}/announcements`);
+}
+
+export function getTeacherAssignment(assignmentId: string) {
+  return apiFetch<AssignmentSummary>(`/api/assignments/${assignmentId}`);
+}
+
+export function getTeacherSubmissions(status: "all" | "submitted" | "reviewed" = "all") {
+  return apiFetch<TeacherSubmissionRow[]>(`/api/submissions?status=${status}`);
 }
 
 export function getAssignments(classId: string) {

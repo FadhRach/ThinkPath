@@ -44,6 +44,8 @@ export function RoleSelector({ value, onChange }: Props) {
             type="button"
             onClick={() => onChange(option.value)}
             aria-pressed={selected}
+            // Form extensions can add fdprocessedid before React hydrates.
+            suppressHydrationWarning
             className={cn(
               "relative rounded-2xl border p-4 text-left transition",
               selected

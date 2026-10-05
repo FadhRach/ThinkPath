@@ -26,17 +26,17 @@ export default async function NewAssignmentPage({
   return (
     <div className="space-y-6">
       <BackLink
-        href={`/dashboard/classes/${targetClass.id}`}
+        href={`/dashboard/classes/${targetClass.id}?tab=tugas`}
         label="Kembali ke kelas"
       />
       <PageHeader
-        title="Buat Tugas Baru"
+        title="Buat tugas baru"
         subtitle={[targetClass.name, distinctSubject(targetClass.name, targetClass.subject)]
           .filter(Boolean)
           .join(" · ")}
       />
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="p-6 shadow-soft">
+      <div className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr]">
+        <Card className="campus-card p-5 sm:p-7">
           <CreateAssignmentForm classId={targetClass.id} />
         </Card>
         <Callout variant="info" title="Tentang target Bloom" icon={ShieldCheck}>

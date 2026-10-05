@@ -236,6 +236,22 @@ class Material(models.Model):
         return self.title
 
 
+class Announcement(models.Model):
+    """Pengumuman dosen untuk anggota satu kelas."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    class_ref = models.ForeignKey(
+        Class, on_delete=models.CASCADE, related_name="announcements", db_column="class_id"
+    )
+    title = models.CharField(max_length=160)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "announcements"
+        indexes = [models.Index(fields=["class_ref", "-created_at"], name="announcement_class_recent_idx")]
+
+
 class Submission(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     assignment = models.ForeignKey(

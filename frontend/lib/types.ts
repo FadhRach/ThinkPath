@@ -339,6 +339,27 @@ export interface SubmissionRow {
   analysis: { ai_band: AiBand; bloom_level: number } | null;
 }
 
+export interface TeacherSubmissionRow extends SubmissionRow {
+  assignment_title: string;
+  class_id: string;
+  class_name: string;
+}
+
+export interface ClassRosterStudent extends StudentMini {
+  joined_at: string;
+  submission_count: number;
+  reviewed_count: number;
+}
+
+export interface Announcement {
+  id: string;
+  class_id: string;
+  author_name: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
 export interface ReasoningEventView {
   event_type: EventType;
   occurred_at: string;
@@ -403,6 +424,7 @@ export interface ScheduleItem {
 }
 
 export type NotificationKind =
+  | "announcement_new"
   | "assignment_new"
   | "material_new"
   | "submission_graded"

@@ -17,6 +17,7 @@ class NotificationKind(models.TextChoices):
     # Untuk mahasiswa
     ASSIGNMENT_NEW = "assignment_new", "Tugas baru"
     MATERIAL_NEW = "material_new", "Materi baru"
+    ANNOUNCEMENT_NEW = "announcement_new", "Pengumuman kelas"
     SUBMISSION_GRADED = "submission_graded", "Jawaban dinilai"
     SESSION_SCHEDULED = "session_scheduled", "Sesi diskusi dijadwalkan"
     SESSION_CANCELLED = "session_cancelled", "Sesi diskusi dibatalkan"

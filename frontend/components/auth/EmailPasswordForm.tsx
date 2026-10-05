@@ -73,6 +73,7 @@ export function EmailPasswordForm({ mode }: Props) {
             <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="display-name"
+              suppressHydrationWarning
               type="text"
               required
               maxLength={120}
@@ -90,6 +91,8 @@ export function EmailPasswordForm({ mode }: Props) {
           <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="email"
+            // Ignore attributes injected by browser form extensions.
+            suppressHydrationWarning
             type="email"
             required
             autoComplete="email"
@@ -109,6 +112,7 @@ export function EmailPasswordForm({ mode }: Props) {
           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="password"
+            suppressHydrationWarning
             type={showPassword ? "text" : "password"}
             required
             minLength={6}
@@ -119,6 +123,7 @@ export function EmailPasswordForm({ mode }: Props) {
           />
           <button
             type="button"
+            suppressHydrationWarning
             onClick={() => setShowPassword((prev) => !prev)}
             aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
@@ -130,7 +135,7 @@ export function EmailPasswordForm({ mode }: Props) {
 
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
 
-      <Button type="submit" disabled={pending} className="w-full" size="lg">
+      <Button type="submit" suppressHydrationWarning disabled={pending} className="w-full" size="lg">
         {pending ? "Memproses..." : submitLabel}
       </Button>
     </form>

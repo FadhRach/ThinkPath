@@ -11,9 +11,9 @@ interface Props {
 
 export function AppShell({ role, userMenu, children }: Props) {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className={`flex min-h-screen flex-col bg-background text-foreground ${role === "student" ? "student-theme" : "teacher-theme"}`}>
       <TopNav role={role} userMenu={userMenu} />
-      <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         {children}
       </main>
       <Footer />

@@ -94,10 +94,9 @@ export async function resolveJson<T>(response: Response): Promise<T> {
 }
 
 // DRF mengembalikan {"detail": "..."} untuk error umum, dan pesan dari validate()
-// serializer di {"non_field_errors": [...]}; di backend ini yang kedua selalu
-// pesan berbahasa Indonesia yang ditulis sendiri. Error validasi per-field
-// tidak diterjemahkan dan diwakili pesan fallback berbahasa Indonesia.
-function backendMessage(body: unknown): string | null {
+// serializer di {"non_field_errors": [...]}. Respons validasi 400 juga dapat
+// menyimpan pesan di field, misalnya {"email": ["Email sudah terdaftar."]}.
+function backendMessage(body: unknown, includeFieldErrors = false): string | null {
   if (typeof body !== "object" || body === null) {
     return null;
   }
@@ -111,6 +110,15 @@ function backendMessage(body: unknown): string | null {
   if (Array.isArray(nonField) && typeof nonField[0] === "string") {
     return nonField[0];
   }
+  if (includeFieldErrors) {
+    // DRF puts registration errors such as an existing email under the field
+    // name. Keep the backend's actionable message instead of a generic failure.
+    for (const value of Object.values(body)) {
+      if (Array.isArray(value) && typeof value[0] === "string") {
+        return value[0];
+      }
+    }
+  }
   return null;
 }
 
@@ -122,7 +130,7 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
     return NETWORK_ERROR_MESSAGE;
   }
   if (error instanceof ApiError) {
-    const message = backendMessage(error.body);
+    const message = backendMessage(error.body, error.status === 400);
     if (message) {
       return message;
     }

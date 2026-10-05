@@ -61,6 +61,22 @@ Browser -> Next.js (Vercel) -> Django + DRF (Vercel) -> PostgreSQL (Supabase)
 
 Prasyarat: Python 3.11+ dan Node.js 20+
 
+Untuk menjalankan frontend dan backend sekaligus dari folder utama (Windows):
+
+```powershell
+python -m venv .venv                         # hanya untuk setup pertama
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+npm ci --prefix frontend
+npm run dev
+```
+
+`npm run dev` dari folder utama atau `frontend/` memakai Python dari `.venv`, menjalankan migrasi SQLite lokal,
+mengisi data demo hanya jika database kosong, lalu memulai Django di port 7860
+dan Next.js di port 3000. Buka http://localhost:3000. Perintah ini memakai database
+lokal dan mempertahankan berkas environment yang sudah ada. Ctrl+C menghentikan
+kedua server. Hentikan server lama sebelum menjalankannya agar port tidak bentrok.
+Untuk pengembangan backend, jalankan ulang perintah setelah mengubah berkas Python.
+
 **1. Backend**
 
 ```bash
@@ -83,9 +99,9 @@ Tanpa Supabase, kosongkan `DATABASE_URL` di `.env` dan backend otomatis memakai 
 
 ```bash
 cd frontend
-cp .env.local.example .env.local  # NEXT_PUBLIC_BACKEND_URL=http://localhost:7860
+cp .env.local.example .env.local  # NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860
 npm install
-npm run dev
+npm run dev:frontend             # backend terpisah harus sudah berjalan
 ```
 
 Buka http://localhost:3000 lalu login dengan akun demo di atas.

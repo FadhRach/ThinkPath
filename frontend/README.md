@@ -8,13 +8,18 @@ Next.js 15 (App Router) + React 19 + TypeScript strict + Tailwind CSS + shadcn/u
 
 ## Menjalankan Lokal
 
+Jalankan `npm run dev` dari folder utama proyek atau dari `frontend/`. Keduanya
+memulai backend dan frontend bersama dengan database SQLite lokal (lihat setup
+`.venv` di README utama), menjalankan migrasi, dan menunggu API siap sebelum
+membuka frontend.
+
 ```bash
-cp .env.local.example .env.local   # NEXT_PUBLIC_BACKEND_URL=http://localhost:7860
+cp .env.local.example .env.local   # NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860
 npm install
 npm run dev                        # http://localhost:3000
 ```
 
-Pastikan backend Django sudah jalan di port 7860 lebih dulu, lalu login dengan akun demo (password `thinkpath123`):
+Setelah kedua server siap, login dengan akun demo (password `thinkpath123`):
 `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`
 
 Di Windows PowerShell, jalankan dari folder `frontend/`:
@@ -25,14 +30,21 @@ npm install
 npm run dev
 ```
 
-`NEXT_PUBLIC_BACKEND_URL` harus terisi di `.env.local`. Setelah mengubahnya, hentikan
-dan jalankan ulang `npm run dev`, lalu muat ulang halaman. Backend tetap harus
-berjalan di terminal terpisah; membuka frontend saja belum menjalankan API login
-dan pendaftaran. Untuk database lokal, biarkan `DATABASE_URL` backend kosong,
-jalankan migrasi dan `seed_demo_data` sesuai README utama.
+`npm run dev` menghubungkan frontend ke API lokal di `127.0.0.1:7860`. Hentikan
+server lama sebelum menjalankannya agar port tidak bentrok. Ctrl+C menghentikan
+kedua server.
 
-Jika peringatan hydration menyebut atribut `fdprocessedid`, coba halaman dengan
-ekstensi browser dinonaktifkan. Atribut tersebut bukan bagian dari form ThinkPath.
+Jika backend dikelola di terminal terpisah atau memakai API remote, jalankan
+`npm run dev:frontend`. Perintah ini memakai `NEXT_PUBLIC_BACKEND_URL` dari
+`.env.local`; backend harus siap lebih dulu. Setelah mengubah URL, jalankan ulang
+`npm run dev:frontend`, lalu muat ulang halaman.
+
+URL API lokal memakai `127.0.0.1` supaya browser tidak memilih alamat IPv6
+`::1` saat Django hanya mendengarkan di IPv4.
+
+Ekstensi browser dapat menambahkan atribut `fdprocessedid` sebelum React
+melakukan hydration. Kontrol form login dan pendaftaran memakai
+`suppressHydrationWarning` secara lokal untuk menoleransi atribut tambahan ini.
 
 ```bash
 npm run build    # production build
@@ -82,7 +94,7 @@ frontend/
 | Mahasiswa | `/student` | Beranda: tugas aktif dan nilai |
 | Mahasiswa | `/student/tugas` | Daftar tugas dan tenggat |
 | Mahasiswa | `/student/submit/[id]` | Mengerjakan / merevisi jawaban |
-| Mahasiswa | `/student/progres` | Perkembangan penalaran, **tanpa kolom indikasi AI** |
+| Mahasiswa | `/student/progress` | Perkembangan penalaran dan rekap nilai tugas per kelas, **tanpa kolom indikasi AI** |
 | Keduanya | `/dashboard/pengaturan`, `/student/pengaturan` | Ubah nama tampil dan jenjang |
 
 Menu **Materi** dan **Jadwal** sengaja dibiarkan nonaktif, bukan diisi halaman kosong. Keduanya butuh model backend yang belum ada, dan menu yang bisa diklik tetapi tidak melakukan apa pun lebih menyesatkan daripada menu yang jujur menyatakan dirinya belum jadi.

@@ -1,4 +1,4 @@
-import { ArrowRight, ScanSearch, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, ScanSearch, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import { Brandmark } from "@/components/common/Brandmark";
@@ -57,6 +57,27 @@ export default function HomePage() {
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link href="/login">Masuk</Link>
+          </Button>
+        </div>
+
+        <div className="mx-auto mt-6 flex max-w-2xl flex-col items-center gap-4 rounded-2xl border border-border bg-card/80 p-4 shadow-soft sm:flex-row sm:gap-5 sm:text-left">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-primary">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <p className="text-body-sm text-muted-foreground">
+              Kenali cara kami melindungi data pribadi dan hak Anda.
+            </p>
+          </div>
+          <Button
+            asChild
+            variant="outline"
+            className="h-auto min-h-11 w-full whitespace-normal rounded-xl px-4 py-3 text-center leading-relaxed sm:w-auto sm:shrink-0"
+          >
+            <Link href="/kebijakan-privasi">
+              Lihat Pernyataan Perlindungan Data
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </Button>
         </div>
       </section>

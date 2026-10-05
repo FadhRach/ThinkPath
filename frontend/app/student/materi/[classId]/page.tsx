@@ -53,7 +53,7 @@ export default async function StudentClassMaterialsPage({
           <FolderOpen className="h-7 w-7" />
         </span>
         <div className="min-w-0 space-y-1">
-          <h1 className="text-display-2 font-extrabold tracking-tight text-foreground">
+          <h1 className="text-display-2 font-semibold tracking-tight text-foreground">
             {current.name}
           </h1>
           <p className="text-body text-muted-foreground">

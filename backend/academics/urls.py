@@ -21,6 +21,7 @@ from .views import (
     SubmissionVerificationView,
     VerificationQueueView,
 )
+from .teaching_views import AssignmentDetailView, ClassAnnouncementView, ClassRosterView, TeacherSubmissionQueueView
 
 
 urlpatterns = [
@@ -28,8 +29,12 @@ urlpatterns = [
     path("classes", ClassListCreateView.as_view()),
     path("classes/<str:class_id>/assignments", AssignmentListCreateView.as_view()),
     path("classes/<str:class_id>/materials", ClassMaterialListCreateView.as_view()),
+    path("classes/<str:class_id>/students", ClassRosterView.as_view()),
+    path("classes/<str:class_id>/announcements", ClassAnnouncementView.as_view()),
     path("materials/<str:material_id>", MaterialDetailView.as_view()),
     path("assignments", TeacherAssignmentListView.as_view()),
+    path("assignments/<str:assignment_id>", AssignmentDetailView.as_view()),
+    path("submissions", TeacherSubmissionQueueView.as_view()),
     path("overview", TeacherOverviewView.as_view()),
     path("join", JoinClassView.as_view()),
     path("student/classes", StudentClassListView.as_view()),

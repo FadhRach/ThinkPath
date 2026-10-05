@@ -43,7 +43,8 @@ const BAND_DETAIL_COPY: Record<"low" | "mid" | "high", string> = {
  * Setiap fakta ditulis SEKALI. Versi sebelumnya mengulang jam mulai, revisi,
  * dan tempel di lima tempat (header, Evidence Strip, penanda linimasa, daftar
  * linimasa, Ringkasan Proses), sehingga halaman memanjang tanpa menambah bukti.
- * Kolom kiri untuk membaca dan memutuskan; kolom kanan untuk bukti.
+ * Jawaban dan penilaian tampil lebih dahulu. Bukti terperinci dapat dibuka
+ * sesuai kebutuhan tanpa menghalangi alur membaca dan memberi umpan balik.
  */
 export default async function SubmissionDetailPage({
   params,
@@ -74,7 +75,7 @@ export default async function SubmissionDetailPage({
     breakdown.map((item) => item.evidence),
   );
   const backHref = detail.assignment.class_id
-    ? `/dashboard/classes/${detail.assignment.class_id}?assignment=${detail.assignment.id}`
+    ? `/dashboard/classes/${detail.assignment.class_id}?tab=tugas&assignment=${detail.assignment.id}`
     : "/dashboard/tugas";
 
   return (
@@ -84,11 +85,12 @@ export default async function SubmissionDetailPage({
         label={detail.assignment.class_id ? "Kembali ke kelas" : "Kembali ke daftar tugas"}
       />
 
-      <Card className="flex flex-col gap-4 p-5 shadow-soft sm:flex-row sm:items-center">
+      <Card className="campus-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <AvatarInitials name={detail.student.display_name} size="lg" />
           <div className="min-w-0 space-y-0.5">
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-display-2">
+
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-display-2">
               {detail.student.display_name}
             </h1>
             <p className="text-body font-medium text-foreground">{detail.assignment.title}</p>
@@ -101,8 +103,7 @@ export default async function SubmissionDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Di layar lebar cincin skor terlihat di samping. Di ponsel kolom
-              bukti turun ke bawah formulir, jadi ringkasannya dinaikkan ke sini. */}
+          {/* Indikasi ringkas; rincian tersedia pada bagian analisis. */}
           {analysis ? (
             <span
               className={cn(
@@ -129,7 +130,16 @@ export default async function SubmissionDetailPage({
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(19rem,1fr)]">
+        <SectionCard eyebrow="Jawaban mahasiswa">
+          {detail.text_answer ? <SentenceRhythm text={detail.text_answer} /> : <p className="text-sm text-muted-foreground">Belum ada teks jawaban.</p>}
+        </SectionCard>
+        <aside className="lg:sticky lg:top-24"><GradingForm key={detail.id} submissionId={detail.id} initialGrade={detail.grade} initialFeedback={detail.teacher_feedback} /></aside>
+      </div>
+      <VerificationPanel submissionId={detail.id} verification={detail.verification} />
+      <details className="group rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <summary className="cursor-pointer text-sm font-bold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Lihat analisis dan bukti pengerjaan <span className="ml-2 text-xs font-normal text-muted-foreground">Bloom, sinyal teks, dan linimasa</span></summary>
+      <div className="mt-5 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           {analysis?.summary ? (
             <Callout variant={isFlagged ? "danger" : "info"} title="Ringkasan Analisis">
@@ -165,21 +175,11 @@ export default async function SubmissionDetailPage({
             </Card>
           ) : null}
 
-          <SectionCard eyebrow="Jawaban Mahasiswa">
-            {detail.text_answer ? (
-              <SentenceRhythm text={detail.text_answer} />
-            ) : (
-              <p className="text-body text-muted-foreground">Belum ada teks jawaban.</p>
-            )}
-          </SectionCard>
-
-          <VerificationPanel submissionId={detail.id} verification={detail.verification} />
-
-          <GradingForm
-            submissionId={detail.id}
-            initialGrade={detail.grade}
-            initialFeedback={detail.teacher_feedback}
-          />
+          {breakdown.length > 0 ? (
+            <SectionCard eyebrow="Asal Skor AI">
+              <SignalBreakdown breakdown={breakdown} source={analysis?.analysis_source} />
+            </SectionCard>
+          ) : null}
         </div>
 
         <aside className="space-y-4">
@@ -204,12 +204,6 @@ export default async function SubmissionDetailPage({
             <EvidenceStrip rows={evidenceRows} />
           </SectionCard>
 
-          {breakdown.length > 0 ? (
-            <SectionCard eyebrow="Asal Skor AI">
-              <SignalBreakdown breakdown={breakdown} source={analysis?.analysis_source} />
-            </SectionCard>
-          ) : null}
-
           {/* Tanpa rincian skor, daftar sinyal adalah satu-satunya penjelasan
               teks dan selalu ditampilkan. Dengan rincian, hanya temuan yang
               belum muncul di sana yang tersisa. */}
@@ -233,6 +227,7 @@ export default async function SubmissionDetailPage({
           <ReanalyzeButton submissionId={detail.id} />
         </aside>
       </div>
+      </details>
     </div>
   );
 }

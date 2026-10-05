@@ -1,164 +1,78 @@
-import { CheckCircle2, Clock, FileText } from "lucide-react";
-import Link from "next/link";
+import { ClipboardList, Clock3, CheckCircle2, GraduationCap, type LucideIcon } from "lucide-react";
 
-import { BloomBadge } from "@/components/common/BloomBadge";
-import { DataTable, DataTableRow } from "@/components/common/DataTable";
+import { StudentTaskList, type StudentTaskRow } from "@/components/student/StudentTaskList";
 import { PageHeader } from "@/components/common/PageHeader";
-import { SectionCard } from "@/components/common/SectionCard";
-import { StatCard } from "@/components/common/StatCard";
-import { EmptyState } from "@/components/dashboard/EmptyState";
+import { Card } from "@/components/ui/card";
 import { distinctSubject } from "@/lib/academic";
 import { getStudentClasses } from "@/lib/data";
-import { formatDate } from "@/lib/formatting";
-import type { StudentClassWithAssignments } from "@/lib/types";
-import { submissionStatusMeta } from "@/lib/ui";
-import { cn } from "@/lib/utils";
-
-interface Row {
-  assignmentId: string;
-  title: string;
-  className: string;
-  /** Null bila mata kuliah sudah tertulis di nama kelas. */
-  subject: string | null;
-  deadline: string | null;
-  expectedLevel: number;
-  submission: StudentClassWithAssignments["assignments"][number]["submission"];
-}
-
-/** Ratakan tugas dari semua kelas menjadi satu daftar berurut tenggat. */
-function flatten(classes: StudentClassWithAssignments[]): Row[] {
-  const rows: Row[] = [];
-  for (const cls of classes) {
-    for (const assignment of cls.assignments) {
-      rows.push({
-        assignmentId: assignment.id,
-        title: assignment.title,
-        className: cls.name,
-        subject: distinctSubject(cls.name, cls.subject),
-        deadline: assignment.deadline,
-        expectedLevel: assignment.expected_bloom_level,
-        submission: assignment.submission,
-      });
-    }
-  }
-  // Tenggat terdekat lebih dulu; tugas tanpa tenggat ditaruh di akhir.
-  return rows.sort((a, b) => {
-    if (a.deadline === b.deadline) return 0;
-    if (a.deadline === null) return 1;
-    if (b.deadline === null) return -1;
-    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-  });
-}
-
-function isDone(row: Row): boolean {
-  return row.submission !== null && row.submission.status !== "draft";
-}
 
 export default async function StudentTugasPage() {
   const classes = await getStudentClasses();
-  const rows = flatten(classes);
-  const pending = rows.filter((row) => !isDone(row));
-  const done = rows.filter(isDone);
+  const rows: StudentTaskRow[] = classes
+    .flatMap((studentClass) =>
+      studentClass.assignments.map((assignment) => ({
+        assignmentId: assignment.id,
+        title: assignment.title,
+        classId: studentClass.id,
+        className: studentClass.name,
+        subject: distinctSubject(studentClass.name, studentClass.subject),
+        deadline: assignment.deadline,
+        expectedLevel: assignment.expected_bloom_level,
+        submission: assignment.submission,
+      })),
+    )
+    .sort((a, b) => {
+      if (a.deadline === b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
+  const notSubmitted = rows.filter((row) => !row.submission || row.submission.status === "draft").length;
+  const awaitingReview = rows.filter((row) => row.submission?.status === "submitted").length;
+  const reviewed = rows.filter((row) => row.submission?.status === "reviewed").length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        title="Daftar Tugas"
-        subtitle="Semua tugas dari kelas yang kamu ikuti, tenggat terdekat di atas."
+        title="Tugas"
+        subtitle="Satu tempat untuk melihat pekerjaan, tenggat, dan hasil dari semua kelasmu."
       />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          icon={Clock}
-          label="Belum dikumpulkan"
-          value={pending.length}
-          tone={pending.length > 0 ? "warning" : "brand"}
-        />
-        <StatCard icon={CheckCircle2} label="Sudah dikumpulkan" value={done.length} />
-        <StatCard icon={FileText} label="Kelas diikuti" value={classes.length} />
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+        <TaskStat icon={Clock3} label="Belum dikumpulkan" value={notSubmitted} tone="coral" />
+        <TaskStat icon={ClipboardList} label="Menunggu nilai" value={awaitingReview} tone="teal" />
+        <TaskStat icon={CheckCircle2} label="Sudah dinilai" value={reviewed} tone="indigo" />
       </div>
-
       {rows.length === 0 ? (
-        <EmptyState
-          title="Belum ada tugas"
-          caption="Gabung ke kelas lewat kode dari dosenmu, lalu tugasnya muncul di sini."
-        />
-      ) : (
-        <>
-          <SectionCard eyebrow="Perlu Dikerjakan">
-            <TaskTable rows={pending} emptyMessage="Semua tugas sudah kamu kumpulkan." />
-          </SectionCard>
-
-          <SectionCard eyebrow="Sudah Dikumpulkan">
-            <TaskTable rows={done} emptyMessage="Belum ada tugas yang dikumpulkan." />
-          </SectionCard>
-        </>
-      )}
+        <Card className="rounded-[1.3rem] border-dashed border-border bg-card/75 px-5 py-12 text-center">
+          <GraduationCap className="mx-auto h-8 w-8 text-accent-foreground" />
+          <h2 className="mt-3 font-bold text-foreground">Belum ada tugas</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Tugas dari kelas yang kamu ikuti akan muncul di sini.</p>
+        </Card>
+      ) : <StudentTaskList rows={rows} />}
     </div>
   );
 }
 
-function TaskTable({ rows, emptyMessage }: { rows: Row[]; emptyMessage: string }) {
-  if (rows.length === 0) {
-    return <p className="text-body-sm text-muted-foreground">{emptyMessage}</p>;
-  }
-
+function TaskStat({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  tone: "coral" | "teal" | "indigo";
+}) {
+  const colors = {
+    coral: "bg-brand-pink text-danger",
+    teal: "bg-accent text-accent-foreground",
+    indigo: "bg-secondary text-accent-foreground",
+  };
   return (
-    <DataTable
-      minWidthClass="min-w-[36rem]"
-      headers={["Tugas", "Kelas", "Target", "Tenggat", "Status", "Nilai"]}
-    >
-      {rows.map((row) => {
-        const overdue =
-          row.deadline != null &&
-          new Date(row.deadline).getTime() < Date.now() &&
-          !isDone(row);
-
-        return (
-          <DataTableRow key={row.assignmentId}>
-            <td className="py-2.5 pr-4">
-              <Link
-                href={`/student/submit/${row.assignmentId}`}
-                className="font-medium text-foreground hover:text-primary"
-              >
-                {row.title}
-              </Link>
-            </td>
-            <td className="py-2.5 pr-4">
-              <span className="block text-foreground">{row.className}</span>
-              {row.subject ? (
-                <span className="block text-caption text-muted-foreground">
-                  {row.subject}
-                </span>
-              ) : null}
-            </td>
-            <td className="py-2.5 pr-4">
-              <BloomBadge level={row.expectedLevel} />
-            </td>
-            <td className={cn("py-2.5 pr-4", overdue ? "text-danger" : "text-muted-foreground")}>
-              {formatDate(row.deadline)}
-              {overdue ? <span className="block text-caption">Lewat tenggat</span> : null}
-            </td>
-            <td className="py-2.5 pr-4">
-              {row.submission ? (
-                <span
-                  className={cn(
-                    "inline-flex rounded-full px-2 py-0.5 text-caption font-medium",
-                    submissionStatusMeta(row.submission.status).badgeClass,
-                  )}
-                >
-                  {submissionStatusMeta(row.submission.status).label}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">Belum dimulai</span>
-              )}
-            </td>
-            <td className="py-2.5 font-medium text-foreground">
-              {row.submission?.grade ?? "-"}
-            </td>
-          </DataTableRow>
-        );
-      })}
-    </DataTable>
+    <Card className="flex min-w-0 items-center gap-2.5 rounded-[1.05rem] border-border bg-card p-3 shadow-none sm:gap-3 sm:p-3.5">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${colors[tone]}`}><Icon className="h-4 w-4" /></span>
+      <span className="min-w-0"><span className="block text-lg font-semibold leading-none text-foreground sm:text-xl">{value}</span><span className="mt-1 block truncate text-[0.65rem] font-medium text-muted-foreground sm:text-xs">{label}</span></span>
+    </Card>
   );
 }

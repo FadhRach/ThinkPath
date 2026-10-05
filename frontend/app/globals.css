@@ -17,7 +17,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 176 51% 12%;
     --primary: 178 90% 38%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 176 51% 12%;
     --secondary: 161 66% 81%;
     --secondary-foreground: 176 51% 18%;
     --muted: 164 40% 94%;
@@ -50,6 +50,11 @@
     --chart-4: 42 82% 55%;
     --chart-5: 346 64% 66%;
   }
+
+  .student-theme,
+  .teacher-theme {
+    background-color: hsl(var(--background));
+  }
 }
 
 @layer base {
@@ -64,6 +69,12 @@
 }
 
 @layer utilities {
+  .campus-card {
+    border-radius: 0.75rem;
+    border-color: hsl(var(--border));
+    box-shadow: none;
+  }
+
   .caption-eyebrow {
     text-transform: uppercase;
     font-size: 0.75rem;
@@ -71,4 +82,5 @@
     font-weight: 600;
     color: hsl(var(--muted-foreground));
   }
+
 }

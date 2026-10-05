@@ -67,6 +67,7 @@ Dua jebakan yang dikunci tes:
 | `Submission` | `submissions` | `status` draft/submitted/reviewed, `revision_count`, `grade` |
 | `ReasoningEvent` | `reasoning_events` | jejak proses: started/progress/revision/submitted (paste hanya di baris lama, tidak lagi ditulis) |
 | `Material` | `materials` | materi kelas: `topic` (topik/pertemuan, kosong = umum), judul, ringkasan, tautan http/https |
+| `Announcement` | `announcements` | judul dan isi pengumuman kelas; hanya dosen pemilik dapat menerbitkan, anggota kelas dapat membaca |
 | `Notification` | `notifications` | notifikasi per penerima; `group_key` menggabungkan yang sejenis, `read_at` status dibaca |
 | `ConsentRecord` | `consent_records` | bukti persetujuan data pribadi: `action` given/updated/withdrawn, `policy_version`, `items`; hanya ditambah, tidak pernah diubah |
 | `AnalysisResult` | `analysis_results` | OneToOne submission: `ai_score`, `ai_band`, `bloom_level`, `signals` |
@@ -92,6 +93,10 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET/POST | `/api/classes` | dosen | daftar / buat kelas |
 | GET/POST | `/api/classes/<id>/assignments` | dosen pemilik | daftar / buat tugas |
 | GET | `/api/assignments` | dosen | seluruh tugas lintas kelas |
+| GET/PATCH | `/api/assignments/<id>` | dosen pemilik | detail / edit tugas; target Bloom dikunci setelah ada pengumpulan |
+| GET | `/api/classes/<id>/students` | dosen pemilik | seluruh anggota kelas beserta jumlah pengumpulan dan penilaian |
+| GET/POST | `/api/classes/<id>/announcements` | GET pemilik/anggota, POST dosen pemilik | baca / terbitkan pengumuman dan kirim notifikasi mahasiswa |
+| GET | `/api/submissions` | dosen | pengumpulan lintas kelas sendiri; filter `status=all`, `submitted`, atau `reviewed`; tanpa draf |
 | GET | `/api/overview` | dosen | agregat layar Overview |
 | GET | `/api/reports/overview` | dosen | laporan per kelas, prodi, semester |
 | GET | `/api/students/<id>/profile` | dosen pengampu | profil kognitif mahasiswa |

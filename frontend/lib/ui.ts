@@ -36,8 +36,8 @@ interface StatusMeta {
 
 const STATUS_META: Record<SubmissionStatus, StatusMeta> = {
   draft: { label: "Sedang dikerjakan", badgeClass: BADGE.teal },
-  submitted: { label: "Perlu review", badgeClass: BADGE.warning },
-  reviewed: { label: "Selesai", badgeClass: BADGE.success },
+  submitted: { label: "Perlu diperiksa", badgeClass: BADGE.warning },
+  reviewed: { label: "Sudah dinilai", badgeClass: BADGE.success },
 };
 
 export function submissionStatusMeta(status: SubmissionStatus): StatusMeta {
