@@ -20,6 +20,7 @@ env/
 *.sqlite3
 backend/db.sqlite3
 backend/staticfiles/
+backend/backups/
 
 # Node / Next.js
 node_modules/

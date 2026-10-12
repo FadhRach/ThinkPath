@@ -1,25 +1,30 @@
-# Jangan pernah bake secret / artefak lokal ke image HF Spaces.
-# Dockerfile memakai `COPY . .`, jadi file di bawah ini harus dikecualikan.
+# Jangan pernah memasukkan secret atau data lokal ke image.
 .env
 .env.*
 *.env
-db.sqlite3
 *.sqlite3
+backups/
 
-# Cache & artefak build
-__pycache__/
+# Tidak dibutuhkan saat runtime
+**/tests/
+common/tests.py
+Makefile
+docker-compose.yml
+deploy/Caddyfile
+deploy/backup.sh
+README.md
+Dockerfile
+.dockerignore
+
+# Cache & artefak lokal
+**/__pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 staticfiles/
-
-# Virtualenv lokal
-.venv/
 venv/
+.venv/
 env/
-
-# Version control & meta
 .git/
 .gitignore
-.dockerignore

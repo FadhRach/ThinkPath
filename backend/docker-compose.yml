@@ -1,0 +1,84 @@
+# Satu berkas untuk laptop (OrbStack) dan VPS; bedanya hanya isi .env.
+# Total RAM dibatasi ~700 MB supaya VPS 1 GB tetap punya ruang untuk OS.
+
+name: thinkpath
+
+x-logging: &logging
+  # Log container dirotasi supaya tidak memenuhi disk VPS.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-thinkpath}
+      POSTGRES_USER: ${POSTGRES_USER:-thinkpath}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?isi POSTGRES_PASSWORD di .env}
+    # Tuning untuk RAM kecil: buffer 128 MB dan koneksi dibatasi. Satu worker
+    # gunicorn x 8 thread memakai paling banyak 8 koneksi.
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=30
+      -c wal_buffers=4MB
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Tanpa `ports`: Postgres hanya bisa dicapai dari jaringan Docker.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 320m
+    logging: *logging
+
+  api:
+    build: .
+    image: thinkpath-api:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_URL: postgres://${POSTGRES_USER:-thinkpath}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-thinkpath}
+      # localhost dipakai healthcheck di dalam container.
+      DJANGO_ALLOWED_HOSTS: ${API_DOMAIN:-localhost},localhost,127.0.0.1
+    depends_on:
+      db:
+        condition: service_healthy
+    # Hanya loopback: untuk debug lewat SSH tunnel atau frontend lokal,
+    # tidak terbuka ke internet. Lalu lintas publik lewat Caddy.
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
+    mem_limit: 320m
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 64m
+    logging: *logging
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

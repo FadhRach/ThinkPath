@@ -22,10 +22,14 @@ CACHES = {
     }
 }
 
-# API murni JSON: tanpa browsable API, jadi tidak perlu berkas statis.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
+    # API murni JSON: tanpa browsable API, jadi tidak perlu berkas statis.
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    # Di belakang Caddy, REMOTE_ADDR selalu IP container Caddy. Tanpa ini
+    # throttle login menghitung SEMUA pengguna sebagai satu IP. Dengan satu
+    # proxy, IP klien asli adalah entri terakhir X-Forwarded-For.
+    "NUM_PROXIES": env_int("NUM_PROXIES", 1),  # noqa: F405
 }
 
 # TLS diakhiri di Caddy, yang juga mengalihkan HTTP -> HTTPS. Django tidak
@@ -36,3 +40,11 @@ SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = env_int("SECURE_HSTS_SECONDS", 31536000)  # noqa: F405
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Peringatan `check --deploy` yang memang tidak berlaku untuk API ini:
+SILENCED_SYSTEM_CHECKS = [
+    "security.W003",  # CSRF: auth lewat header Bearer, bukan cookie sesi
+    "security.W008",  # SSL redirect dikerjakan Caddy (lihat di atas)
+    "security.W005",  # HSTS includeSubDomains/preload: API hanya satu subdomain
+    "security.W021",
+]
