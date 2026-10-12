@@ -21,10 +21,10 @@ from apps.accounts.models import ConsentAction, ConsentRecord, Role
 # Tanggal berlaku versi kebijakan. Mengubahnya membuat semua persetujuan lama
 # tidak berlaku, sehingga setiap pengguna diminta membaca dan menyetujui ulang
 # sebelum pemrosesan berlanjut dengan ketentuan baru (Pasal 21 ayat (2)).
-PRIVACY_POLICY_VERSION = "2026-09-28"
+PRIVACY_POLICY_VERSION = "2026-10-12"
 
 # Data akun, kelas, jawaban, nilai, dan umpan balik untuk perkuliahan,
-# termasuk penyimpanannya di penyedia cloud di luar Indonesia.
+# termasuk penyimpanannya di VPS Jakarta dan penyajian halaman oleh Vercel.
 ITEM_COURSE_DATA = "data_perkuliahan"
 # Perekaman jumlah kata tiap 30 detik dan analisis otomatis (level Bloom dan
 # indikasi penggunaan AI) sebagai bahan tinjau dosen.

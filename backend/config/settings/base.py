@@ -82,7 +82,7 @@ REST_FRAMEWORK = {
     "UNAUTHENTICATED_USER": None,
     # Hanya endpoint auth yang dibatasi (tebak sandi, spam pendaftaran).
     # Membatasi seluruh API akan menghukum dashboard dosen yang berisi banyak
-    # grafik. Penghitungnya disimpan di CACHES (lihat production.py).
+    # grafik. Penghitungnya di memori proses (lihat production.py).
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
     ],

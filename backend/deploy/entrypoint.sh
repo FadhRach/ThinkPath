@@ -1,9 +1,7 @@
 #!/bin/sh
-# Disiapkan sebelum gunicorn mulai: migrasi skema dan tabel cache throttle.
-# Keduanya idempoten, aman dijalankan di setiap start container.
+# Migrasi skema sebelum gunicorn mulai. Idempoten, aman di setiap start.
 set -e
 
 python manage.py migrate --noinput
-python manage.py createcachetable
 
 exec "$@"

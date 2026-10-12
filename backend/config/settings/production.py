@@ -12,15 +12,10 @@ if not SECRET_KEY:  # noqa: F405
 if not env_str("DATABASE_URL"):  # noqa: F405
     raise ImproperlyConfigured("DATABASE_URL wajib di-set di produksi.")
 
-# Penghitung throttle login/register dibagi antar worker gunicorn lewat tabel
-# django_cache (dibuat `createcachetable` saat container mulai). Redis tidak
-# dipakai demi menghemat RAM VPS.
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
-        "LOCATION": "django_cache",
-    }
-}
+# Penghitung throttle login/register disimpan di memori proses (bawaan
+# LocMemCache), bukan di basis data: Kebijakan Privasi menjanjikan alamat IP
+# tidak disimpan di DB. Dengan WEB_CONCURRENCY=1 hitungannya tepat; tiap
+# worker tambahan menggandakan batas efektifnya.
 
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
