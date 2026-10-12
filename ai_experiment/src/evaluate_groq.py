@@ -25,7 +25,7 @@ Tiga hal yang membentuk rancangan berkas ini, sama seperti evaluate_detector.py:
    angkanya sudah ada.
 
 2. **Fungsi produksi dipanggil langsung, bukan disalin.** Prompt, model,
-   temperatur, dan pembatasan nilai diambil dari academics.llm, sehingga angka
+   temperatur, dan pembatasan nilai diambil dari apps.analysis (pipeline + providers/groq), sehingga angka
    di sini tidak pernah mengukur konfigurasi yang berbeda dari yang benar benar
    jalan. Kalau prompt produksi berubah, angka di sini ikut berubah.
 
@@ -123,8 +123,8 @@ def collect_scores(
     rows: list[dict], education_level: str, sleep_seconds: float, model: str, llm
 ) -> tuple[list[float], list[float], list[int]]:
     """Skor Groq dan skor heuristik pada baris yang sama persis."""
-    from academics.ai_score import score_ai_probability
-    from academics.text_features import extract_features
+    from apps.analysis.engines.ai_score import score_ai_probability
+    from apps.analysis.engines.text_features import extract_features
 
     cache = CACHE.load()
     cached_hits = 0
@@ -205,8 +205,15 @@ def main() -> int:
     bootstrap_backend()
     import os
 
-    from academics import llm
+    from types import SimpleNamespace
 
+    from apps.analysis import pipeline
+    from apps.analysis.providers import groq
+
+    # Antarmuka kecil yang dipakai fetch_ai_probability (dan dipalsukan tes).
+    llm = SimpleNamespace(
+        _call_groq=groq.call, _clamp=pipeline._clamp, DEFAULT_MODEL=groq.DEFAULT_MODEL
+    )
     model = os.getenv("GROQ_MODEL", llm.DEFAULT_MODEL)
 
     rows = load_rows(Path(args.gold), args.split, args.mixed_as)

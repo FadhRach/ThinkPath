@@ -1,6 +1,6 @@
 """Tahap 1 dan 2: ukur heuristik yang sudah dipakai produksi, lalu diagnosa.
 
-Menjalankan scorer asli dari backend/academics terhadap gold_set.csv, bukan
+Menjalankan scorer asli dari backend/apps/analysis terhadap gold_set.csv, bukan
 salinannya. Kalau kode produksi berubah, angka di sini ikut berubah, sehingga
 laporan tidak pernah basi diam diam.
 
@@ -34,12 +34,13 @@ from .metrics import confusion_at, pearson, roc_auc, threshold_at_max_fpr
 
 
 def bootstrap_backend() -> None:
-    """Siapkan Django seminimal mungkin supaya academics bisa diimpor.
+    """Siapkan Django seminimal mungkin supaya apps.analysis bisa diimpor.
 
-    academics.ai_score mengimpor academics.models untuk enum AiBand, dan model
-    Django menolak dimuat tanpa app registry yang aktif.
+    Mesin skor hanya butuh enum di apps.analysis.choices, tetapi sebagian
+    modul (detector_cache, pipeline) memuat model Django, yang menolak dimuat
+    tanpa app registry aktif.
 
-    Sengaja TIDAK memakai thinkpath.settings. Settings produksi menarik
+    Sengaja TIDAK memakai config.settings. Settings produksi menarik
     dj_database_url, psycopg, dan DRF, padahal evaluasi ini tidak menyentuh
     basis data sama sekali. Konfigurasi di bawah cukup untuk memuat definisi
     model, dan tidak pernah membuka koneksi.
@@ -55,10 +56,9 @@ def bootstrap_backend() -> None:
     if not settings.configured:
         settings.configure(
             INSTALLED_APPS=[
-                "django.contrib.contenttypes",
-                "django.contrib.auth",
-                "core",
-                "academics",
+                "apps.accounts",
+                "apps.academics",
+                "apps.analysis",
             ],
             DATABASES={
                 "default": {
@@ -96,8 +96,8 @@ def load_rows(path: Path, split: str | None, mixed_as: str) -> list[dict]:
 def score_rows(rows: list[dict]) -> tuple[list[float], list[int], dict[str, list[float]]]:
     """Jalankan scorer produksi. Sinyal proses tidak ikut karena gold set hanya
     berisi teks, tanpa telemetri pengerjaan."""
-    from academics.ai_score import score_ai_probability
-    from academics.text_features import extract_features
+    from apps.analysis.engines.ai_score import score_ai_probability
+    from apps.analysis.engines.text_features import extract_features
 
     scores: list[float] = []
     labels: list[int] = []

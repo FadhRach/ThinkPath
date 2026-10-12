@@ -8,7 +8,7 @@ korpus jawaban esai Indonesia berlabel Bloom di mana pun. Jalur produksi tetap
 memakai LLM.
 
 Yang dikerjakan di sini adalah membayar utang kejujuran: seluruh bobot dan
-ambang di `backend/academics/ai_score.py`, `bloom.py`, dan `process_signals.py`
+ambang di `backend/apps/analysis/engines/ai_score.py`, `bloom.py`, dan `process_signals.py`
 saat ini ditetapkan dari penalaran, bukan dari data. Belum ada yang pernah
 mengukur apakah angka itu benar. Uji cepat pada esai akademik tulisan manusia
 menghasilkan skor 77 dan masuk band tinggi, yaitu tuduhan palsu. Folder ini
@@ -97,7 +97,7 @@ python -m src.evaluate_baseline
 python -m src.evaluate_baseline --split test --mixed-as ai
 ```
 
-Skrip ini mengimpor scorer asli dari `backend/academics`, bukan salinannya, jadi
+Skrip ini mengimpor scorer asli dari `backend/apps/analysis/engines`, bukan salinannya, jadi
 laporannya tidak pernah basi diam diam ketika kode produksi berubah.
 
 Yang dilaporkan:
@@ -142,7 +142,7 @@ protokolnya yang membuat angkanya layak dipercaya:
 Hasil 17 Agustus 2026: AUC test naik 0,884 ke **0,912** (set penuh 0,869 ke
 0,901), ambang `mid` turun 56 ke **42**, recall naik 0,489 ke 0,607 sementara
 FPR tetap di bawah 5 persen. Bobot terpilih sudah dipakai produksi di
-`backend/academics/ai_score.py`.
+`backend/apps/analysis/engines/ai_score.py`.
 
 ## Mengukur lapisan kedua rantai, Groq
 
@@ -190,7 +190,7 @@ eksternal masih masuk akal.
 Tiga hal yang membentuk rancangan skrip ini:
 
 - **Fungsi produksi dipanggil langsung, bukan disalin.** Prompt, model,
-  temperatur, dan pembatasan nilai diambil dari `backend/academics/llm.py`.
+  temperatur, dan pembatasan nilai diambil dari `backend/apps/analysis/providers/groq.py`.
   Kalau prompt produksi berubah, angka di sini ikut berubah.
 - **Kunci cache memuat nama model.** `data/cache/groq_scores.jsonl` berkunci
   SHA-256 dari `model|teks`. Tanpa nama model di kunci, mengganti `GROQ_MODEL`
@@ -245,7 +245,7 @@ Empat hal yang membentuk rancangan skrip ini:
 - **Arah skornya terbalik.** Winston mengembalikan *human score*: 0 berarti
   hampir pasti AI, 100 berarti hampir pasti manusia. Yang disimpan ke cache
   selalu probabilitas AI yang sudah dibalik, dan konvensi itu dikunci tes.
-  URL, versi model, dan kode bahasa diimpor dari `backend/academics/detector.py`,
+  URL, versi model, dan kode bahasa diimpor dari `backend/apps/analysis/providers/winston.py`,
   bukan disalin, supaya kalibrasi tidak pernah mengukur konfigurasi yang berbeda
   dari yang benar benar jalan di produksi.
 - **Teks di luar rentang panjang dibuang lebih dulu.** Winston menolak di bawah
@@ -254,7 +254,7 @@ Empat hal yang membentuk rancangan skrip ini:
   ikut condong.
 - **Ambang produksi detektor masih kosong.** Angka "ambang yang menjaga FPR di
   bawah 5 persen" untuk baris detektor adalah yang mengisi `MID_THRESHOLD` di
-  `backend/academics/detector.py`. Jangan menyalin ambang heuristik ke sana:
+  `backend/apps/analysis/providers/winston.py`. Jangan menyalin ambang heuristik ke sana:
   kedua sebaran skor bentuknya berbeda, dan ambang pinjaman terdengar masuk akal
   sambil menyesatkan tanpa suara.
 
@@ -447,7 +447,7 @@ dari keluarga lain akan memperkuat kesimpulan.
 
 ## Berikutnya
 
-Tahap 1 adalah menjalankan heuristik yang sudah ada di `backend/academics`
+Tahap 1 adalah menjalankan heuristik yang sudah ada di `backend/apps/analysis/engines`
 terhadap `gold_set.csv`, bersama beberapa detektor publik, lalu menghitung
 korelasi tiap sinyal terhadap label. Dari situ ketahuan sinyal mana yang mati
 dan mana yang arahnya terbalik.
