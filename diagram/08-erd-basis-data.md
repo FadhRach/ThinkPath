@@ -11,8 +11,11 @@ Konvensi yang berlaku di semua tabel:
   tidak bisa ditebak berurutan dari URL.
 - Waktu disimpan **UTC** (`timestamptz`). Zona tampilan (Asia/Jakarta) urusan
   frontend.
-- Semua foreign key `ON DELETE CASCADE`: menghapus akun menghapus seluruh data
-  turunannya, sesuai janji penghapusan di Kebijakan Privasi.
+- Semua relasi `on_delete=CASCADE`: menghapus akun lewat aplikasi menghapus
+  seluruh data turunannya, sesuai janji penghapusan di Kebijakan Privasi.
+  **Kaskade ini dijalankan ORM Django, bukan constraint PostgreSQL.** Foreign key
+  di DB tetap menolak `DELETE` mentah lewat `psql` selama baris anaknya masih
+  ada. Hapus lewat aplikasi atau `manage.py shell`, jangan lewat SQL mentah.
 - Aturan bisnis yang penting dijaga **di basis data** (unique/check
   constraint), bukan hanya di serializer, karena dua permintaan serentak bisa
   sama-sama lolos validasi aplikasi.

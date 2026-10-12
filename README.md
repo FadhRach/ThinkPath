@@ -36,7 +36,7 @@ Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pert
 | Frontend | Next.js 15 (App Router), TypeScript, Tailwind, shadcn/ui, Recharts | Vercel |
 | Backend | Django 5.2 LTS + DRF, PyJWT, psycopg, gunicorn | VPS IDCloudHost (Jakarta), Docker Compose + Caddy |
 | Database | PostgreSQL 17, SQLite untuk dev offline | Container di VPS yang sama |
-| Analisis AI | Winston AI, Groq `llama-3.3-70b-versatile`, heuristik lokal | - |
+| Analisis AI | Winston AI, Groq `openai/gpt-oss-120b`, heuristik lokal | - |
 | Auth | Email + password, JWT HS256 diterbitkan Django | - |
 
 ## Struktur Project

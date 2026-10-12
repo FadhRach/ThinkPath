@@ -1,15 +1,19 @@
 # Image API ThinkPath. Multi-stage: stage pertama memasang dependensi ke
-# virtualenv, stage akhir hanya menyalin venv + kode. Tanpa apt-get dan tanpa
-# compiler (psycopg[binary] sudah membawa libpq), jadi image tetap kecil.
+# virtualenv, stage akhir hanya menyalin venv + kode.
+#
+# Alpine, bukan slim: semua dependensi tersedia sebagai wheel musllinux
+# (psycopg[binary] membawa libpq sendiri), jadi tidak perlu compiler, dan base
+# image ~100 MB lebih kecil. venv dibuat tanpa pip karena pip tidak dipakai
+# saat runtime.
 
-FROM python:3.13-slim AS builder
+FROM python:3.13-alpine AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
-RUN python -m venv /opt/venv
+RUN python -m venv --without-pip /opt/venv
 COPY requirements/ /tmp/requirements/
-RUN /opt/venv/bin/pip install -r /tmp/requirements/production.txt
+RUN pip --python /opt/venv/bin/python install -r /tmp/requirements/production.txt
 
 
-FROM python:3.13-slim
+FROM python:3.13-alpine
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH \
@@ -17,7 +21,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Proses berjalan sebagai user tanpa hak root. Kode dimiliki root sehingga
 # tidak bisa diubah oleh proses aplikasi.
-RUN useradd --system --uid 10001 --no-create-home app
+RUN adduser -S -D -H -u 10001 app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY . .

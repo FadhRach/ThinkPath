@@ -67,7 +67,7 @@ bisa membawa skor detektor ke sana.
 flowchart TB
     T["Satu teks jawaban"] --> BASE["<b>Jalur dasar dijalankan lebih dulu,<br/>tanpa syarat</b>"]
     BASE --> G{"GROQ_API_KEY terisi?"}
-    G -->|"ya, tenggat 12 dtk"| GROQ["Groq llama-3.3-70b<br/>skor AI + level Bloom"]
+    G -->|"ya, tenggat 12 dtk"| GROQ["Groq gpt-oss-120b<br/>skor AI + level Bloom"]
     G -->|"tidak, atau gagal"| HEU["Heuristik ai_score.py + bloom.py"]
 
     GROQ --> CACHE

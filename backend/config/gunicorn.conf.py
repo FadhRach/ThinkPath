@@ -22,5 +22,8 @@ max_requests_jitter = 100
 # punya /dev/shm, jadi jatuh ke bawaan gunicorn saat dijalankan di laptop).
 if os.path.isdir("/dev/shm"):
     worker_tmp_dir = "/dev/shm"
+# Soket kontrol gunicorn 25+ tidak dipakai, dan user container tidak punya
+# home dir untuk menaruhnya.
+control_socket_disable = True
 accesslog = "-"
 errorlog = "-"

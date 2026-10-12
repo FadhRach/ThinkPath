@@ -11,7 +11,8 @@ import os
 import requests
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+# llama-3.3-70b-versatile dipensiunkan Groq (404 model_not_found, Oktober 2026).
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 # Sengaja jauh di bawah timeout gunicorn (60 detik). Kalau keduanya sama,
 # gunicorn bisa membunuh worker tepat saat Groq hendak menjawab, dan request
 # mahasiswa hilang tanpa jejak. Jalur heuristik sudah ada sebagai cadangan,

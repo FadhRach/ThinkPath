@@ -35,7 +35,7 @@ flowchart TB
         PG[("PostgreSQL 17<br/>container di VPS yang sama")]
     end
 
-    LLM["Groq<br/>llama-3.3-70b"]
+    LLM["Groq<br/>gpt-oss-120b"]
     WIN["Winston AI v4.18<br/>detektor teks"]
 
     D --> MW
