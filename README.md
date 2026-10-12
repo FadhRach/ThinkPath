@@ -33,9 +33,9 @@ Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pert
 
 | Layer | Teknologi | Deploy |
 |---|---|---|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui, Recharts | Vercel |
-| Backend | Django 5 + DRF, PyJWT, psycopg | Vercel, proyek terpisah (fungsi Python) |
-| Database | PostgreSQL, SQLite untuk dev offline | Supabase, region Sydney |
+| Frontend | Next.js 15 (App Router), TypeScript, Tailwind, shadcn/ui, Recharts | Vercel |
+| Backend | Django 5.2 LTS + DRF, PyJWT, psycopg, gunicorn | VPS IDCloudHost (Jakarta), Docker Compose + Caddy |
+| Database | PostgreSQL 17, SQLite untuk dev offline | Container di VPS yang sama |
 | Analisis AI | Winston AI, Groq `llama-3.3-70b-versatile`, heuristik lokal | - |
 | Auth | Email + password, JWT HS256 diterbitkan Django | - |
 
@@ -43,29 +43,29 @@ Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pert
 
 ```
 thinkpath/
-├── frontend/        Next.js 14, antarmuka dosen dan mahasiswa
+├── frontend/        Next.js 15, antarmuka dosen dan mahasiswa
 ├── backend/         Django 5 + DRF, satu-satunya API untuk semua data
 ├── ai_experiment/   Validasi dan kalibrasi lapisan analisis
-└── diagram/         Diagram arsitektur, alur peran, dan design system (Mermaid)
+└── diagram/         Diagram arsitektur, alur peran, design system, ERD (Mermaid)
 ```
 
 Frontend tidak pernah menyentuh database langsung:
 
 ```
-Browser -> Next.js (Vercel) -> Django + DRF (Vercel) -> PostgreSQL (Supabase)
-                                      |
-                                      +-> Analisis: Winston -> Groq -> heuristik
+Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS Jakarta)
+                                         |
+                                         +-> Analisis: Winston -> Groq -> heuristik
 ```
 
 ## Setup Lokal
 
-Prasyarat: Python 3.11+ dan Node.js 20+
+Prasyarat: Python 3.12+ dan Node.js 20+ (Docker/OrbStack hanya untuk menguji susunan produksi)
 
 Untuk menjalankan frontend dan backend sekaligus dari folder utama (Windows):
 
 ```powershell
 python -m venv .venv                         # hanya untuk setup pertama
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements/development.txt
 npm ci --prefix frontend
 npm run dev
 ```
@@ -83,7 +83,7 @@ Untuk pengembangan backend, jalankan ulang perintah setelah mengubah berkas Pyth
 cd backend
 python -m venv venv
 venv\Scripts\activate            # macOS/Linux: source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements/development.txt
 
 cp .env.example .env             # isi minimal DJANGO_SECRET_KEY
 python manage.py migrate
@@ -93,7 +93,7 @@ python manage.py runserver 0.0.0.0:7860
 
 Cek: `curl http://localhost:7860/health` harus mengembalikan `{"status":"ok"}`.
 
-Tanpa Supabase, kosongkan `DATABASE_URL` di `.env` dan backend otomatis memakai SQLite lokal.
+Dengan `DATABASE_URL` kosong, backend otomatis memakai SQLite lokal. `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
 
 **2. Frontend**
 
@@ -110,9 +110,9 @@ Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/READM
 
 ## Deploy
 
-Frontend (`thinkpath.vercel.app`) dan backend (`thinkpath-be.vercel.app`) adalah dua proyek Vercel terpisah yang di-deploy otomatis dari `main`. Basis datanya Supabase.
+Frontend (`thinkpath.vercel.app`) di-deploy otomatis oleh Vercel dari `main`. Backend dan PostgreSQL berjalan di VPS IDCloudHost (Jakarta) dengan Docker Compose: `db` (PostgreSQL 17), `api` (gunicorn), dan `caddy` (HTTPS otomatis). Di VPS, `make deploy` menarik `main`, membangun ulang image, dan menjalankan migrasi saat container mulai.
 
-**Vercel tidak menjalankan migrasi.** Setiap PR yang menambah berkas di `backend/*/migrations/` wajib diikuti `python manage.py migrate` ke basis data produksi. Kalau terlewat, endpoint yang menyentuh tabel baru gagal `500`, termasuk login. Langkahnya ada di [backend/README.md](./backend/README.md#migrasi-basis-data-produksi).
+Runbook lengkap (menyiapkan server, DNS, `.env`, backup harian, rollback) ada di [backend/README.md](./backend/README.md#deploy-produksi-vps).
 
 ## Sistem di Dalamnya
 

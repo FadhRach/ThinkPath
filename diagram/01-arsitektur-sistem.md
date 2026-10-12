@@ -19,20 +19,20 @@ flowchart TB
         M["Mahasiswa<br/>peramban"]
     end
 
-    subgraph FE["Frontend · Next.js 14 App Router · Vercel"]
+    subgraph FE["Frontend · Next.js 15 App Router · Vercel"]
         MW["middleware.ts<br/>penjaga rute per peran"]
         SC["Komponen server<br/>merender halaman"]
         CC["Komponen klien<br/>formulir dan grafik"]
     end
 
-    subgraph BE["Backend · Django 5 + DRF · Vercel"]
-        AUTH["core/<br/>JWT, profil, izin akses"]
-        API["academics/views.py<br/>15 endpoint"]
-        AN["Lapisan analisis"]
+    subgraph BE["Backend · Django 5.2 + DRF · VPS Jakarta"]
+        AUTH["apps/accounts<br/>JWT, profil, persetujuan"]
+        API["apps/academics/views/<br/>endpoint per domain"]
+        AN["apps/analysis<br/>lapisan analisis"]
     end
 
     subgraph DB["Data"]
-        PG[("PostgreSQL<br/>Supabase")]
+        PG[("PostgreSQL 17<br/>container di VPS yang sama")]
     end
 
     LLM["Groq<br/>llama-3.3-70b"]
@@ -59,7 +59,8 @@ flowchart TB
 
 **Kenapa satu pintu.** Kepemilikan data dan izin akses hanya perlu dijaga di
 satu tempat. Setiap endpoint menyaring berdasarkan pemilik lewat helper
-`_require_owned_*`, dan tidak ada jalur kedua yang bisa melewatinya.
+`require_owned_*` di `apps/academics/selectors.py`, dan tidak ada jalur kedua
+yang bisa melewatinya.
 
 ---
 
@@ -98,9 +99,10 @@ satu pun permintaan halaman yang bergantung pada layanan luar.
 Keduanya dipanggil **berurutan**, bukan bersamaan: 8 detik untuk Winston lalu 12
 detik untuk Groq, sehingga kasus terburuknya 20 detik. Angka itu sengaja ditahan
 jauh di bawah batas waktu server supaya proses tidak pernah dibunuh tepat saat
-salah satu API hendak menjawab: 300 detik untuk fungsi Vercel yang menjalankan
-backend produksi (batas bawaan Fluid compute), dan 60 detik untuk gunicorn di
-`Dockerfile`.
+salah satu API hendak menjawab: 60 detik untuk gunicorn
+(`backend/config/gunicorn.conf.py`). Selama menunggu, satu worker gunicorn
+dengan 8 thread tetap melayani permintaan lain, jadi dashboard dosen tidak
+ikut membeku.
 
 ---
 
@@ -108,23 +110,24 @@ backend produksi (batas bawaan Fluid compute), dan 60 detik untuk gunicorn di
 
 ```mermaid
 flowchart LR
-    T["Teks jawaban"] --> TF["text_features.py<br/><i>murni deskriptif</i>"]
-    P["Metadata proses<br/>durasi · cuplikan kata"] --> PS["process_signals.py"]
+    T["Teks jawaban"] --> TF["engines/text_features.py<br/><i>murni deskriptif</i>"]
+    P["Metadata proses<br/>durasi · cuplikan kata"] --> PS["engines/process_signals.py"]
 
-    TF --> E1["ai_score.py · E1<br/>5 sinyal teks"]
-    TF --> E2["bloom.py · E2<br/>level C1–C6"]
+    TF --> E1["engines/ai_score.py · E1<br/>5 sinyal teks"]
+    TF --> E2["engines/bloom.py · E2<br/>level C1–C6"]
     PS --> E1
 
-    E1 --> ORC["llm.py<br/>orkestrator"]
+    E1 --> ORC["pipeline.py<br/>orkestrator"]
     E2 --> ORC
+    GQ["providers/groq.py"] --> ORC
     ORC --> AR[("AnalysisResult")]
 
-    DC["detector_cache.py<br/>tabel DetectorScore"] --> DET["detector.py<br/>Winston AI"]
+    DC["detector_cache.py<br/>tabel DetectorScore"] --> DET["providers/winston.py<br/>Winston AI"]
     DET -->|"menimpa SKOR AI saja"| ORC
 
-    AR --> E4["cognitive.py · E4<br/>tren per kelas"]
-    AR --> OV["overview.py<br/>agregasi kelas"]
-    AR --> RP["reports.py<br/>laporan lintas kelas"]
+    AR --> E4["insights/cognitive.py · E4<br/>tren per kelas"]
+    AR --> OV["insights/overview.py<br/>agregasi kelas"]
+    AR --> RP["insights/reports.py<br/>laporan lintas kelas"]
 
     E1 -. "DILARANG" .-x E2
     E2 -. "DILARANG" .-x E1
@@ -134,7 +137,7 @@ flowchart LR
     classDef inti fill:#E8F4F5,stroke:#0E7C86
     classDef luar fill:#FDF0F4,stroke:#C2547A
     class E1,E2 inti
-    class DET,DC luar
+    class DET,DC,GQ luar
 ```
 
 Tiga panah putus-putus itu **dijaga uji otomatis** yang membaca kode lewat AST,
@@ -158,45 +161,38 @@ siapa pun yang menyunting berkas ini nanti.
 ```mermaid
 flowchart LR
     subgraph VF["Vercel · proyek frontend"]
-        NX["Next.js<br/>thinkpath.vercel.app<br/>fungsi di iad1, Washington, D.C."]
+        NX["Next.js<br/>thinkpath.vercel.app<br/>iad1, Washington, D.C."]
     end
-    subgraph VB["Vercel · proyek backend"]
-        DJ["Django sebagai fungsi Python<br/>thinkpath-be.vercel.app<br/>fungsi di iad1, Washington, D.C."]
-    end
-    subgraph S["Supabase"]
-        PG[("PostgreSQL<br/>ap-southeast-2, Sydney")]
+    subgraph VPS["VPS IDCloudHost · Jakarta · Docker Compose"]
+        CD["caddy<br/>:80 / :443<br/>HTTPS otomatis"]
+        DJ["api<br/>gunicorn 1 worker x 8 thread<br/>Django 5.2"]
+        PG[("db<br/>PostgreSQL 17<br/>volume pgdata")]
     end
 
-    NX -->|"HTTPS + Bearer"| DJ
-    DJ -->|"psycopg 3"| PG
-    DJ -.->|"X-Forwarded-Proto: https"| DJ
+    NX -->|"HTTPS + Bearer<br/>API_DOMAIN"| CD
+    CD -->|"HTTP + X-Forwarded-For/Proto"| DJ
+    DJ -->|"jaringan Docker internal"| PG
 
     classDef box fill:#E8F4F5,stroke:#0E7C86
-    class NX,DJ,PG box
+    class NX,CD,DJ,PG box
 ```
 
-Frontend dan backend adalah dua proyek Vercel terpisah, keduanya di-deploy
-otomatis dari `main`. Repo tidak memuat `vercel.json`: Vercel mengenali backend
-sebagai proyek Django dari `manage.py` dan menjalankan `WSGI_APPLICATION`
-sebagai fungsi Python. Fungsi berjalan di Washington, D.C., sedangkan basis data
-di Sydney, jadi setiap kueri menempuh jarak jauh. Memindahkan region fungsi ke
-`syd1` akan memangkas jarak itu, tetapi juga mengubah lokasi pemrosesan yang
-tertulis di Kebijakan Privasi.
+Frontend tetap di Vercel; backend dan basis data satu mesin di VPS. Postgres
+tidak membuka port ke internet, dan port API hanya terikat ke `127.0.0.1`
+(untuk debug lewat SSH tunnel). Satu-satunya pintu publik adalah Caddy, yang
+juga mengurus sertifikat Let's Encrypt dan pengalihan HTTP ke HTTPS.
 
-**Vercel tidak menjalankan migrasi.** Setiap PR yang membawa migrasi baru harus
-diikuti `migrate` ke basis data produksi, atau endpoint yang menyentuh tabel baru
-gagal `500`, termasuk login. Langkahnya ada di
-[backend/README.md](../backend/README.md#migrasi-basis-data-produksi).
+**Migrasi berjalan otomatis** setiap container `api` mulai
+(`deploy/entrypoint.sh`), jadi `make deploy` di VPS sudah mencakup migrasi.
+Runbook lengkap ada di [backend/README.md](../backend/README.md).
 
 **Jebakan saat menempatkan.** Backend butuh URL frontend untuk
 `CORS_ALLOWED_ORIGINS`, sedangkan frontend butuh URL backend untuk
-`NEXT_PUBLIC_BACKEND_URL`. Melingkar. Urutan yang bekerja: tempatkan backend
-lebih dulu dengan CORS sementara, tempatkan frontend, lalu kembali membetulkan
-CORS di backend.
+`NEXT_PUBLIC_BACKEND_URL`. Karena domain API sudah diketahui sebelum deploy,
+isi keduanya sekaligus; kalau CORS lupa diisi, gejalanya halaman termuat tetapi
+semua data kosong.
 
-`DJANGO_ALLOWED_HOSTS` wajib memuat host backend. Kalau tetap `localhost`,
-seluruh permintaan ditolak `400` dengan penyebab yang sulit ditebak.
-
-`Dockerfile` di `backend/` masih bisa dipakai untuk Hugging Face Spaces atau
-host Docker lain (gunicorn, 2 worker, 4 thread, port 7860). Di sana `migrate`
-berjalan otomatis setiap kali container mulai.
+**Di belakang proxy.** Django membaca `X-Forwarded-Proto` untuk tahu permintaan
+asli HTTPS, dan DRF membaca `X-Forwarded-For` (`NUM_PROXIES=1`) untuk throttle
+login per IP. Tanpa yang kedua, semua pengguna terhitung satu IP, yaitu IP
+container Caddy.

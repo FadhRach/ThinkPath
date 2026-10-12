@@ -77,7 +77,7 @@ function start(command, args, cwd, env) {
 
 async function main() {
   if (!existsSync(python)) {
-    throw new Error("Create the project environment first: python -m venv .venv, then install backend/requirements.txt with its Python.");
+    throw new Error("Create the project environment first: python -m venv .venv, then install backend/requirements/development.txt with its Python.");
   }
   if (!existsSync(next)) {
     throw new Error("Frontend dependencies are missing. Run npm ci --prefix frontend first.");
@@ -100,7 +100,7 @@ async function main() {
   runPython(["manage.py", "migrate", "--noinput"]);
   // Never reseed an existing database: its accounts, classes and grades remain.
   runPython(["manage.py", "shell", "-c",
-    "from core.models import Profile; from django.core.management import call_command; " +
+    "from apps.accounts.models import Profile; from django.core.management import call_command; " +
     "call_command('seed_demo_data') if not Profile.objects.exists() else None",
   ]);
   const api = start(python, ["manage.py", "runserver", "127.0.0.1:7860", "--noreload"], backend, backendEnv);

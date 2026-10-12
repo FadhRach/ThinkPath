@@ -167,7 +167,7 @@ yang sebenarnya dinilai produk ini.
 
 > Mengubah bobot **wajib** menurunkan ulang ambangnya. Ambang diukur untuk
 > sebaran skor yang dihasilkan bobot tertentu, bukan properti yang bertahan
-> sendiri. `backend/academics/tests/test_thresholds.py` menjaga kedua angka ini
+> sendiri. `backend/apps/analysis/tests/test_thresholds.py` menjaga kedua angka ini
 > supaya tidak bisa digeser tanpa sengaja.
 
 ---
