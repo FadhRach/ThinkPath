@@ -105,7 +105,7 @@ def call(text: str, education_level: str) -> dict:
         GROQ_API_URL,
         headers={"Authorization": f"Bearer {api_key}"},
         json={
-            "model": os.getenv("GROQ_MODEL", DEFAULT_MODEL),
+            "model": os.getenv("GROQ_MODEL") or DEFAULT_MODEL,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {

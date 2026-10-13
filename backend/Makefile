@@ -1,6 +1,8 @@
 # Jalankan dari backend/. Lokal: dev, test, seed-local. VPS: sisanya.
 
 COMPOSE := docker compose
+# Di Mac, .env dipakai runserver; Docker memakai .env.docker bila ada. Di VPS hanya ada .env.
+export COMPOSE_ENV_FILES := $(if $(wildcard .env.docker),.env.docker,.env)
 PY := $(if $(wildcard venv/bin/python),venv/bin/python,python)
 
 .PHONY: help dev test seed-local up down restart logs ps migrate seed shell psql backup restore deploy prune

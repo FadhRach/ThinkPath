@@ -92,6 +92,26 @@ python manage.py test apps.analysis.tests.test_detector  # satu modul
 
 `manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `DATABASE_URL`, jadi tidak pernah menyentuh database sungguhan. Dulu tes ikut memakai `DATABASE_URL` dan nyaris menghapus database di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
 
+### Mencoba stack produksi di Mac (OrbStack / Docker Desktop)
+
+Menjalankan susunan yang sama persis dengan VPS (Postgres + gunicorn + Caddy) sebelum deploy. `.env` tetap untuk runserver; Docker di Mac membaca `.env.docker`.
+
+```bash
+cd backend
+cp .env.production.example .env.docker
+# di .env.docker isi: DJANGO_SECRET_KEY, POSTGRES_PASSWORD (perintahnya ada di komentar), lalu
+#   API_DOMAIN=http://localhost
+#   CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+make up        # build + start; Makefile otomatis memakai .env.docker bila ada
+make ps        # db & api "healthy"
+make seed      # akun demo
+curl http://localhost/health
+```
+
+Frontend ke API Docker: `NEXT_PUBLIC_BACKEND_URL=http://localhost npm run dev` di `frontend/`. Database container: `make psql`, atau GUI ke `127.0.0.1:5433` user/db `thinkpath` dengan password dari `.env.docker`. Selesai: `make down` (data tetap), atau `docker compose --env-file .env.docker down -v` untuk menghapus datanya juga.
+
+`API_DOMAIN=http://localhost` membuat Caddy melayani HTTP biasa, karena sertifikat lokal buatan Caddy tidak dipercaya Node.js. Di VPS isi dengan nama domain saja (tanpa `http://`) supaya Caddy mengambil sertifikat HTTPS.
+
 ---
 
 ## Deploy produksi (VPS)
