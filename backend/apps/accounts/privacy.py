@@ -92,16 +92,6 @@ def current_consent(profile_id: UUID) -> ConsentRecord | None:
     return record
 
 
-def allows_external_ai(profile_id: UUID) -> bool:
-    """Apakah teks jawaban boleh dikirim ke penyedia analisis di luar negeri.
-
-    Pasal 56 ayat (4): bila kesetaraan pelindungan di negara tujuan belum
-    dapat dipastikan, transfer wajib atas persetujuan Subjek Data Pribadi.
-    """
-    record = current_consent(profile_id)
-    return record is not None and ITEM_EXTERNAL_AI in record.items
-
-
 def consent_status(profile_id: UUID) -> dict:
     """Ringkasan untuk layar Pengaturan, beserta rekam jejaknya (Pasal 32)."""
     history = list(

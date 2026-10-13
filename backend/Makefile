@@ -1,25 +1,25 @@
-# Perintah harian. Jalankan dari folder backend/.
-#   Lokal (tanpa Docker): make dev, make test
-#   Docker (laptop/VPS):  make up, make seed, make logs, make backup
+# Jalankan dari backend/. Lokal: dev, test, seed-local. VPS: sisanya.
 
 COMPOSE := docker compose
 PY := $(if $(wildcard venv/bin/python),venv/bin/python,python)
 
-.PHONY: help dev test check up down restart logs ps migrate seed shell psql backup restore deploy prune
+.PHONY: help dev test seed-local up down restart logs ps migrate seed shell psql backup restore deploy prune
 
 help:
-	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-11s %s\n", $$1, $$2}'
 
-dev: ## runserver lokal di :7860 (SQLite bila DATABASE_URL kosong)
+# --- Lokal --------------------------------------------------------------------
+dev: ## migrate + runserver :7860 (Postgres lokal)
 	$(PY) manage.py migrate
-	$(PY) manage.py runserver 0.0.0.0:7860
+	$(PY) manage.py runserver 127.0.0.1:7860
 
 test: ## seluruh tes (selalu SQLite in-memory)
 	$(PY) manage.py test
 
-check: ## cek konfigurasi produksi tanpa menjalankan server
-	DJANGO_SETTINGS_MODULE=config.settings.production $(PY) manage.py check --deploy
+seed-local: ## akun & data demo di DB lokal
+	$(PY) manage.py seed_demo_data
 
+# --- VPS (Docker) -------------------------------------------------------------
 up: ## build + jalankan db, api, caddy
 	$(COMPOSE) up -d --build
 
@@ -35,30 +35,30 @@ logs: ## ikuti log api
 ps: ## status + healthcheck tiap container
 	$(COMPOSE) ps
 
-migrate: ## jalankan migrasi di container api
+migrate: ## migrasi di container api
 	$(COMPOSE) exec api python manage.py migrate
 
-seed: ## isi akun & data demo (idempoten)
+seed: ## akun & data demo di container
 	$(COMPOSE) exec api python manage.py seed_demo_data
 
 shell: ## Django shell di container api
 	$(COMPOSE) exec api python manage.py shell
 
-psql: ## psql ke basis data
+psql: ## psql ke DB container
 	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
 backup: ## pg_dump terkompresi ke backups/
 	./deploy/backup.sh
 
-restore: ## pulihkan backup: make restore FILE=backups/thinkpath-xxx.sql.gz
+restore: ## make restore FILE=backups/thinkpath-xxx.sql.gz
 	@test -n "$(FILE)" || (echo "Pakai: make restore FILE=backups/<berkas>.sql.gz" && exit 1)
 	gunzip -c "$(FILE)" | $(COMPOSE) exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
-deploy: ## tarik kode terbaru lalu build ulang (dipakai di VPS)
+deploy: ## tarik kode terbaru, build ulang, buang image lama
 	git pull --ff-only
 	$(COMPOSE) up -d --build
 	docker image prune -f
 
-prune: ## bersihkan image & build cache yang tidak terpakai
+prune: ## bersihkan image & build cache
 	docker image prune -f
 	docker builder prune -f

@@ -9,8 +9,8 @@
 FROM python:3.13-alpine AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN python -m venv --without-pip /opt/venv
-COPY requirements/ /tmp/requirements/
-RUN pip --python /opt/venv/bin/python install -r /tmp/requirements/production.txt
+COPY requirements.txt /tmp/
+RUN pip --python /opt/venv/bin/python install -r /tmp/requirements.txt
 
 
 FROM python:3.13-alpine

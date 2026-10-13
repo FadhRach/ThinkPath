@@ -1,25 +1,20 @@
-# Satu berkas untuk laptop (OrbStack) dan VPS; bedanya hanya isi .env.
-# Total RAM dibatasi ~700 MB supaya VPS 1 GB tetap punya ruang untuk OS.
+# Produksi di VPS 1 GB RAM. Semua nilai dari .env (templat: .env.production.example).
 
 name: thinkpath
 
 x-logging: &logging
-  # Log container dirotasi supaya tidak memenuhi disk VPS.
   driver: json-file
-  options:
-    max-size: "10m"
-    max-file: "3"
+  options: { max-size: "10m", max-file: "3" }
 
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-thinkpath}
-      POSTGRES_USER: ${POSTGRES_USER:-thinkpath}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?isi POSTGRES_PASSWORD di .env}
-    # Tuning untuk RAM kecil: buffer 128 MB dan koneksi dibatasi. Satu worker
-    # gunicorn x 8 thread memakai paling banyak 8 koneksi.
+    # Tuning RAM kecil; 1 worker x 8 thread memakai paling banyak 8 koneksi.
     command: >
       postgres
       -c shared_buffers=128MB
@@ -30,11 +25,10 @@ services:
       -c wal_buffers=4MB
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # Hanya loopback (127.0.0.1), tidak pernah 0.0.0.0: bisa dibuka dari
-    # laptop/VPS itu sendiri (psql, TablePlus, SSH tunnel), tidak dari internet.
-    # 5433 supaya tidak bentrok dengan Postgres lokal (Homebrew) di 5432.
+    # Hanya loopback, untuk GUI lewat SSH tunnel. 5433 agar tidak bentrok dengan
+    # Postgres lokal di laptop (5432) saat di-tunnel. Jangan pernah 0.0.0.0.
     ports:
-      - "127.0.0.1:${DB_HOST_PORT:-5433}:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -49,17 +43,10 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
-      DATABASE_URL: postgres://${POSTGRES_USER:-thinkpath}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-thinkpath}
-      # localhost dipakai healthcheck di dalam container.
-      DJANGO_ALLOWED_HOSTS: ${API_DOMAIN:-localhost},localhost,127.0.0.1
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
       db:
         condition: service_healthy
-    # Hanya loopback: untuk debug lewat SSH tunnel atau frontend lokal,
-    # tidak terbuka ke internet. Lalu lintas publik lewat Caddy.
-    ports:
-      - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
     mem_limit: 320m
     logging: *logging
 
@@ -67,7 +54,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     environment:
-      API_DOMAIN: ${API_DOMAIN:-localhost}
+      API_DOMAIN: ${API_DOMAIN:?isi API_DOMAIN di .env}
     ports:
       - "80:80"
       - "443:443"

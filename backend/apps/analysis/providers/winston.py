@@ -126,10 +126,6 @@ def score_to_band(ai_score: int) -> str:
     return AiBand.HIGH
 
 
-def is_enabled() -> bool:
-    return bool(os.getenv("WINSTON_API_KEY", "").strip())
-
-
 def _attack_kinds(payload: dict) -> tuple[str, ...]:
     """Penanda pengelabuan yang dilaporkan Winston.
 

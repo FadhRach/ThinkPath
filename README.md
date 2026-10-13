@@ -35,7 +35,7 @@ Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pert
 |---|---|---|
 | Frontend | Next.js 15 (App Router), TypeScript, Tailwind, shadcn/ui, Recharts | Vercel |
 | Backend | Django 5.2 LTS + DRF, PyJWT, psycopg, gunicorn | VPS IDCloudHost (Jakarta), Docker Compose + Caddy |
-| Database | PostgreSQL 17, SQLite untuk dev offline | Container di VPS yang sama |
+| Database | PostgreSQL 17 | Container di VPS yang sama; lokal memakai Postgres terpasang |
 | Analisis AI | Winston AI, Groq `openai/gpt-oss-120b`, heuristik lokal | - |
 | Auth | Email + password, JWT HS256 diterbitkan Django | - |
 
@@ -59,52 +59,21 @@ Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS Jakart
 
 ## Setup Lokal
 
-Prasyarat: Python 3.12+ dan Node.js 20+ (Docker/OrbStack hanya untuk menguji susunan produksi)
+Prasyarat: Python 3.12+, Node.js 20+, dan PostgreSQL 15+ yang menyala dengan database `thinkpath` (macOS: `brew services start postgresql@18 && createdb thinkpath`; OS lain lihat [backend/README.md](./backend/README.md#menjalankan-di-lokal)).
 
-Untuk menjalankan frontend dan backend sekaligus dari folder utama (Windows):
-
-```powershell
-python -m venv .venv                         # hanya untuk setup pertama
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements/development.txt
+```bash
+cd backend
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt        # Windows: venv\Scripts\pip install -r requirements.txt
+cp .env.example .env                            # Windows: isi DATABASE_URL dengan password postgres
+cd ..
 npm ci --prefix frontend
 npm run dev
 ```
 
-`npm run dev` dari folder utama atau `frontend/` memakai Python dari `.venv`, menjalankan migrasi SQLite lokal,
-mengisi data demo hanya jika database kosong, lalu memulai Django di port 7860
-dan Next.js di port 3000. Buka http://localhost:3000. Perintah ini memakai database
-lokal dan mempertahankan berkas environment yang sudah ada. Ctrl+C menghentikan
-kedua server. Hentikan server lama sebelum menjalankannya agar port tidak bentrok.
-Untuk pengembangan backend, jalankan ulang perintah setelah mengubah berkas Python.
+`npm run dev` memakai Python dari `backend/venv`, menjalankan migrasi ke Postgres lokal, mengisi data demo hanya jika database kosong, lalu memulai Django di port 7860 dan Next.js di port 3000. Buka http://localhost:3000. Ctrl+C menghentikan keduanya. Berkas `.env` yang sudah ada tidak pernah ditimpa.
 
-**1. Backend**
-
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate            # macOS/Linux: source venv/bin/activate
-pip install -r requirements/development.txt
-
-cp .env.example .env             # isi minimal DJANGO_SECRET_KEY
-python manage.py migrate
-python manage.py seed_demo_data  # akun + data demo, aman diulang
-python manage.py runserver 0.0.0.0:7860
-```
-
-Cek: `curl http://localhost:7860/health` harus mengembalikan `{"status":"ok"}`.
-
-Dengan `DATABASE_URL` kosong, backend otomatis memakai SQLite lokal. `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
-
-**2. Frontend**
-
-```bash
-cd frontend
-cp .env.local.example .env.local  # NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860
-npm install
-npm run dev:frontend             # backend terpisah harus sudah berjalan
-```
-
-Buka http://localhost:3000 lalu login dengan akun demo di atas.
+Menjalankan backend dan frontend di terminal terpisah: `make dev` di `backend/`, lalu `npm run dev:frontend` di `frontend/`. `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
 
 Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/README.md](./frontend/README.md), dan [ai_experiment/README.md](./ai_experiment/README.md).
 

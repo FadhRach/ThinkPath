@@ -8,126 +8,80 @@ Django 5.2 LTS + Django REST Framework. **Satu-satunya API** untuk seluruh data 
 
 ## Gambaran singkat
 
-Di produksi, backend berjalan di **satu VPS** (IDCloudHost, Jakarta) sebagai tiga container Docker:
+| | **Lokal** | **Produksi (VPS)** |
+|---|---|---|
+| Server | `manage.py runserver` (auto-reload) | gunicorn di belakang Caddy (HTTPS) |
+| Database | PostgreSQL yang terpasang di laptop | PostgreSQL 17 di container `db` |
+| Templat `.env` | `.env.example` | `.env.production.example` |
+| URL API | `http://127.0.0.1:7860` | `https://api.thinkpath.id` |
+
+Tiap mesin hanya punya **satu** `backend/.env`, disalin dari templat yang sesuai. Selain itu semuanya ditulis langsung di `config/settings/`.
+
+Di produksi, backend berjalan sebagai tiga container Docker di satu VPS (IDCloudHost, Jakarta):
 
 ```
 Internet ──HTTPS──> caddy ──HTTP──> api (gunicorn + Django) ──> db (PostgreSQL 17)
-                    :443            127.0.0.1:8000               127.0.0.1:5433
-                    publik          hanya dari mesin itu         hanya dari mesin itu
+                    :80/:443        jaringan Docker saja         127.0.0.1:5433 (SSH tunnel)
 ```
 
-| Komponen | Apa itu | Kenapa dipakai |
-|---|---|---|
-| **Django** | Kode aplikasi kita (`apps/`) | Logika API, auth, analisis |
-| **gunicorn** | *Application server*: proses yang menjalankan Django dan menerima request HTTP | `manage.py runserver` hanya untuk dev (satu proses, tidak tahan beban, tidak aman). gunicorn menjalankan 1 worker × 8 thread, jadi 8 request dilayani bersamaan. Ini penting karena analisis bisa menunggu Winston + Groq sampai ~20 detik, dan selama itu dashboard dosen tetap jalan. Ia juga me-restart worker yang macet (timeout 60 detik) |
-| **Caddy** | *Reverse proxy*: pintu depan dari internet | Mengurus HTTPS otomatis (sertifikat Let's Encrypt, termasuk perpanjangan), mengalihkan HTTP ke HTTPS, kompresi, lalu meneruskan request ke gunicorn |
-| **PostgreSQL** | Basis data, container `db` | Data disimpan di **Docker volume** `thinkpath_pgdata`, bukan di folder proyek. Volume tetap ada walau container dimatikan atau dibuat ulang; yang menghapusnya hanya `docker compose down -v` |
-| **Docker Compose** | Menyalakan ketiganya sekaligus dengan satu berkas (`docker-compose.yml`) | Laptop dan VPS memakai susunan yang sama persis; bedanya hanya isi `.env` |
+| Komponen | Untuk apa |
+|---|---|
+| **gunicorn** | Server aplikasi produksi yang menjalankan Django. `runserver` hanya untuk dev. Konfigurasinya 1 worker × 8 thread, jadi dashboard dosen tetap jalan walau ada submit yang menunggu Winston + Groq (~20 detik) |
+| **Caddy** | Pintu depan dari internet: sertifikat HTTPS otomatis (Let's Encrypt), redirect HTTP→HTTPS, kompresi, lalu meneruskan ke gunicorn |
+| **PostgreSQL** | Datanya di Docker volume `thinkpath_pgdata`, tetap ada walau container dibuat ulang. Hanya `docker compose down -v` yang menghapusnya |
 
 ---
 
 ## Menjalankan di lokal
 
-Ada dua cara. Pilih sesuai kebutuhan:
+Prasyarat: **Python 3.12+** dan **PostgreSQL 15+**.
 
-| | **Mode A: tanpa Docker** | **Mode B: Docker** |
-|---|---|---|
-| Untuk | Ngoding sehari-hari, cepat | Menguji susunan produksi sebelum deploy |
-| Server | `runserver` (auto-reload) | gunicorn + Caddy, sama dengan VPS |
-| Database | SQLite (berkas `db.sqlite3`), tanpa instalasi apa pun | PostgreSQL 17 di container |
-| URL API | `http://127.0.0.1:7860` | `http://127.0.0.1:8000` atau `https://localhost` |
+**1. Pasang dan nyalakan PostgreSQL, lalu buat database `thinkpath`**
 
-Prasyarat: **Python 3.12+** dan **Git**. Untuk Mode B: **Docker** (macOS: [OrbStack](https://orbstack.dev) atau Docker Desktop · Windows: Docker Desktop dengan WSL2 · Linux: Docker Engine + compose plugin).
+| OS | Perintah |
+|---|---|
+| macOS | `brew install postgresql@18 && brew services start postgresql@18 && createdb thinkpath` |
+| Linux (Ubuntu) | `sudo apt install postgresql && sudo -u postgres createuser -s $USER && createdb thinkpath` |
+| Windows | Pasang dari [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) (catat password user `postgres`), lalu di PowerShell: `createdb -U postgres thinkpath` |
 
-### Mode A: tanpa Docker
+**2. Pasang backend**
 
-**macOS / Linux**
+macOS / Linux:
 
 ```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements/development.txt
-cp .env.example .env                 # cukup isi DJANGO_SECRET_KEY (nilai apa saja untuk dev)
+pip install -r requirements.txt
+cp .env.example .env
 python manage.py migrate
 python manage.py seed_demo_data      # akun + data demo, aman diulang
 python manage.py runserver 127.0.0.1:7860
 ```
 
-**Windows (PowerShell)**
+Windows (PowerShell):
 
 ```powershell
 cd backend
 py -m venv venv
 venv\Scripts\Activate.ps1            # jika diblokir: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-pip install -r requirements\development.txt
-copy .env.example .env               # cukup isi DJANGO_SECRET_KEY
+pip install -r requirements.txt
+copy .env.example .env
+# di .env: DATABASE_URL=postgres://postgres:PASSWORD@localhost:5432/thinkpath
 python manage.py migrate
 python manage.py seed_demo_data
 python manage.py runserver 127.0.0.1:7860
 ```
 
-Cek: buka `http://127.0.0.1:7860/health` → `{"status":"ok"}`. Di macOS/Linux, `make dev` menjalankan migrate + runserver sekaligus.
+Di macOS/Linux, `DATABASE_URL` boleh dibiarkan kosong. Bawaannya `postgres:///thinkpath`: socket lokal, user sistem operasi, tanpa password.
 
-Frontend (`frontend/.env.local`): `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860`. Dari folder utama, `npm run dev` menyalakan backend Mode A dan frontend bersamaan.
+Cek: `http://127.0.0.1:7860/health` membalas `{"status":"ok"}`. Di macOS/Linux, `make dev` menjalankan migrate + runserver sekaligus.
+
+Frontend (`frontend/.env.local`): `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860`. Dari folder utama, `npm run dev` menyalakan backend dan frontend bersamaan (memakai `backend/venv`).
 
 **Akun demo** (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`
 
-### Mode B: Docker (mirip produksi)
-
-```bash
-cd backend
-cp .env.example .env
-# isi di .env:
-#   DJANGO_SECRET_KEY=<acak>
-#   POSTGRES_PASSWORD=<acak, huruf+angka saja>   macOS/Linux: openssl rand -hex 24
-#   API_DOMAIN=localhost
-#   GROQ_API_KEY / WINSTON_API_KEY bila ingin menguji analisis eksternal
-
-docker compose up -d --build         # = make up
-docker compose ps                    # db & api harus "healthy" (±30 detik)
-docker compose exec api python manage.py seed_demo_data   # = make seed
-```
-
-Cek: `curl http://127.0.0.1:8000/health`, atau `curl -k https://localhost/health` lewat Caddy (sertifikat lokal, jadi perlu `-k`). Untuk frontend lokal pakai `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000`.
-
-`make` tersedia di macOS/Linux. Di Windows, pakai perintah `docker compose` di kolom kanan:
-
-| `make` | Perintah aslinya |
-|---|---|
-| `make up` | `docker compose up -d --build` |
-| `make down` | `docker compose down` (data **tetap** ada) |
-| `make ps` | `docker compose ps` |
-| `make logs` | `docker compose logs -f --tail=100 api` |
-| `make seed` | `docker compose exec api python manage.py seed_demo_data` |
-| `make shell` | `docker compose exec api python manage.py shell` |
-| `make psql` | `docker compose exec db psql -U thinkpath -d thinkpath` |
-| `make backup` | `./deploy/backup.sh` (bash; di Windows jalankan lewat WSL) |
-| – | `docker compose down -v` → hapus **semua data** DB lokal, mulai bersih |
-
-Setelah mengubah kode Python, jalankan `docker compose up -d --build` lagi (image dibangun ulang, ±10 detik berkat cache).
-
-### Mengakses PostgreSQL
-
-Postgres Mode B ada **di dalam container `db`**. Tidak perlu `brew services start postgresql`, dan Postgres Homebrew (port 5432) tidak dipakai sama sekali. Keduanya bisa jalan berdampingan karena container memakai port **5433**.
-
-| Cara | Perintah / pengaturan |
-|---|---|
-| psql di dalam container | `make psql` |
-| psql dari laptop | `psql -h 127.0.0.1 -p 5433 -U thinkpath -d thinkpath` (password = `POSTGRES_PASSWORD`) |
-| GUI (TablePlus, DBeaver, pgAdmin) | Host `127.0.0.1`, port `5433`, user `thinkpath`, database `thinkpath`, password dari `.env` |
-| Dari VPS (produksi) | SSH tunnel: `ssh -L 5433:127.0.0.1:5433 deploy@<ip-vps>`, lalu sambungkan GUI ke `127.0.0.1:5433` di laptop |
-
-Port 5433 dan 8000 hanya terikat ke `127.0.0.1`, jadi tidak bisa dibuka dari jaringan lain, termasuk di VPS.
-
-Ingin Mode A memakai Postgres Homebrew alih-alih SQLite? Itu opsional:
-
-```bash
-brew services start postgresql@18   # versi yang terpasang
-createdb thinkpath_dev
-# di .env:  DATABASE_URL=postgres:///thinkpath_dev
-python manage.py migrate
-```
+Membuka database: `psql thinkpath` di terminal, atau GUI (TablePlus, DBeaver, pgAdmin) dengan host `127.0.0.1`, port `5432`, database `thinkpath`.
 
 ### Tes
 
@@ -136,7 +90,7 @@ python manage.py test                                    # semua tes (= make tes
 python manage.py test apps.analysis.tests.test_detector  # satu modul
 ```
 
-`manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `DATABASE_URL` di `.env`, jadi aman dijalankan di mana pun. Dulu tes ikut memakai `DATABASE_URL` dan nyaris menghapus basis data di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
+`manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `DATABASE_URL`, jadi tidak pernah menyentuh database sungguhan. Dulu tes ikut memakai `DATABASE_URL` dan nyaris menghapus database di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
 
 ---
 
@@ -150,7 +104,7 @@ Ringkasnya: siapkan server sekali, arahkan DNS, isi `.env`, lalu `make up`. Cont
 apt update && apt upgrade -y
 adduser deploy && usermod -aG sudo deploy        # jangan menjalankan aplikasi sebagai root
 
-# swap 2 GB: wajib di RAM 1 GB supaya build image tidak memicu out-of-memory
+# swap 2 GB: wajib di RAM 1 GB supaya build image tidak kehabisan memori
 fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
 echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
@@ -169,19 +123,10 @@ usermod -aG docker deploy
 ```bash
 sudo mkdir -p /opt/thinkpath && sudo chown deploy: /opt/thinkpath
 git clone <url-repo> /opt/thinkpath && cd /opt/thinkpath/backend
-cp .env.example .env && chmod 600 .env && nano .env
+cp .env.production.example .env && chmod 600 .env && nano .env
 ```
 
-Isi minimal:
-
-```
-DJANGO_SECRET_KEY=<python3 -c "import secrets; print(secrets.token_urlsafe(50))">
-CORS_ALLOWED_ORIGINS=https://thinkpath.vercel.app
-POSTGRES_PASSWORD=<openssl rand -hex 24>
-API_DOMAIN=api.thinkpath.id
-GROQ_API_KEY=...
-WINSTON_API_KEY=...
-```
+Isi `DJANGO_SECRET_KEY`, `POSTGRES_PASSWORD`, `API_DOMAIN`, `CORS_ALLOWED_ORIGINS`, dan key analisis. Cara membuat nilai acaknya tertulis di komentar templat.
 
 **4. Nyalakan**
 
@@ -192,7 +137,7 @@ make seed                                # opsional: akun demo
 curl https://api.thinkpath.id/health     # {"status":"ok"}
 ```
 
-**5. Frontend**: di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build). Kebijakan Privasi versi `2026-10-12` ikut terbit bersama deploy frontend itu.
+**5. Frontend**: di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
 
 **6. Backup harian**
 
@@ -202,7 +147,7 @@ crontab -e
 0 2 * * * /opt/thinkpath/backend/deploy/backup.sh >> /opt/thinkpath/backend/backups/backup.log 2>&1
 ```
 
-Backup tersimpan 7 hari di `backups/`. Salin berkala ke luar VPS (mis. `scp` ke laptop), karena backup di disk yang sama tidak menolong bila VPS-nya rusak.
+Backup disimpan 7 hari di `backups/`. Salin berkala ke luar VPS (mis. `scp` ke laptop), karena backup di disk yang sama tidak menolong bila VPS-nya rusak.
 
 ### Sehari-hari di VPS
 
@@ -211,15 +156,18 @@ Backup tersimpan 7 hari di `backups/`. Salin berkala ke luar VPS (mis. `scp` ke 
 | Rilis kode baru dari `main` | `make deploy` (pull → build → up → hapus image lama) |
 | Log API | `make logs` |
 | Status, RAM | `make ps`, `docker stats --no-stream` |
+| Masuk database | `make psql` |
+| Database lewat GUI di laptop | `ssh -L 5433:127.0.0.1:5433 deploy@<ip-vps>`, lalu GUI ke `127.0.0.1:5433`, user/db `thinkpath`, password dari `.env` |
 | Backup / pulihkan | `make backup` / `make restore FILE=backups/<berkas>.sql.gz` |
-| Rollback | `git checkout <commit-lama> && docker compose up -d --build` (+ `make restore` bila rilisnya mengubah skema) |
+| Rollback | `git checkout <commit-lama> && make up` (+ `make restore` bila rilisnya mengubah skema) |
 | Bersihkan disk | `make prune` |
 
 Hal yang perlu diingat:
 
 - **Migrasi otomatis** setiap container `api` mulai. Menghapus atau mengganti nama kolom tetap harus dua rilis: rilis kode yang tidak lagi memakai kolom itu dulu, baru rilis migrasinya.
-- **Batas RAM**: db 320 MB, api 320 MB, caddy 64 MB. Saat diam totalnya sekitar 100 MB. Jika banyak mahasiswa mengumpulkan bersamaan, naikkan `GUNICORN_THREADS` dulu sebelum `WEB_CONCURRENCY`.
+- **Batas RAM**: db 320 MB, api 320 MB, caddy 64 MB. Saat diam totalnya sekitar 120 MB. Jika banyak mahasiswa mengumpulkan bersamaan, naikkan `threads` di `config/gunicorn.conf.py`, bukan `workers`.
 - **Throttle login** (20/menit per IP) disimpan di memori proses, bukan di DB, sesuai Kebijakan Privasi. Restart container mengenolkannya.
+- **Port**: hanya 80/443 yang publik. Postgres terikat ke `127.0.0.1:5433`, jadi hanya bisa dibuka lewat SSH tunnel. Docker melewati UFW untuk port yang dipublikasikan, jadi jangan pernah mengubahnya ke `0.0.0.0`.
 
 ---
 
@@ -230,7 +178,7 @@ backend/
 ├── config/                   # bukan app: settings, urls, wsgi, gunicorn
 │   ├── settings/
 │   │   ├── base.py           # bersama
-│   │   ├── development.py    # bawaan manage.py
+│   │   ├── development.py    # lokal, bawaan manage.py
 │   │   ├── production.py     # container Docker (DJANGO_SETTINGS_MODULE)
 │   │   └── test.py           # dipaksa untuk `manage.py test`
 │   └── gunicorn.conf.py
@@ -248,8 +196,8 @@ backend/
 │   │   ├── pipeline.py       # run_analysis(): satu-satunya pintu analisis
 │   │   └── detector_cache.py
 │   └── notifications/
-├── common/                   # helper lintas app: env, http, HealthView
-├── requirements/{base,development,production}.txt
+├── common/                   # helper lintas app: http, HealthView
+├── requirements.txt
 ├── deploy/                   # Caddyfile, entrypoint.sh, backup.sh
 ├── Dockerfile  docker-compose.yml  Makefile
 ```
@@ -364,24 +312,14 @@ Dikirim setelah aksi utamanya tersimpan, dan kegagalannya tidak pernah menggagal
 
 ## Environment
 
-Semua di `backend/.env` (templat: `.env.example`). Di Docker, `DATABASE_URL` dan `DJANGO_ALLOWED_HOSTS` dirakit `docker-compose.yml` sehingga tidak perlu diisi.
+Lokal memakai `.env.example`, produksi memakai `.env.production.example`. Nilai lain (DEBUG, umur token, batas throttle, jumlah thread gunicorn) ditulis langsung di `config/`, bukan di `.env`.
 
-| Var | Wajib | Default | Keterangan |
+| Var | Lokal | Produksi | Keterangan |
 |---|---|---|---|
-| `DJANGO_SECRET_KEY` | ya (prod) | fallback dev | menandatangani JWT; produksi gagal boot bila kosong |
-| `DJANGO_DEBUG` | – | `0` | hanya berlaku di dev; container selalu `False` |
-| `DJANGO_ALLOWED_HOSTS` | dev | `localhost,127.0.0.1` | di Docker = `API_DOMAIN,localhost,127.0.0.1` |
-| `CORS_ALLOWED_ORIGINS` | ya (prod) | `http://localhost:3000` | origin frontend, mis. `https://thinkpath.vercel.app` |
-| `DATABASE_URL` | – | SQLite | dev saja; Docker merakitnya dari `POSTGRES_*` |
-| `DB_CONN_MAX_AGE` | – | `60` | umur koneksi persisten (detik) |
-| `GROQ_API_KEY` / `GROQ_MODEL` | – | kosong / `openai/gpt-oss-120b` | kosong = heuristik |
-| `WINSTON_API_KEY` | – | kosong | detektor eksternal, skor AI saja |
-| `AUTH_TOKEN_LIFETIME_DAYS` | – | `7` | umur token |
-| `POSTGRES_DB` / `POSTGRES_USER` | – | `thinkpath` | Docker |
-| `POSTGRES_PASSWORD` | ya (Docker) | – | aman-URL saja: `openssl rand -hex 24` |
-| `API_DOMAIN` | ya (VPS) | `localhost` | subdomain API untuk Caddy (HTTPS) |
-| `API_HOST_PORT` | – | `8000` | port loopback untuk akses langsung tanpa Caddy |
-| `DB_HOST_PORT` | – | `5433` | port loopback untuk membuka Postgres container dari host |
-| `WEB_CONCURRENCY` / `GUNICORN_THREADS` | – | `1` / `8` | proses x thread gunicorn |
-| `NUM_PROXIES` | – | `1` | jumlah proxy di depan Django (Caddy) untuk membaca IP klien |
-| `LOG_LEVEL` | – | `INFO` | |
+| `DATABASE_URL` | opsional | – | kosong = `postgres:///thinkpath`; di produksi dirakit `docker-compose.yml` dari `POSTGRES_*` |
+| `GROQ_API_KEY` / `GROQ_MODEL` | opsional | opsional | kosong = heuristik; model bawaan `openai/gpt-oss-120b` |
+| `WINSTON_API_KEY` | opsional | opsional | detektor eksternal, skor AI saja |
+| `DJANGO_SECRET_KEY` | – | wajib | menandatangani JWT; produksi gagal boot bila kosong |
+| `API_DOMAIN` | – | wajib | subdomain API untuk Caddy (HTTPS) dan `ALLOWED_HOSTS` |
+| `CORS_ALLOWED_ORIGINS` | – | wajib | origin frontend, mis. `https://thinkpath.vercel.app`; lokal bawaannya `localhost:3000` |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | – | wajib | Postgres container; password huruf+angka saja |

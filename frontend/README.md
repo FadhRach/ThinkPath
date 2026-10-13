@@ -9,9 +9,9 @@ Next.js 15 (App Router) + React 19 + TypeScript strict + Tailwind CSS + shadcn/u
 ## Menjalankan Lokal
 
 Jalankan `npm run dev` dari folder utama proyek atau dari `frontend/`. Keduanya
-memulai backend dan frontend bersama dengan database SQLite lokal (lihat setup
-`.venv` di README utama), menjalankan migrasi, dan menunggu API siap sebelum
-membuka frontend.
+memulai backend dan frontend bersama dengan Postgres lokal (lihat setup
+`backend/venv` di README utama), menjalankan migrasi, dan menunggu API siap
+sebelum membuka frontend.
 
 ```bash
 cp .env.local.example .env.local   # NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860

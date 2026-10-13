@@ -107,9 +107,6 @@ TEXT_WEIGHTS = {
 # jawaban di aplikasi lain sebelum menempelkannya bukan penyontek.
 PROCESS_WEIGHT = 0.25
 
-# Dipertahankan agar impor lama tidak patah.
-WEIGHTS = TEXT_WEIGHTS
-
 
 def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, value))

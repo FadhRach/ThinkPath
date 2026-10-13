@@ -14,7 +14,7 @@ def main() -> None:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
         raise ImportError(
-            "Django belum terpasang. Jalankan `pip install -r requirements/development.txt` "
+            "Django belum terpasang. Jalankan `pip install -r requirements.txt` "
             "di virtualenv yang aktif."
         ) from exc
     execute_from_command_line(sys.argv)
