@@ -73,7 +73,7 @@ npm run dev
 
 `npm run dev` memakai Python dari `backend/venv`, menjalankan migrasi ke Postgres lokal, mengisi data demo hanya jika database kosong, lalu memulai Django di port 7860 dan Next.js di port 3000. Buka http://localhost:3000. Ctrl+C menghentikan keduanya. Berkas `.env` yang sudah ada tidak pernah ditimpa.
 
-Menjalankan backend dan frontend di terminal terpisah: `make dev` di `backend/`, lalu `npm run dev:frontend` di `frontend/`. `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
+Menjalankan backend dan frontend di terminal terpisah: `make dev` di `backend/`, lalu `npm run dev` di `frontend/`. `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
 
 Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/README.md](./frontend/README.md), dan [ai_experiment/README.md](./ai_experiment/README.md).
 
