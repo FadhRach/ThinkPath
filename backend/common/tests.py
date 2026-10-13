@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 
 class TestSettingsTest(SimpleTestCase):
     def test_tests_never_use_external_database(self):
-        """DATABASE_URL di .env (mis. server produksi) tidak boleh dipakai tes."""
+        """Database di .env (mis. server produksi) tidak boleh dipakai tes."""
         database = settings.DATABASES["default"]
         self.assertEqual(database["ENGINE"], "django.db.backends.sqlite3")
 

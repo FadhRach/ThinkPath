@@ -4,7 +4,6 @@ development (bawaan manage.py), production (container), test (dipaksa `manage.py
 import os
 from pathlib import Path
 
-import dj_database_url
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parents[2]  # backend/
@@ -33,13 +32,19 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Bawaan: Postgres lokal lewat socket, database `thinkpath`, user = user OS.
+# Nama variabel sama dengan image Postgres resmi, jadi lokal dan produksi seragam.
+# USER kosong = user OS; HOST kosong = socket lokal.
 DATABASES = {
-    "default": dj_database_url.parse(
-        os.getenv("DATABASE_URL") or "postgres:///thinkpath",
-        conn_max_age=60,
-        conn_health_checks=True,
-    )
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "HOST": os.getenv("POSTGRES_HOST", ""),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "NAME": os.getenv("POSTGRES_DB", "thinkpath"),
+        "USER": os.getenv("POSTGRES_USER", ""),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "CONN_MAX_AGE": 60,
+        "CONN_HEALTH_CHECKS": True,
+    }
 }
 
 LANGUAGE_CODE = "id"

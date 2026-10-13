@@ -67,13 +67,13 @@ py -m venv venv
 venv\Scripts\Activate.ps1            # jika diblokir: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 pip install -r requirements.txt
 copy .env.example .env
-# di .env: DATABASE_URL=postgres://postgres:PASSWORD@localhost:5432/thinkpath
+# di .env: POSTGRES_USER=postgres dan POSTGRES_PASSWORD=<password instalasi>
 python manage.py migrate
 python manage.py seed_demo_data
 python manage.py runserver 127.0.0.1:7860
 ```
 
-Di macOS/Linux, `DATABASE_URL` boleh dibiarkan kosong. Bawaannya `postgres:///thinkpath`: socket lokal, user sistem operasi, tanpa password.
+Di macOS/Linux, `POSTGRES_USER` dan `POSTGRES_PASSWORD` boleh kosong: user yang dipakai adalah user sistem operasi, tanpa password. Nama variabelnya sama dengan di produksi.
 
 Cek: `http://127.0.0.1:7860/health` membalas `{"status":"ok"}`. Di macOS/Linux, `make dev` menjalankan migrate + runserver sekaligus.
 
@@ -90,7 +90,7 @@ python manage.py test                                    # semua tes (= make tes
 python manage.py test apps.analysis.tests.test_detector  # satu modul
 ```
 
-`manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `DATABASE_URL`, jadi tidak pernah menyentuh database sungguhan. Dulu tes ikut memakai `DATABASE_URL` dan nyaris menghapus database di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
+`manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `POSTGRES_*` di `.env`, jadi tidak pernah menyentuh database sungguhan. Dulu tes ikut memakai database dari `.env` dan nyaris menghapus database di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
 
 ### Mencoba stack produksi di Mac (OrbStack / Docker Desktop)
 
@@ -121,7 +121,7 @@ Ringkasnya: siapkan server sekali, arahkan DNS, isi `.env`, lalu `make up`. Cont
 **1. Siapkan server (sekali, Ubuntu, sebagai root)**
 
 ```bash
-apt update && apt upgrade -y
+apt update && apt upgrade -y && apt install -y git make
 adduser deploy && usermod -aG sudo deploy        # jangan menjalankan aplikasi sebagai root
 
 # swap 2 GB: wajib di RAM 1 GB supaya build image tidak kehabisan memori
@@ -135,6 +135,8 @@ ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw allow 443/udp 
 curl -fsSL https://get.docker.com | sh
 usermod -aG docker deploy
 ```
+
+Di panel IDCloudHost, pastikan firewall jaringan (bila dipakai) juga membuka port 22, 80, dan 443. UFW di dalam VPS saja tidak cukup bila panel menutupnya.
 
 **2. DNS**: buat *A record* `api.thinkpath.id` → IP VPS. Tunggu sampai `dig +short api.thinkpath.id` menampilkan IP VPS, karena Caddy butuh itu untuk mengambil sertifikat HTTPS.
 
@@ -157,7 +159,7 @@ make seed                                # opsional: akun demo
 curl https://api.thinkpath.id/health     # {"status":"ok"}
 ```
 
-**5. Frontend**: di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
+**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-12`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
 
 **6. Backup harian**
 
@@ -336,10 +338,10 @@ Lokal memakai `.env.example`, produksi memakai `.env.production.example`. Nilai 
 
 | Var | Lokal | Produksi | Keterangan |
 |---|---|---|---|
-| `DATABASE_URL` | opsional | – | kosong = `postgres:///thinkpath`; di produksi dirakit `docker-compose.yml` dari `POSTGRES_*` |
 | `GROQ_API_KEY` / `GROQ_MODEL` | opsional | opsional | kosong = heuristik; model bawaan `openai/gpt-oss-120b` |
 | `WINSTON_API_KEY` | opsional | opsional | detektor eksternal, skor AI saja |
 | `DJANGO_SECRET_KEY` | – | wajib | menandatangani JWT; produksi gagal boot bila kosong |
 | `API_DOMAIN` | – | wajib | subdomain API untuk Caddy (HTTPS) dan `ALLOWED_HOSTS` |
 | `CORS_ALLOWED_ORIGINS` | – | wajib | origin frontend, mis. `https://thinkpath.vercel.app`; lokal bawaannya `localhost:3000` |
-| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | – | wajib | Postgres container; password huruf+angka saja |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | ya (user/password boleh kosong di macOS/Linux) | wajib | produksi: membuat user + database container saat pertama kali menyala; password huruf+angka saja |
+| `POSTGRES_HOST` / `POSTGRES_PORT` | `localhost` / `5432` | – | produksi: diisi `docker-compose.yml` (`db:5432`) |

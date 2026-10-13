@@ -1,5 +1,5 @@
-"""Dipaksa untuk `manage.py test`. DATABASE_URL sengaja diabaikan: dulu tes
-memakai DATABASE_URL di .env dan nyaris menghapus DB server produksi."""
+"""Dipaksa untuk `manage.py test`. POSTGRES_* sengaja diabaikan: dulu tes
+memakai database dari .env dan nyaris menghapus DB server produksi."""
 from config.settings.base import *  # noqa: F403
 
 SECRET_KEY = "test-secret-key"

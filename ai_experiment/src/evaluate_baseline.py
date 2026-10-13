@@ -41,7 +41,7 @@ def bootstrap_backend() -> None:
     tanpa app registry aktif.
 
     Sengaja TIDAK memakai config.settings. Settings produksi menarik
-    dj_database_url, psycopg, dan DRF, padahal evaluasi ini tidak menyentuh
+    psycopg dan DRF, padahal evaluasi ini tidak menyentuh
     basis data sama sekali. Konfigurasi di bawah cukup untuk memuat definisi
     model, dan tidak pernah membuka koneksi.
     """

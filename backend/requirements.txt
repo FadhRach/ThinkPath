@@ -2,7 +2,6 @@
 Django>=5.2.8,<5.3            # LTS sampai April 2028; 5.2.8+ mendukung Python 3.14
 djangorestframework>=3.16,<3.19
 django-cors-headers>=4.4,<5
-dj-database-url>=2.2,<4
 psycopg[binary]>=3.2.3,<4     # wheel berisi libpq, image tidak butuh compiler
 PyJWT>=2.8,<3
 requests>=2.32,<3

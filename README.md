@@ -65,7 +65,7 @@ Prasyarat: Python 3.12+, Node.js 20+, dan PostgreSQL 15+ yang menyala dengan dat
 cd backend
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt        # Windows: venv\Scripts\pip install -r requirements.txt
-cp .env.example .env                            # Windows: isi DATABASE_URL dengan password postgres
+cp .env.example .env                            # Windows: isi POSTGRES_USER=postgres + password
 cd ..
 npm ci --prefix frontend
 npm run dev
