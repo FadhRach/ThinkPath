@@ -1,0 +1,14 @@
+# Reverse proxy + HTTPS otomatis (Let's Encrypt) untuk API.
+# API_DOMAIN diisi di .env (API_DOMAIN=localhost: sertifikat lokal, curl perlu -k).
+{$API_DOMAIN:localhost} {
+	encode zstd gzip
+
+	# Jawaban esai + cuplikan proses jauh di bawah 2 MB.
+	request_body {
+		max_size 2MB
+	}
+
+	header -Server
+
+	reverse_proxy api:8000
+}

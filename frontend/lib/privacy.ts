@@ -3,14 +3,14 @@ import type { Role } from "@/lib/types";
 /**
  * Versi Kebijakan Privasi yang sedang berlaku.
  *
- * Wajib sama dengan PRIVACY_POLICY_VERSION di backend/core/privacy.py; tes
+ * Wajib sama dengan PRIVACY_POLICY_VERSION di backend/apps/accounts/privacy.py; tes
  * backend membaca berkas ini dan gagal bila keduanya berbeda. Mengubah versi
  * membuat setiap pengguna diminta menyetujui ulang sebelum melanjutkan, sesuai
  * Pasal 21 ayat (2) UU No. 27 Tahun 2022: perubahan informasi diberitahukan
  * sebelum terjadi.
  */
-export const PRIVACY_POLICY_VERSION = "2026-09-28";
-export const PRIVACY_POLICY_EFFECTIVE_LABEL = "28 September 2026";
+export const PRIVACY_POLICY_VERSION = "2026-10-12";
+export const PRIVACY_POLICY_EFFECTIVE_LABEL = "12 Oktober 2026";
 
 /**
  * Surel untuk permohonan hak subjek data (Pasal 14: permohonan tercatat).
@@ -47,7 +47,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "data_perkuliahan",
       title: "Data akun dan perkuliahan",
-      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas, nilai, dan umpan balik dosen untuk menjalankan perkuliahan. Datanya disimpan dan diproses oleh penyedia cloud di luar Indonesia: Supabase untuk basis data (Sydney, Australia) dan Vercel untuk server aplikasi (Washington, D.C., Amerika Serikat).",
+      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas, nilai, dan umpan balik dosen untuk menjalankan perkuliahan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang kamu buka atau kirim lewat halaman ikut melewati server Vercel.",
       required: true,
       anchor: "data-yang-dikumpulkan",
     },
@@ -77,7 +77,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "data_perkuliahan",
       title: "Data akun dan kelas",
-      body: "ThinkPath menyimpan akun Anda, kelas, tugas, materi, dan penilaian yang Anda berikan. Datanya disimpan dan diproses oleh penyedia cloud di luar Indonesia: Supabase untuk basis data (Sydney, Australia) dan Vercel untuk server aplikasi (Washington, D.C., Amerika Serikat).",
+      body: "ThinkPath menyimpan akun Anda, kelas, tugas, materi, dan penilaian yang Anda berikan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang Anda buka atau kirim lewat halaman ikut melewati server Vercel.",
       required: true,
       anchor: "data-yang-dikumpulkan",
     },

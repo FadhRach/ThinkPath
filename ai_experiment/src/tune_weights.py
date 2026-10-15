@@ -1,6 +1,6 @@
 """Tahap 3: cari bobot sinyal teks yang terukur, bukan karangan.
 
-Bobot TEXT_WEIGHTS di academics/ai_score.py ditulis dari penalaran sebelum ada
+Bobot TEXT_WEIGHTS di apps/analysis/engines/ai_score.py ditulis dari penalaran sebelum ada
 satu pun pengukuran. Sekarang gold set 999 sampel ada, jadi bobotnya bisa
 dicari, bukan ditebak.
 
@@ -49,8 +49,8 @@ STEP = 0.05
 
 def collect_signal_matrix(rows: list[dict]) -> tuple[list[list[float]], list[int]]:
     """Nilai kelima sinyal per sampel, memakai kode produksi asli."""
-    from academics.ai_score import text_signal_scores
-    from academics.text_features import extract_features
+    from apps.analysis.engines.ai_score import text_signal_scores
+    from apps.analysis.engines.text_features import extract_features
 
     matrix: list[list[float]] = []
     labels: list[int] = []
@@ -148,7 +148,7 @@ def main() -> int:
     args = parser.parse_args()
 
     bootstrap_backend()
-    from academics.ai_score import TEXT_WEIGHTS
+    from apps.analysis.engines.ai_score import TEXT_WEIGHTS
 
     all_rows = load_rows(Path(args.gold), None, "exclude")
     train_rows = [row for row in all_rows if row.get("split") == "train"]

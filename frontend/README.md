@@ -8,10 +8,7 @@ Next.js 15 (App Router) + React 19 + TypeScript strict + Tailwind CSS + shadcn/u
 
 ## Menjalankan Lokal
 
-Jalankan `npm run dev` dari folder utama proyek atau dari `frontend/`. Keduanya
-memulai backend dan frontend bersama dengan database SQLite lokal (lihat setup
-`.venv` di README utama), menjalankan migrasi, dan menunggu API siap sebelum
-membuka frontend.
+Frontend berdiri sendiri. Backend dijalankan terpisah (lihat [backend/README.md](../backend/README.md)) dan harus sudah hidup di `127.0.0.1:7860`.
 
 ```bash
 cp .env.local.example .env.local   # NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860
@@ -19,25 +16,11 @@ npm install
 npm run dev                        # http://localhost:3000
 ```
 
-Setelah kedua server siap, login dengan akun demo (password `thinkpath123`):
-`dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`
+Windows PowerShell: `Copy-Item .env.local.example .env.local`, lalu `npm install` dan `npm run dev`.
 
-Di Windows PowerShell, jalankan dari folder `frontend/`:
+Login dengan akun demo (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`. Setelah mengubah `NEXT_PUBLIC_BACKEND_URL`, jalankan ulang `npm run dev`.
 
-```powershell
-Copy-Item .env.local.example .env.local  # hanya jika .env.local belum ada
-npm install
-npm run dev
-```
-
-`npm run dev` menghubungkan frontend ke API lokal di `127.0.0.1:7860`. Hentikan
-server lama sebelum menjalankannya agar port tidak bentrok. Ctrl+C menghentikan
-kedua server.
-
-Jika backend dikelola di terminal terpisah atau memakai API remote, jalankan
-`npm run dev:frontend`. Perintah ini memakai `NEXT_PUBLIC_BACKEND_URL` dari
-`.env.local`; backend harus siap lebih dulu. Setelah mengubah URL, jalankan ulang
-`npm run dev:frontend`, lalu muat ulang halaman.
+Ingin backend dan frontend menyala bersamaan dengan satu perintah? Jalankan `npm run dev` dari **folder utama** proyek (`scripts/dev.mjs`).
 
 URL API lokal memakai `127.0.0.1` supaya browser tidak memilih alamat IPv6
 `::1` saat Django hanya mendengarkan di IPv4.

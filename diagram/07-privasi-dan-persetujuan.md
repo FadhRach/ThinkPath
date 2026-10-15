@@ -81,21 +81,21 @@ mahasiswa pemilik jawaban, termasuk pilihan analisis luar negerinya.
 | 4 ayat (2), (3) | Data spesifik dan umum | Tabel data dan penegasan tidak meminta data spesifik | `page.tsx` bagian 3 |
 | 5, 21 ayat (1) | Informasi yang wajib disampaikan | Bagian 3 sampai 9 kebijakan | `page.tsx` |
 | 20 ayat (2) | Dasar pemrosesan | Tabel tujuan dan dasar | `page.tsx` bagian 5 |
-| 21 ayat (2) | Perubahan diberitahukan sebelum terjadi | Versi kebijakan; persetujuan versi lama tidak berlaku sehingga layar persetujuan muncul lagi | `backend/core/privacy.py`, `frontend/lib/privacy.ts`, layout dosen dan mahasiswa |
-| 22 ayat (1) sampai (3) | Persetujuan tertulis atau terekam, boleh elektronik | Model `ConsentRecord` | `backend/core/models.py` |
-| 22 ayat (4), (5) | Tujuan lain harus dapat dibedakan, format mudah, bahasa sederhana | Butir terpisah per tujuan, tidak ada yang tercentang dari awal, butir wajib divalidasi server | `components/privacy/ConsentScreen.tsx`, `backend/core/serializers.py` |
-| 24 | Bukti persetujuan wajib dapat ditunjukkan | Baris hanya ditambah, tidak pernah diubah; riwayat tampil di Pengaturan | `core/privacy.py` (`record_consent`), `components/settings/PrivacyPanel.tsx` |
+| 21 ayat (2) | Perubahan diberitahukan sebelum terjadi | Versi kebijakan; persetujuan versi lama tidak berlaku sehingga layar persetujuan muncul lagi | `backend/apps/accounts/privacy.py`, `frontend/lib/privacy.ts`, layout dosen dan mahasiswa |
+| 22 ayat (1) sampai (3) | Persetujuan tertulis atau terekam, boleh elektronik | Model `ConsentRecord` | `backend/apps/accounts/models.py` |
+| 22 ayat (4), (5) | Tujuan lain harus dapat dibedakan, format mudah, bahasa sederhana | Butir terpisah per tujuan, tidak ada yang tercentang dari awal, butir wajib divalidasi server | `components/privacy/ConsentScreen.tsx`, `backend/apps/accounts/serializers.py` |
+| 24 | Bukti persetujuan wajib dapat ditunjukkan | Baris hanya ditambah, tidak pernah diubah; riwayat tampil di Pengaturan | `apps/accounts/privacy.py` (`record_consent`), `components/settings/PrivacyPanel.tsx` |
 | 25 | Data anak wajib persetujuan orang tua/wali | Butir `usia_atau_izin_wali` | `frontend/lib/privacy.ts` |
-| 9, 40 | Penarikan persetujuan; pemrosesan berhenti paling lambat 3 × 24 jam | Endpoint tarik; pengumpulan dan analisis ulang memeriksa basis data, jadi berhenti seketika | `core/views.py` (`ConsentWithdrawView`), `academics/views.py` (`_require_student_consent`) |
+| 9, 40 | Penarikan persetujuan; pemrosesan berhenti paling lambat 3 × 24 jam | Endpoint tarik; pengumpulan dan analisis ulang memeriksa basis data, jadi berhenti seketika | `apps/accounts/views.py` (`ConsentWithdrawView`), `apps/academics/services/submissions.py` (`require_student_consent`) |
 | 10, 34 | Keberatan atas keputusan otomatis; penilaian dampak untuk penskoran sistematis | Tidak ada keputusan otomatis; hasil hanya bahan tinjau dosen; penilaian dampak awal di 7.4 | `page.tsx` bagian 6 |
-| 7, 32 | Akses dan salinan beserta rekam jejak | `GET /api/me/consent` memuat riwayat; salinan lengkap lewat permohonan | `core/privacy.py` (`consent_status`) |
-| 35 sampai 39 | Keamanan dan kerahasiaan | Hash kata sandi, JWT bertanda tangan, HTTPS dan HSTS, pemeriksaan kepemilikan, batas percobaan masuk | `backend/core`, `thinkpath/settings.py` |
+| 7, 32 | Akses dan salinan beserta rekam jejak | `GET /api/me/consent` memuat riwayat; salinan lengkap lewat permohonan | `apps/accounts/privacy.py` (`consent_status`) |
+| 35 sampai 39 | Keamanan dan kerahasiaan | Hash kata sandi, JWT bertanda tangan, HTTPS dan HSTS, pemeriksaan kepemilikan, batas percobaan masuk | `backend/core`, `config/settings/base.py` |
 | 46 | Pemberitahuan kegagalan pelindungan paling lambat 3 × 24 jam | Komitmen tertulis di kebijakan; belum ada otomasi | `page.tsx` bagian 10 |
-| 56 ayat (4) | Transfer ke luar negeri atas persetujuan bila kesetaraan tidak terpenuhi | Butir `analisis_luar_negeri`; `run_analysis(allow_external=False)` melewati Groq, detektor, dan cache detektor | `academics/llm.py`, `academics/views.py` |
+| 56 ayat (4) | Transfer ke luar negeri atas persetujuan bila kesetaraan tidak terpenuhi | Butir `analisis_luar_negeri`; `run_analysis(allow_external=False)` melewati Groq, detektor, dan cache detektor | `apps/analysis/pipeline.py`, `apps/academics/services/submissions.py` |
 
 Versi kebijakan disimpan di dua tempat karena halaman kebijakan ada di frontend
 dan bukti persetujuan dicatat backend. Tes
-`core/tests/test_consent.py::PolicyVersionSyncTest` membaca `frontend/lib/privacy.ts`
+`apps/accounts/tests/test_consent.py::PolicyVersionSyncTest` membaca `frontend/lib/privacy.ts`
 dan gagal bila keduanya berbeda.
 
 ---
@@ -127,13 +127,23 @@ Versi 2026-09-25 menyebut basis data di Singapura dan server API di Hugging
 Face. Keduanya keliru: region Singapura diambil dari contoh host di
 `backend/.env.example`, bukan dari proyek produksi, dan Hugging Face hanya
 target `Dockerfile` yang tidak dipakai produksi. Versi 2026-09-28 mengoreksinya
-dari keadaan produksi yang terperiksa pada 28 September 2026:
+dari keadaan produksi yang terperiksa pada 28 September 2026 (Supabase di
+Sydney, backend Vercel di Washington, D.C.).
+
+Versi 2026-10-12 mengikuti perpindahan backend dan basis data ke VPS:
 
 | Komponen | Lokasi | Cara memeriksa ulang |
 |---|---|---|
-| Basis data Supabase | `ap-southeast-2`, Sydney, Australia | Host pooler di `DATABASE_URL` produksi |
-| Backend Django di Vercel | `iad1`, Washington, D.C., Amerika Serikat | Header `x-vercel-id` dari `https://thinkpath-be.vercel.app/health`, bagian tengah `sin1::iad1::...` |
+| Backend Django + PostgreSQL (Docker di VPS IDCloudHost) | Jakarta, Indonesia | Lokasi VPS di panel IDCloudHost; IP `API_DOMAIN` (`dig +short <API_DOMAIN>`) sama dengan IP VPS |
 | Frontend Next.js di Vercel | `iad1`, Washington, D.C., Amerika Serikat | Header `x-vercel-id` dari halaman yang dirender server, misalnya `/kebijakan-privasi` saat cache `MISS` |
+
+Frontend masih merender halaman di server Vercel, jadi data yang ditampilkan
+tetap **melewati** Amerika Serikat walau **disimpan** di Jakarta. Kebijakan
+menyebutnya terang-terangan, dan Vercel tetap tercantum sebagai penyedia.
+
+Alamat IP untuk throttle login hanya ada di memori proses API (LocMemCache),
+tidak di basis data, sesuai bunyi kebijakan. Jangan mengganti cache throttle ke
+`DatabaseCache` atau Redis tanpa memperbarui kebijakan.
 
 Bagian pertama `x-vercel-id` adalah simpul jaringan Vercel terdekat dari
 pemeriksa, bukan tempat data diproses. Setiap pemindahan region wajib diikuti
@@ -147,6 +157,8 @@ pembaruan kebijakan dan kenaikan versinya.
   itu kebijakan mengarahkan permohonan lewat dosen pengampu.
 - **Zero Data Retention di Groq.** Tersedia di pengaturan Data Controls akun
   Groq; mengaktifkannya menghapus log 30 hari yang disebut kebijakan.
+- **Tautan kebijakan privasi IDCloudHost** di tabel penyedia halaman
+  `/kebijakan-privasi`. Belum dicantumkan karena alamatnya belum diverifikasi.
 - **Penilaian kesetaraan dan perjanjian pemrosesan** dengan penyedia, bila
   ThinkPath dipakai resmi oleh perguruan tinggi.
 
@@ -162,9 +174,6 @@ pembaruan kebijakan dan kenaikan versinya.
 - Groq, Services Agreement (bagian 4.2 dan 11.5):
   https://console.groq.com/docs/legal/services-agreement
 - Winston AI, Privacy Policy: https://gowinston.ai/privacy-policy/
-- Supabase dan Vercel, kebijakan privasi masing-masing:
-  https://supabase.com/privacy, https://vercel.com/legal/privacy-policy
-- Supabase, Available regions (`ap-southeast-2` = Sydney):
-  https://supabase.com/docs/guides/platform/regions
+- Vercel, kebijakan privasi: https://vercel.com/legal/privacy-policy
 - Vercel, Regions (`iad1` = Washington, D.C., region bawaan Vercel Functions):
   https://vercel.com/docs/regions

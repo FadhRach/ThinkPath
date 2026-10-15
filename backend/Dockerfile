@@ -1,34 +1,37 @@
-FROM python:3.11-slim
+# Image API ThinkPath. Multi-stage: stage pertama memasang dependensi ke
+# virtualenv, stage akhir hanya menyalin venv + kode.
+#
+# Alpine, bukan slim: semua dependensi tersedia sebagai wheel musllinux
+# (psycopg[binary] membawa libpq sendiri), jadi tidak perlu compiler, dan base
+# image ~100 MB lebih kecil. venv dibuat tanpa pip karena pip tidak dipakai
+# saat runtime.
 
+FROM python:3.13-alpine AS builder
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN python -m venv --without-pip /opt/venv
+COPY requirements.txt /tmp/
+RUN pip --python /opt/venv/bin/python install -r /tmp/requirements.txt
+
+
+FROM python:3.13-alpine
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PATH=/opt/venv/bin:$PATH \
+    DJANGO_SETTINGS_MODULE=config.settings.production
 
+# Proses berjalan sebagai user tanpa hak root. Kode dimiliki root sehingga
+# tidak bisa diubah oleh proses aplikasi.
+RUN adduser -S -D -H -u 10001 app
 WORKDIR /app
-
-# Sengaja tanpa apt-get sama sekali.
-#
-# Sebelumnya baris ini memasang build-essential, libpq-dev, dan curl. Ketiganya
-# tidak pernah terpakai: requirements.txt memakai psycopg[binary], yaitu wheel
-# yang sudah terkompilasi lengkap dengan libpq bawaannya, dan delapan paket
-# lainnya Python murni. curl dipasang tanpa satu pun HEALTHCHECK memakainya.
-# Akibatnya seluruh perkakas kompiler diunduh untuk sesuatu yang tidak pernah
-# dikompilasi, dan pada koneksi lambat langkah itu sendirian memakan lebih dari
-# setengah jam.
-#
-# Kalau suatu saat psycopg[binary] diganti psycopg biasa, atau ada dependensi
-# baru yang menuntut kompilasi, blok apt-get perlu dikembalikan bersama
-# build-essential dan libpq-dev.
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+COPY --from=builder /opt/venv /opt/venv
 COPY . .
 
-EXPOSE 7860
+USER app
+EXPOSE 8000
 
-# --threads penting: analisis dijalankan sinkron di dalam request dan menunggu
-# Groq. Dengan 2 worker tanpa thread, dua pengumpulan bersamaan membekukan
-# seluruh aplikasi termasuk dashboard dosen. Menunggu jaringan itu IO, jadi
-# thread menyelesaikannya tanpa menambah beban CPU.
-# --timeout 60 memberi ruang di atas timeout Groq (12 detik) plus overhead.
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn thinkpath.wsgi:application --bind 0.0.0.0:7860 --workers 2 --threads 4 --timeout 60"]
+# Tanpa curl: Python sudah ada di image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+
+ENTRYPOINT ["sh", "deploy/entrypoint.sh"]
+CMD ["gunicorn", "--config", "config/gunicorn.conf.py", "config.wsgi:application"]

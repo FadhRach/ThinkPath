@@ -67,7 +67,7 @@ bisa membawa skor detektor ke sana.
 flowchart TB
     T["Satu teks jawaban"] --> BASE["<b>Jalur dasar dijalankan lebih dulu,<br/>tanpa syarat</b>"]
     BASE --> G{"GROQ_API_KEY terisi?"}
-    G -->|"ya, tenggat 12 dtk"| GROQ["Groq llama-3.3-70b<br/>skor AI + level Bloom"]
+    G -->|"ya, tenggat 12 dtk"| GROQ["Groq gpt-oss-120b<br/>skor AI + level Bloom"]
     G -->|"tidak, atau gagal"| HEU["Heuristik ai_score.py + bloom.py"]
 
     GROQ --> CACHE
@@ -167,7 +167,7 @@ yang sebenarnya dinilai produk ini.
 
 > Mengubah bobot **wajib** menurunkan ulang ambangnya. Ambang diukur untuk
 > sebaran skor yang dihasilkan bobot tertentu, bukan properti yang bertahan
-> sendiri. `backend/academics/tests/test_thresholds.py` menjaga kedua angka ini
+> sendiri. `backend/apps/analysis/tests/test_thresholds.py` menjaga kedua angka ini
 > supaya tidak bisa digeser tanpa sengaja.
 
 ---

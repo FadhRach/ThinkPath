@@ -116,7 +116,7 @@ export default function PrivacyPolicyPage() {
                     "Jawaban dianalisis otomatis untuk level Bloom dan indikasi penggunaan AI. Hasilnya bahan tinjau dosen, bukan vonis: ThinkPath tidak memberi nilai, tidak menjatuhkan sanksi, dan tidak menyimpulkan kecurangan.",
                     "Skor indikasi AI hanya terlihat oleh dosen pengampu kelas Anda. Dosen hanya melihat data dari kelasnya sendiri.",
                     "Teks jawaban hanya dikirim ke penyedia analisis di luar negeri (Groq dan Winston AI) bila Anda mengizinkannya, dan izin itu bisa dicabut kapan saja.",
-                    "Data disimpan pada penyedia cloud di luar Indonesia. Data Anda tidak dipakai untuk iklan, tidak dijual, dan tidak dipakai untuk melatih model AI.",
+                    "Data disimpan di server di Jakarta, Indonesia. Halaman web disajikan oleh Vercel di Amerika Serikat, sehingga data yang Anda buka ikut melewati server Vercel. Data Anda tidak dipakai untuk iklan, tidak dijual, dan tidak dipakai untuk melatih model AI.",
                     "Anda berhak mengakses, memperbaiki, menghapus, menarik persetujuan, dan mengajukan keberatan. Caranya dijelaskan di bagian Hak Anda.",
                   ]}
                 />
@@ -427,34 +427,29 @@ export default function PrivacyPolicyPage() {
               title="Penyedia layanan dan transfer ke luar negeri"
             >
               <p>
-                ThinkPath memakai penyedia berikut untuk memproses data. Semuanya berkedudukan
-                atau menyimpan data di luar Indonesia.
+                ThinkPath memakai penyedia berikut untuk memproses data. Data disimpan di
+                Indonesia; Vercel, Groq, dan Winston AI berkedudukan di luar Indonesia.
               </p>
               <PolicyTable
                 columns={["Penyedia", "Peran", "Data yang diterima", "Lokasi dan catatan"]}
                 rows={[
                   [
                     "Vercel Inc.",
-                    "Menyajikan antarmuka web dan menjalankan server API.",
-                    "Halaman yang Anda buka, cookie token login, dan seluruh data yang dikirim ke dan dari API.",
+                    "Menyajikan antarmuka web dan merender halaman di server.",
+                    "Halaman yang Anda buka, cookie token login, dan data yang ditampilkan atau dikirim lewat halaman, saat diteruskan ke dan dari server API.",
                     <>
-                      Perusahaan Amerika Serikat. Server aplikasi berjalan di Washington, D.C.,
-                      Amerika Serikat.{" "}
+                      Perusahaan Amerika Serikat. Server tampilan berjalan di Washington, D.C.,
+                      Amerika Serikat. Basis data tidak berada di Vercel.{" "}
                       <ExternalLink href="https://vercel.com/legal/privacy-policy">
                         Kebijakan privasi Vercel
                       </ExternalLink>
                     </>,
                   ],
                   [
-                    "Supabase, Inc.",
-                    "Basis data PostgreSQL.",
+                    "PT Cloud Hosting Indonesia (IDCloudHost)",
+                    "Server virtual (VPS) yang menjalankan server API dan basis data PostgreSQL.",
                     "Seluruh data yang disimpan ThinkPath.",
-                    <>
-                      Server basis data di Sydney, Australia.{" "}
-                      <ExternalLink href="https://supabase.com/privacy">
-                        Kebijakan privasi Supabase
-                      </ExternalLink>
-                    </>,
+                    "Jakarta, Indonesia. Basis data tidak dapat diakses langsung dari internet; hanya server API di mesin yang sama yang terhubung ke sana.",
                   ],
                   [
                     "Groq, Inc. (hanya bila Anda mengizinkan)",
@@ -493,7 +488,7 @@ export default function PrivacyPolicyPage() {
                 dan mengikat. Bila keduanya tidak terpenuhi, transfer wajib atas persetujuan
                 Subjek Data Pribadi. <Ref>Pasal 56 ayat (2) sampai (4)</Ref> Kami belum menilai
                 kesetaraan itu secara formal, sehingga seluruh transfer di atas kami dasarkan
-                pada persetujuan Anda: persetujuan wajib untuk penyimpanan dan server aplikasi,
+                pada persetujuan Anda: persetujuan wajib untuk penyajian halaman oleh Vercel,
                 serta persetujuan terpisah yang boleh Anda tolak untuk Groq dan Winston AI.
               </p>
             </PolicySection>
@@ -530,10 +525,9 @@ export default function PrivacyPolicyPage() {
                 <b>Keterbatasan yang kami ketahui.</b> Cookie token login belum berstatus
                 HttpOnly, sehingga dapat dibaca skrip di halaman; bila suatu saat ada celah
                 XSS, token bisa dicuri. Perbaikannya, yaitu memindahkan sesi ke sisi server,
-                sudah direncanakan. Batas percobaan masuk disimpan di memori tiap instans
-                server. Vercel menjalankan server dalam jumlah instans yang berubah-ubah dan
-                instans baru mulai menghitung dari nol, sehingga batas itu meredam percobaan
-                otomatis tetapi bukan penjaga yang ketat.
+                sudah direncanakan. Batas percobaan masuk disimpan di memori server API dan
+                mulai menghitung dari nol setiap kali server dimulai ulang, sehingga batas itu
+                meredam percobaan otomatis tetapi bukan penjaga yang ketat.
               </p>
               <p>
                 Bila terjadi kegagalan pelindungan data, kami memberitahu Anda dan lembaga
@@ -664,6 +658,10 @@ export default function PrivacyPolicyPage() {
                 rows={[
                   [
                     PRIVACY_POLICY_VERSION,
+                    "Perpindahan server. Server API dan basis data dipindahkan dari Vercel (Washington, D.C., Amerika Serikat) dan Supabase (Sydney, Australia) ke VPS IDCloudHost di Jakarta, Indonesia, sehingga Supabase dihapus dari daftar penyedia. Vercel tetap menyajikan halaman web. Keterangan batas percobaan masuk disesuaikan dengan server baru.",
+                  ],
+                  [
+                    "2026-09-28",
                     "Koreksi lokasi dan penyedia. Basis data berada di Sydney, Australia, bukan di Singapura seperti tertulis pada versi sebelumnya. Server API dijalankan Vercel di Washington, D.C., Amerika Serikat, bukan Hugging Face, sehingga Hugging Face dihapus dari daftar penyedia. Keterangan batas percobaan masuk disesuaikan dengan cara server berjalan di Vercel.",
                   ],
                   ["2026-09-25", "Versi pertama."],
@@ -701,9 +699,6 @@ export default function PrivacyPolicyPage() {
                   </ExternalLink>,
                   <ExternalLink key="winston" href="https://gowinston.ai/privacy-policy/">
                     Winston AI: Privacy Policy
-                  </ExternalLink>,
-                  <ExternalLink key="supabase" href="https://supabase.com/privacy">
-                    Supabase: Privacy Policy
                   </ExternalLink>,
                   <ExternalLink key="vercel" href="https://vercel.com/legal/privacy-policy">
                     Vercel: Privacy Policy

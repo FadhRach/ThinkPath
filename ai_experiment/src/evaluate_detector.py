@@ -98,7 +98,7 @@ def fetch_ai_probability(text: str, api_key: str, detector) -> float:
     response.raise_for_status()
     human_score = float(response.json()["score"])
     # Pembalikan yang sama persis dengan detector.detect(). Lihat alasannya di
-    # docstring DetectorResult pada backend/academics/detector.py.
+    # docstring DetectorResult pada backend/apps/analysis/providers/winston.py.
     return 1.0 - (human_score / 100.0)
 
 
@@ -121,8 +121,8 @@ def collect_scores(
     rows: list[dict], api_key: str, sleep_seconds: float, detector
 ) -> tuple[list[float], list[float], list[int]]:
     """Skor detektor dan skor heuristik pada baris yang sama persis."""
-    from academics.ai_score import score_ai_probability
-    from academics.text_features import extract_features
+    from apps.analysis.engines.ai_score import score_ai_probability
+    from apps.analysis.engines.text_features import extract_features
 
     cache = CACHE.load()
     cached_hits = 0
@@ -198,7 +198,7 @@ def main() -> int:
         )
 
     bootstrap_backend()
-    from academics import detector
+    from apps.analysis.providers import winston as detector
 
     rows = load_rows(Path(args.gold), args.split, args.mixed_as)
     if not rows:
@@ -245,7 +245,7 @@ def main() -> int:
         ),
         footer=(
             f"\n  Angka {detector.PROVIDER_NAME} di baris atas inilah yang mengisi\n"
-            "  MID_THRESHOLD di backend/academics/detector.py. Jangan menyalin\n"
+            "  MID_THRESHOLD di backend/apps/analysis/providers/winston.py. Jangan menyalin\n"
             "  ambang heuristik ke sana: kedua sebaran skor bentuknya berbeda."
         ),
     )

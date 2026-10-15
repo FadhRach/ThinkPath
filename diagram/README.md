@@ -1,6 +1,6 @@
 # Diagram ThinkPath
 
-Tujuh berkas, seluruhnya memakai Mermaid sehingga **langsung tampil di GitHub**
+Delapan berkas, seluruhnya memakai Mermaid sehingga **langsung tampil di GitHub**
 tanpa perkakas tambahan.
 
 | Berkas | Isi |
@@ -12,6 +12,7 @@ tanpa perkakas tambahan.
 | [05 · Alur Analisis](./05-alur-analisis.md) | Pipeline, rantai tiga lapis skor AI, E1, sinyal proses, E2, E4, dan cara validasi diukur |
 | [06 · Design System](./06-design-system.md) | Token warna, tipografi, hierarki komponen, pola visualisasi data, pola Materi dan Jadwal |
 | [07 · Privasi dan Persetujuan](./07-privasi-dan-persetujuan.md) | Alur persetujuan, penegakan di server, pemetaan pasal UU PDP ke kode, penilaian dampak awal, lokasi server |
+| [08 · ERD dan Kamus Data](./08-erd-basis-data.md) | Relasi seluruh tabel, constraint dan index, normalisasi beserta denormalisasi yang disengaja, siklus hidup submission |
 
 ## Cara membaca
 
@@ -25,8 +26,9 @@ lalu ekspor sebagai PNG atau SVG.
 Ke-28 diagram di sini juga tersedia sebagai objek FigJam yang bisa diedit:
 [board ThinkPath](https://www.figma.com/board/2p1N9xOxblT6cmILJvV8g3). Isinya
 dibagi menjadi enam section yang namanya mengikuti berkas 01 sampai 06 di folder
-ini. Berkas 07 belum ikut dipindahkan ke board, dan diagram 1.4 di board masih
-menggambar backend di Hugging Face; versi Markdown sudah diperbarui ke Vercel.
+ini. Berkas 07 dan 08 belum ikut dipindahkan ke board, dan diagram 1.4 di board
+masih menggambar backend di Hugging Face; versi Markdown sudah diperbarui ke
+VPS (Docker di Jakarta).
 
 Tiga hal berbeda di versi Figma karena keterbatasan perendernya:
 

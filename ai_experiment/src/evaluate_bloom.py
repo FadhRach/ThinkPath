@@ -74,12 +74,12 @@ def read_answers(path: Path) -> dict[str, str]:
 def predict_with_e2(answers: dict[str, str]) -> dict[str, str]:
     """Jalankan estimator Bloom produksi, bukan salinannya.
 
-    Mengimpor langsung dari backend/academics supaya laporan tidak pernah basi
+    Mengimpor langsung dari backend/apps/analysis supaya laporan tidak pernah basi
     diam diam ketika kode produksi berubah.
     """
     bootstrap_backend()
-    from academics.bloom import estimate_bloom_level
-    from academics.text_features import extract_features
+    from apps.analysis.engines.bloom import estimate_bloom_level
+    from apps.analysis.engines.text_features import extract_features
 
     return {
         item_id: str(estimate_bloom_level(extract_features(text)).level)

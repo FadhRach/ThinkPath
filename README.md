@@ -33,86 +33,55 @@ Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pert
 
 | Layer | Teknologi | Deploy |
 |---|---|---|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui, Recharts | Vercel |
-| Backend | Django 5 + DRF, PyJWT, psycopg | Vercel, proyek terpisah (fungsi Python) |
-| Database | PostgreSQL, SQLite untuk dev offline | Supabase, region Sydney |
-| Analisis AI | Winston AI, Groq `llama-3.3-70b-versatile`, heuristik lokal | - |
+| Frontend | Next.js 15 (App Router), TypeScript, Tailwind, shadcn/ui, Recharts | Vercel |
+| Backend | Django 5.2 LTS + DRF, PyJWT, psycopg, gunicorn | VPS IDCloudHost (Jakarta), Docker Compose + Caddy |
+| Database | PostgreSQL 17 | Container di VPS yang sama; lokal memakai Postgres terpasang |
+| Analisis AI | Winston AI, Groq `openai/gpt-oss-120b`, heuristik lokal | - |
 | Auth | Email + password, JWT HS256 diterbitkan Django | - |
 
 ## Struktur Project
 
 ```
 thinkpath/
-├── frontend/        Next.js 14, antarmuka dosen dan mahasiswa
+├── frontend/        Next.js 15, antarmuka dosen dan mahasiswa
 ├── backend/         Django 5 + DRF, satu-satunya API untuk semua data
 ├── ai_experiment/   Validasi dan kalibrasi lapisan analisis
-└── diagram/         Diagram arsitektur, alur peran, dan design system (Mermaid)
+└── diagram/         Diagram arsitektur, alur peran, design system, ERD (Mermaid)
 ```
 
 Frontend tidak pernah menyentuh database langsung:
 
 ```
-Browser -> Next.js (Vercel) -> Django + DRF (Vercel) -> PostgreSQL (Supabase)
-                                      |
-                                      +-> Analisis: Winston -> Groq -> heuristik
+Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS Jakarta)
+                                         |
+                                         +-> Analisis: Winston -> Groq -> heuristik
 ```
 
 ## Setup Lokal
 
-Prasyarat: Python 3.11+ dan Node.js 20+
+Prasyarat: Python 3.12+, Node.js 20+, dan PostgreSQL 15+ yang menyala dengan database `thinkpath` (macOS: `brew services start postgresql@18 && createdb thinkpath`; OS lain lihat [backend/README.md](./backend/README.md#menjalankan-di-lokal)).
 
-Untuk menjalankan frontend dan backend sekaligus dari folder utama (Windows):
-
-```powershell
-python -m venv .venv                         # hanya untuk setup pertama
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+```bash
+cd backend
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt        # Windows: venv\Scripts\pip install -r requirements.txt
+cp .env.example .env                            # Windows: isi POSTGRES_USER=postgres + password
+cd ..
 npm ci --prefix frontend
 npm run dev
 ```
 
-`npm run dev` dari folder utama atau `frontend/` memakai Python dari `.venv`, menjalankan migrasi SQLite lokal,
-mengisi data demo hanya jika database kosong, lalu memulai Django di port 7860
-dan Next.js di port 3000. Buka http://localhost:3000. Perintah ini memakai database
-lokal dan mempertahankan berkas environment yang sudah ada. Ctrl+C menghentikan
-kedua server. Hentikan server lama sebelum menjalankannya agar port tidak bentrok.
-Untuk pengembangan backend, jalankan ulang perintah setelah mengubah berkas Python.
+`npm run dev` memakai Python dari `backend/venv`, menjalankan migrasi ke Postgres lokal, mengisi data demo hanya jika database kosong, lalu memulai Django di port 7860 dan Next.js di port 3000. Buka http://localhost:3000. Ctrl+C menghentikan keduanya. Berkas `.env` yang sudah ada tidak pernah ditimpa.
 
-**1. Backend**
-
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate            # macOS/Linux: source venv/bin/activate
-pip install -r requirements.txt
-
-cp .env.example .env             # isi minimal DJANGO_SECRET_KEY
-python manage.py migrate
-python manage.py seed_demo_data  # akun + data demo, aman diulang
-python manage.py runserver 0.0.0.0:7860
-```
-
-Cek: `curl http://localhost:7860/health` harus mengembalikan `{"status":"ok"}`.
-
-Tanpa Supabase, kosongkan `DATABASE_URL` di `.env` dan backend otomatis memakai SQLite lokal.
-
-**2. Frontend**
-
-```bash
-cd frontend
-cp .env.local.example .env.local  # NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860
-npm install
-npm run dev:frontend             # backend terpisah harus sudah berjalan
-```
-
-Buka http://localhost:3000 lalu login dengan akun demo di atas.
+Menjalankan backend dan frontend di terminal terpisah: `make dev` di `backend/`, lalu `npm run dev` di `frontend/`. `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
 
 Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/README.md](./frontend/README.md), dan [ai_experiment/README.md](./ai_experiment/README.md).
 
 ## Deploy
 
-Frontend (`thinkpath.vercel.app`) dan backend (`thinkpath-be.vercel.app`) adalah dua proyek Vercel terpisah yang di-deploy otomatis dari `main`. Basis datanya Supabase.
+Frontend (`thinkpath.vercel.app`) di-deploy otomatis oleh Vercel dari `main`. Backend dan PostgreSQL berjalan di VPS IDCloudHost (Jakarta) dengan Docker Compose: `db` (PostgreSQL 17), `api` (gunicorn), dan `caddy` (HTTPS otomatis). Di VPS, `make deploy` menarik `main`, membangun ulang image, dan menjalankan migrasi saat container mulai.
 
-**Vercel tidak menjalankan migrasi.** Setiap PR yang menambah berkas di `backend/*/migrations/` wajib diikuti `python manage.py migrate` ke basis data produksi. Kalau terlewat, endpoint yang menyentuh tabel baru gagal `500`, termasuk login. Langkahnya ada di [backend/README.md](./backend/README.md#migrasi-basis-data-produksi).
+Runbook lengkap (menyiapkan server, DNS, `.env`, backup harian, rollback) ada di [backend/README.md](./backend/README.md#deploy-produksi-vps).
 
 ## Sistem di Dalamnya
 

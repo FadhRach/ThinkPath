@@ -31,7 +31,7 @@ from pathlib import Path
 from .config import ensure_dirs
 from .metrics import confusion_at, pearson, roc_auc, threshold_at_max_fpr
 
-# Ambang yang dipakai produksi sekarang (backend/academics/ai_score.py, satu
+# Ambang yang dipakai produksi sekarang (backend/apps/analysis/engines/ai_score.py, satu
 # paket dengan bobot terukur dari tune_weights.py). Dicetak untuk kedua mesin
 # supaya terlihat apakah ambang yang sama masuk akal untuk keduanya. Hampir
 # pasti tidak, dan itulah yang ingin ditunjukkan.

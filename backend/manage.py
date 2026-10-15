@@ -4,7 +4,12 @@ import sys
 
 
 def main() -> None:
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thinkpath.settings")
+    # Tes SELALU memakai settings test (SQLite in-memory), apa pun isi env,
+    # supaya `manage.py test` tidak pernah menyentuh basis data sungguhan.
+    if sys.argv[1:2] == ["test"]:
+        os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.test"
+    else:
+        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
