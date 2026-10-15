@@ -52,9 +52,9 @@ thinkpath/
 Frontend tidak pernah menyentuh database langsung:
 
 ```
-Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS Jakarta)
+Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS)
                                          |
-                                         +-> Analisis: Winston -> Groq -> heuristik
+                                         +-> Analisis: Winston -> Groq (AI as a Judge) -> heuristik
 ```
 
 ## Setup Lokal
@@ -84,7 +84,9 @@ npm install
 npm run dev
 ```
 
-Backend juga bisa dijalankan dengan Docker, baik di laptop maupun di VPS; lihat [backend/README.md](./backend/README.md). `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
+Backend juga bisa dijalankan dengan Docker, baik di laptop maupun di VPS; lihat [backend/README.md](./backend/README.md).
+
+Aplikasi selalu memakai PostgreSQL (runserver, Docker, maupun VPS). Satu-satunya pengecualian adalah tes otomatis (`python manage.py test`), yang memakai SQLite in-memory agar tidak pernah menyentuh database sungguhan.
 
 Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/README.md](./frontend/README.md), dan [ai_experiment/README.md](./ai_experiment/README.md).
 

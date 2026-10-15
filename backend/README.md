@@ -90,7 +90,7 @@ python manage.py test                                    # semua tes (= make tes
 python manage.py test apps.analysis.tests.test_detector  # satu modul
 ```
 
-`manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `POSTGRES_*` di `.env`, jadi tidak pernah menyentuh database sungguhan. Dulu tes ikut memakai database dari `.env` dan nyaris menghapus database di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
+Aplikasi selalu memakai PostgreSQL; hanya tes yang berbeda. `manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `POSTGRES_*` di `.env`, jadi tidak pernah menyentuh database sungguhan. Dulu tes ikut memakai database dari `.env` dan nyaris menghapus database di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
 
 ### Mencoba stack produksi di Mac (OrbStack / Docker Desktop)
 
