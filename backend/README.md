@@ -77,7 +77,7 @@ Di macOS/Linux, `POSTGRES_USER` dan `POSTGRES_PASSWORD` boleh kosong: user yang 
 
 Cek: `http://127.0.0.1:7860/health` membalas `{"status":"ok"}`. Di macOS/Linux, `make dev` menjalankan migrate + runserver sekaligus.
 
-Frontend (`frontend/.env.local`): `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860`. Dari folder utama proyek, `npm run dev` menyalakan backend dan frontend bersamaan (memakai `backend/venv`).
+Frontend dijalankan terpisah di `frontend/` (`npm install` lalu `npm run dev`), dengan `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860` di `frontend/.env.local`.
 
 **Akun demo** (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`
 

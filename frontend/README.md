@@ -20,8 +20,6 @@ Windows PowerShell: `Copy-Item .env.local.example .env.local`, lalu `npm install
 
 Login dengan akun demo (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`. Setelah mengubah `NEXT_PUBLIC_BACKEND_URL`, jalankan ulang `npm run dev`.
 
-Ingin backend dan frontend menyala bersamaan dengan satu perintah? Jalankan `npm run dev` dari **folder utama** proyek (`scripts/dev.mjs`).
-
 URL API lokal memakai `127.0.0.1` supaya browser tidak memilih alamat IPv6
 `::1` saat Django hanya mendengarkan di IPv4.
 
