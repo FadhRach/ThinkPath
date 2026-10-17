@@ -125,9 +125,9 @@ Zona waktu **dipaku, bukan mengikuti mesin yang merender**. Backend mengirim sel
 ## Deploy: Vercel
 
 1. Import folder `frontend/` sebagai project Vercel (Next.js terdeteksi otomatis).
-2. Set env `NEXT_PUBLIC_BACKEND_URL` ke URL backend. Di produksi: `https://thinkpath-be.vercel.app`, proyek Vercel terpisah (lihat [backend/README.md](../backend/README.md#deploy-produksi-vercel)).
+2. Set env `NEXT_PUBLIC_BACKEND_URL` ke URL backend. Di produksi: `https://thinkpath.fadh.tech`, API di VPS Jakarta (lihat [backend/README.md](../backend/README.md#deploy-produksi-vps)).
 3. Deploy, lalu pastikan backend sudah mengizinkan origin Vercel di `CORS_ALLOWED_ORIGINS`.
 
-Frontend dan backend di-deploy terpisah dari `main`. Bila PR membawa migrasi, endpoint yang menyentuh tabel baru gagal `500` sampai `migrate` dijalankan ke basis data produksi, dan formulir menampilkan "Server ThinkPath sedang bermasalah". Langkahnya ada di [backend/README.md](../backend/README.md#migrasi-basis-data-produksi).
+Frontend (Vercel) dan backend (VPS) di-deploy terpisah. Migrasi basis data berjalan otomatis setiap container `api` mulai (`deploy/entrypoint.sh`); langkah deploy ada di [backend/README.md](../backend/README.md#deploy-produksi-vps).
 
 > `NEXT_PUBLIC_BACKEND_URL` ikut ter-bake saat build, jadi mengubahnya menuntut **redeploy**, bukan sekadar restart. Jangan pernah menaruh rahasia di variabel berawalan `NEXT_PUBLIC_` — semuanya masuk ke bundel browser.
