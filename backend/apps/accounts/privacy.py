@@ -21,10 +21,11 @@ from apps.accounts.models import ConsentAction, ConsentRecord, Role
 # Tanggal berlaku versi kebijakan. Mengubahnya membuat semua persetujuan lama
 # tidak berlaku, sehingga setiap pengguna diminta membaca dan menyetujui ulang
 # sebelum pemrosesan berlanjut dengan ketentuan baru (Pasal 21 ayat (2)).
-PRIVACY_POLICY_VERSION = "2026-10-12"
+PRIVACY_POLICY_VERSION = "2026-10-17"
 
 # Data akun, kelas, jawaban, nilai, dan umpan balik untuk perkuliahan,
-# termasuk penyimpanannya di VPS Jakarta dan penyajian halaman oleh Vercel.
+# termasuk dokumen yang diunggah, penyimpanannya di VPS Jakarta, dan
+# penyajian halaman oleh Vercel.
 ITEM_COURSE_DATA = "data_perkuliahan"
 # Perekaman jumlah kata tiap 30 detik dan analisis otomatis (level Bloom dan
 # indikasi penggunaan AI) sebagai bahan tinjau dosen.
@@ -34,8 +35,10 @@ ITEM_AGE = "usia_atau_izin_wali"
 # Dosen: memakai data mahasiswa hanya untuk kelasnya, menjaga kerahasiaan,
 # dan tidak menjatuhkan sanksi hanya berdasarkan skor.
 ITEM_TEACHER_DUTIES = "tanggung_jawab_dosen"
-# Opsional: teks jawaban boleh dikirim ke Groq (AS) dan Winston AI (Kanada).
-# Tanpa butir ini, jawaban hanya dianalisis heuristik di server ThinkPath.
+# Opsional: teks jawaban boleh dikirim ke Groq (AS) dan Winston AI (Kanada),
+# begitu pula gambar halaman dokumen scan/foto yang diunggah untuk dibaca.
+# Tanpa butir ini, jawaban hanya dianalisis heuristik di server ThinkPath dan
+# dokumen yang butuh pembacaan gambar ditolak.
 ITEM_EXTERNAL_AI = "analisis_luar_negeri"
 
 REQUIRED_ITEMS: dict[str, tuple[str, ...]] = {

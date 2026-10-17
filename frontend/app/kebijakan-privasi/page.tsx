@@ -115,7 +115,7 @@ export default function PrivacyPolicyPage() {
                     "Saat mengerjakan tugas, yang dicatat hanya jumlah kata setiap 30 detik, waktu mulai dan kumpul, serta jumlah revisi. Isi ketikan per detik, tindakan menempel, layar, kamera, dan lokasi tidak direkam.",
                     "Jawaban dianalisis otomatis untuk level Bloom dan indikasi penggunaan AI. Hasilnya bahan tinjau dosen, bukan vonis: ThinkPath tidak memberi nilai, tidak menjatuhkan sanksi, dan tidak menyimpulkan kecurangan.",
                     "Skor indikasi AI hanya terlihat oleh dosen pengampu kelas Anda. Dosen hanya melihat data dari kelasnya sendiri.",
-                    "Teks jawaban hanya dikirim ke penyedia analisis di luar negeri (Groq dan Winston AI) bila Anda mengizinkannya, dan izin itu bisa dicabut kapan saja.",
+                    "Teks jawaban, dan gambar halaman dokumen scan atau foto yang Anda unggah, hanya dikirim ke penyedia di luar negeri (Groq dan Winston AI) bila Anda mengizinkannya, dan izin itu bisa dicabut kapan saja.",
                     "Data disimpan di server di Jakarta, Indonesia. Halaman web disajikan oleh Vercel di Amerika Serikat, sehingga data yang Anda buka ikut melewati server Vercel. Data Anda tidak dipakai untuk iklan, tidak dijual, dan tidak dipakai untuk melatih model AI.",
                     "Anda berhak mengakses, memperbaiki, menghapus, menarik persetujuan, dan mengajukan keberatan. Caranya dijelaskan di bagian Hak Anda.",
                   ]}
@@ -201,6 +201,12 @@ export default function PrivacyPolicyPage() {
                     "Teks jawaban, waktu mulai, waktu kumpul, durasi, jumlah revisi setelah dikumpulkan, dan status.",
                     "Mahasiswa. Waktu mulai dikirim peramban.",
                     "",
+                  ],
+                  [
+                    "Dokumen unggahan",
+                    "Berkas PDF, DOCX, PNG, atau JPG (maksimal 10 MB) yang Anda unggah untuk mengisi jawaban, beserta teks hasil pembacaannya.",
+                    "Mahasiswa.",
+                    "Disimpan di server Jakarta dan hanya dipakai untuk mengisi jawaban serta memeriksa bahwa jawaban berasal darinya. DOCX dan PDF berlapis teks dibaca di server; halaman gambar dikirim ke Groq hanya dengan izin Anda. Jawaban yang diimpor ditandai bagi dosen.",
                   ],
                   [
                     "Jejak proses menulis",
@@ -303,7 +309,7 @@ export default function PrivacyPolicyPage() {
                   ],
                   [
                     "Analisis tambahan oleh penyedia di luar negeri",
-                    "Teks jawaban dan jenjang studi",
+                    "Teks jawaban, jenjang studi, dan gambar halaman dokumen unggahan",
                     "Persetujuan terpisah yang boleh ditolak (huruf a), sekaligus dasar transfer ke luar negeri (Pasal 56 ayat (4))",
                   ],
                   [
@@ -340,8 +346,9 @@ export default function PrivacyPolicyPage() {
                   </>,
                   <>
                     <b>Indikasi penggunaan AI (0-100)</b>, yaitu gabungan lima sinyal gaya teks
-                    dan satu sinyal proses, yakni bentuk kurva pertumbuhan kata. Bila Anda
-                    mengizinkan, skor teks berasal dari detektor Winston AI atau model Groq; bila
+                    dan satu sinyal proses, yakni bentuk kurva pertumbuhan kata. Jawaban yang
+                    diimpor dari dokumen tidak punya jejak mengetik, sehingga sinyal proses
+                    dilewati dan dosen melihat tandanya. Bila Anda mengizinkan, skor teks berasal dari detektor Winston AI atau model Groq; bila
                     tidak, dari heuristik di server ThinkPath.
                   </>,
                 ]}
@@ -453,8 +460,8 @@ export default function PrivacyPolicyPage() {
                   ],
                   [
                     "Groq, Inc. (hanya bila Anda mengizinkan)",
-                    "Analisis teks: taksiran level Bloom dan indikasi AI.",
-                    "Teks jawaban dan jenjang studi, tanpa nama atau email.",
+                    "Analisis teks (taksiran level Bloom dan indikasi AI) dan pembacaan teks dari gambar halaman dokumen.",
+                    "Teks jawaban dan jenjang studi, serta gambar halaman dokumen scan atau foto yang Anda unggah, tanpa nama atau email.",
                     <>
                       Amerika Serikat. Menurut dokumentasinya, Groq secara bawaan tidak menyimpan
                       data permintaan; log untuk menangani galat atau penyalahgunaan disimpan
@@ -497,7 +504,7 @@ export default function PrivacyPolicyPage() {
               <Bullets
                 items={[
                   "Data disimpan selama akun Anda dan kelas terkait masih ada. ThinkPath belum menghapus data secara otomatis menurut jadwal; penghapusan dilakukan atas permintaan.",
-                  "Bila Anda meminta penghapusan, tim pengelola menghapus akun beserta jawaban, hasil analisis, notifikasi, dan catatan persetujuan yang terkait, lalu memberitahukannya kepada Anda (Pasal 43 dan 45). Jawaban dan nilai di kelas dosen ikut terhapus; beri tahu dosen Anda bila nilainya masih diperlukan untuk catatan akademik.",
+                  "Bila Anda meminta penghapusan, tim pengelola menghapus akun beserta jawaban, dokumen unggahan, hasil analisis, notifikasi, dan catatan persetujuan yang terkait, lalu memberitahukannya kepada Anda (Pasal 43 dan 45). Jawaban dan nilai di kelas dosen ikut terhapus; beri tahu dosen Anda bila nilainya masih diperlukan untuk catatan akademik.",
                   "Untuk akun dosen, penghapusan ikut menghapus kelas, tugas, materi, dan seluruh jawaban mahasiswa di dalam kelas itu. Karena menyangkut data orang lain, kami mengonfirmasi dulu kepada dosen sebelum melaksanakannya.",
                   "Menarik persetujuan tidak otomatis menghapus data yang sudah ada. Pemrosesan baru berhenti seketika, sedangkan data lama tetap tersimpan sampai Anda meminta penghapusan.",
                   "Laporan di dasbor Winston AI dapat kami hapus atas permintaan Anda; cadangannya terhapus dalam 90 hari sesuai kebijakan Winston AI. Log Groq terhapus sendiri paling lama 30 hari.",
@@ -658,6 +665,10 @@ export default function PrivacyPolicyPage() {
                 rows={[
                   [
                     PRIVACY_POLICY_VERSION,
+                    "Unggah dokumen jawaban. Mahasiswa dapat mengunggah PDF, DOCX, atau gambar untuk mengisi jawaban. Berkas dan teks hasil pembacaannya disimpan di server Jakarta; halaman gambar dikirim ke Groq (Amerika Serikat) hanya bila mahasiswa mengizinkan analisis di luar negeri. Jawaban yang diimpor dari dokumen dilewati sinyal prosesnya dan ditandai bagi dosen.",
+                  ],
+                  [
+                    "2026-10-12",
                     "Perpindahan server. Server API dan basis data dipindahkan dari Vercel (Washington, D.C., Amerika Serikat) dan Supabase (Sydney, Australia) ke VPS IDCloudHost di Jakarta, Indonesia, sehingga Supabase dihapus dari daftar penyedia. Vercel tetap menyajikan halaman web. Keterangan batas percobaan masuk disesuaikan dengan server baru.",
                   ],
                   [
