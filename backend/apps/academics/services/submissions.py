@@ -23,6 +23,7 @@ from apps.academics.models import (
     SubmissionStatus,
 )
 from apps.academics.selectors import stored_progress
+from apps.academics.services.documents import verified_source
 from apps.accounts.models import Profile
 from apps.accounts.privacy import ITEM_EXTERNAL_AI, current_consent
 from apps.analysis.engines.process_signals import ProcessContext, ProgressSample
@@ -58,14 +59,19 @@ def _analyse_for(
     revision_count: int,
     allow_external: bool,
     progress: tuple = (),
+    imported: bool = False,
 ) -> dict:
     """Satu-satunya jalan masuk ke run_analysis dari alur submission.
 
     allow_external sengaja tanpa nilai bawaan: tiap pemanggil wajib
     memutuskannya dari persetujuan mahasiswa. Jam dinding tidak ikut dikirim;
     backend UTC, jam hanya diformat di frontend.
+
+    Jawaban yang diimpor dari dokumen tiba sekaligus, sehingga forensik proses
+    akan membacanya sebagai tempelan. Tanpa jejak mengetik, sinyal itu dilewati
+    (process=None) dan skor bertumpu pada teks; dosen melihat lencana "diimpor".
     """
-    process = ProcessContext(
+    process = None if imported else ProcessContext(
         duration_seconds=duration_seconds,
         revision_count=revision_count,
         word_count=len(text_answer.split()),
@@ -95,7 +101,7 @@ def submit_answer(
         return _create(assignment, student, validated, allow_external), False
     if existing.status == SubmissionStatus.REVIEWED:
         raise ValidationError(ALREADY_GRADED)
-    return _revise(existing, assignment, validated["text_answer"], allow_external), True
+    return _revise(existing, assignment, validated, allow_external), True
 
 
 def _create(
@@ -119,6 +125,7 @@ def _create(
         )
         for s in samples
     )
+    source_document = verified_source(student.id, validated.get("document_id"), text_answer)
     analysis = _analyse_for(
         text_answer,
         assignment,
@@ -126,6 +133,7 @@ def _create(
         revision_count=0,
         allow_external=allow_external,
         progress=progress,
+        imported=source_document is not None,
     )
     try:
         with transaction.atomic():
@@ -133,6 +141,7 @@ def _create(
                 assignment=assignment,
                 student_profile=student,
                 text_answer=text_answer,
+                source_document=source_document,
                 started_at=started_at,
                 submitted_at=submitted_at,
                 duration_seconds=duration_seconds,
@@ -163,8 +172,17 @@ def _create(
 
 
 def _revise(
-    submission: Submission, assignment: Assignment, text_answer: str, allow_external: bool
+    submission: Submission, assignment: Assignment, validated: dict, allow_external: bool
 ) -> Submission:
+    text_answer = validated["text_answer"]
+    # Dokumen baru bila diunggah ulang; kalau tidak, dokumen lama tetap berlaku
+    # selama teks revisi masih berasal darinya. Teks yang ditulis ulang total
+    # kembali dinilai lewat jejak prosesnya.
+    source_document = verified_source(
+        submission.student_profile_id,
+        validated.get("document_id") or submission.source_document,
+        text_answer,
+    )
     # revision_count di sini masih nilai lama; revisi yang sedang berjalan
     # ikut dihitung supaya bukti proses sama dengan angka yang nanti tersimpan.
     analysis = _analyse_for(
@@ -174,6 +192,7 @@ def _revise(
         revision_count=submission.revision_count + 1,
         allow_external=allow_external,
         progress=stored_progress(submission),
+        imported=source_document is not None,
     )
     with transaction.atomic():
         # Kunci baris dan baca ulang: selama analisis berjalan, dosen bisa saja
@@ -183,10 +202,13 @@ def _revise(
             raise ValidationError(ALREADY_GRADED)
         revised_at = timezone.now()
         locked.text_answer = text_answer
+        locked.source_document = source_document
         locked.revision_count += 1
         locked.submitted_at = revised_at
         locked.status = SubmissionStatus.SUBMITTED
-        locked.save(update_fields=["text_answer", "revision_count", "submitted_at", "status"])
+        locked.save(
+            update_fields=["text_answer", "source_document", "revision_count", "submitted_at", "status"]
+        )
         ReasoningEvent.objects.create(
             submission=locked,
             event_type=EventType.REVISION,
@@ -212,6 +234,7 @@ def reanalyze(submission: Submission) -> AnalysisResult:
         revision_count=submission.revision_count,
         allow_external=allow_external,
         progress=stored_progress(submission),
+        imported=submission.is_imported,
     )
     result, _ = AnalysisResult.objects.update_or_create(
         submission=submission, defaults=analysis

@@ -159,7 +159,7 @@ make seed                                # opsional: akun demo
 curl https://api.thinkpath.id/health     # {"status":"ok"}
 ```
 
-**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-12`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
+**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-17`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
 
 **6. Backup harian**
 
@@ -293,6 +293,7 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET | `/api/student/progress` | mahasiswa | perkembangan kognitif sendiri |
 | GET | `/api/student/assignments/<id>` | mahasiswa anggota | detail tugas + submission sendiri |
 | GET/POST | `/api/assignments/<id>/submissions` | GET dosen, POST mahasiswa | daftar / **submit atau revisi** |
+| POST | `/api/assignments/<id>/documents` | mahasiswa anggota | unggah PDF/DOCX/PNG/JPG (maks 10 MB, multipart `file`); membalas teks hasil baca |
 | GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik |
 | POST | `/api/submissions/<id>/reanalyze` | dosen pemilik | analisis ulang |
 | PUT/DELETE | `/api/submissions/<id>/verification` | dosen pemilik | jadwalkan / catat / hapus verifikasi |
@@ -313,6 +314,26 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 - Klik ganda pada pengumpulan pertama: constraint `submission_unique_per_student` menolak baris kedua, dan permintaan itu dibalas `400`, bukan `500`.
 
 **Skor AI dan sinyal tidak pernah diekspos ke mahasiswa** (`StudentSubmissionStatusSerializer`). Daftar tugas mahasiswa juga tidak mengirim `text_answer` demi menekan ukuran respons — teks lengkap hanya ada di endpoint detail.
+
+### Unggah dokumen (OCR)
+
+Mahasiswa bisa mengisi jawaban dari berkas, bukan hanya mengetik. Alurnya dua langkah, dan unggahan **tidak pernah mengumpulkan jawaban sendiri**:
+
+1. `POST /api/assignments/<id>/documents` (multipart, field `file`, maks 10 MB, tenggat dan persetujuan privasi diperiksa seperti submit) membalas `{document_id, text, page_count, method, warnings}`. Mahasiswa meninjau `text` di editor.
+2. Submit biasa dengan tambahan `document_id`.
+
+Cara baca (`apps/academics/services/documents.py`): jenis berkas ditentukan dari isinya (bukan nama atau content-type). DOCX dan PDF berlapis teks dibaca di server. Halaman gambar (scan, foto, PNG/JPG) dibaca model visual Groq (`providers/groq_vision.py`, `GROQ_VISION_MODEL`, bawaan `qwen/qwen3.8-27b`), **hanya bila mahasiswa mengizinkan analisis di luar negeri**; selain itu ditolak dengan pesan yang jelas. Batas: 20 halaman, 6 halaman gambar (dibaca paralel agar di bawah timeout gunicorn 60 detik). `.doc` lama tidak didukung.
+
+Penyimpanan: `MEDIA_ROOT = backend/data/media` (di Docker: volume `media`, ikut `make backup`):
+
+```
+documents/<id mahasiswa>/<id dokumen>.<pdf|png|jpg|docx>   # berkas asli
+documents/<id mahasiswa>/<id dokumen>.txt                  # teks hasil baca
+```
+
+Teks `.txt` itu juga bukti: saat submit/revisi, `verified_source()` memeriksa bahwa sedikitnya setengah kata jawaban ada di dokumen milik mahasiswa itu. Hanya bila terbukti, `Submission.source_document` terisi dan forensik proses dilewati (jawaban yang diimpor tiba sekaligus dan akan terbaca sebagai tempelan); dosen melihat lencana "Diimpor dari dokumen" (`is_imported`). Menulis ulang total saat revisi mengembalikan penilaian proses. Caddy membatasi body unggahan 11 MB, endpoint lain tetap 2 MB.
+
+Belum ada: penghapusan otomatis dokumen yatim (diunggah tapi tidak dikumpulkan) dan tampilan berkas asli untuk dosen.
 
 ### Materi dan jadwal
 
@@ -339,6 +360,7 @@ Lokal memakai `.env.example`, produksi memakai `.env.production.example`. Nilai 
 | Var | Lokal | Produksi | Keterangan |
 |---|---|---|---|
 | `GROQ_API_KEY` / `GROQ_MODEL` | opsional | opsional | kosong = heuristik; model bawaan `openai/gpt-oss-120b` |
+| `GROQ_VISION_MODEL` | opsional | opsional | model OCR untuk dokumen scan/foto; bawaan `qwen/qwen3.8-27b`. Perlu `GROQ_API_KEY` |
 | `WINSTON_API_KEY` | opsional | opsional | detektor eksternal, skor AI saja |
 | `DJANGO_SECRET_KEY` | – | wajib | menandatangani JWT; produksi gagal boot bila kosong |
 | `API_DOMAIN` | – | wajib | subdomain API untuk Caddy (HTTPS) dan `ALLOWED_HOSTS` |

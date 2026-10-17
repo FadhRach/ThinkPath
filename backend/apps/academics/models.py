@@ -243,6 +243,10 @@ class Submission(models.Model):
         related_name="submissions",
     )
     text_answer = models.TextField(blank=True, default="")
+    # Dokumen unggahan yang menjadi sumber jawaban (documents/<mahasiswa>/<id>.*
+    # di MEDIA_ROOT), hanya bila teks jawaban terbukti berasal darinya. Jawaban
+    # begini tidak punya jejak mengetik, jadi forensik prosesnya dilewati.
+    source_document = models.UUIDField(null=True, blank=True, default=None)
     started_at = models.DateTimeField()
     submitted_at = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.IntegerField(
@@ -266,6 +270,10 @@ class Submission(models.Model):
     )
     teacher_feedback = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_imported(self) -> bool:
+        return self.source_document is not None
 
     class Meta:
         db_table = "submissions"

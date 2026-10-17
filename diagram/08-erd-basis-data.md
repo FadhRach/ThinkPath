@@ -104,6 +104,7 @@ erDiagram
         uuid assignment_id FK
         uuid student_profile_id FK
         text text_answer
+        uuid source_document "dokumen unggahan di MEDIA_ROOT, atau null"
         timestamptz started_at
         timestamptz submitted_at
         integer duration_seconds ">= 0 atau null"
