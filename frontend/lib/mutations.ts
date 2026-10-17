@@ -76,6 +76,29 @@ export interface SubmitAnswerInput {
   text_answer: string;
   started_at: string;
   progress?: ProgressSample[];
+  /** Hasil uploadDocument; backend memeriksa teks memang berasal dari dokumen itu. */
+  document_id?: string;
+}
+
+/** Cara teks dokumen dibaca: di server, oleh model visual (OCR), atau campuran. */
+export type DocumentReadMethod = "text" | "ocr" | "mixed";
+
+export interface DocumentImportResult {
+  document_id: string;
+  text: string;
+  page_count: number;
+  method: DocumentReadMethod;
+  warnings: string[];
+}
+
+/** Unggah PDF/DOCX/gambar; membalas teks untuk ditinjau, belum mengumpulkan jawaban. */
+export function uploadDocument(assignmentId: string, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  return apiFetchBrowser<DocumentImportResult>(
+    `/api/assignments/${assignmentId}/documents`,
+    { method: "POST", body },
+  );
 }
 
 export function submitAnswer(assignmentId: string, input: SubmitAnswerInput) {

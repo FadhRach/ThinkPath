@@ -6,8 +6,14 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DocumentUploadField } from "@/components/student/DocumentUploadField";
 import { Textarea } from "@/components/ui/textarea";
-import { submitAnswer, type ProgressSample } from "@/lib/mutations";
+import {
+  submitAnswer,
+  type DocumentImportResult,
+  type DocumentReadMethod,
+  type ProgressSample,
+} from "@/lib/mutations";
 import { useAction } from "@/lib/use-action";
 
 const MIN_LENGTH = 50;
@@ -30,6 +36,18 @@ interface Props {
 function countWords(text: string): number {
   const trimmed = text.trim();
   return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
+const READ_METHOD_LABEL: Record<DocumentReadMethod, string> = {
+  text: "dibaca langsung dari berkas",
+  ocr: "dibaca dari gambar dengan OCR",
+  mixed: "sebagian dibaca langsung, sebagian dari gambar dengan OCR",
+};
+
+interface ImportNote {
+  filename: string;
+  method: DocumentReadMethod;
+  warnings: string[];
 }
 
 const COPY: Record<
@@ -65,6 +83,8 @@ export function SubmitAnswerForm({
   const progressRef = useRef<ProgressSample[]>([]);
   const [text, setText] = useState(initialText);
   const [submitted, setSubmitted] = useState(false);
+  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [importNote, setImportNote] = useState<ImportNote | null>(null);
   const { pending, error, run } = useAction("Gagal menyimpan jawaban. Coba lagi.");
   const copy = COPY[mode];
 
@@ -91,12 +111,25 @@ export function SubmitAnswerForm({
     return () => clearInterval(timer);
   }, []);
 
+  function handleImported(result: DocumentImportResult, filename: string) {
+    if (
+      text.trim() &&
+      !window.confirm("Teks yang sudah kamu tulis akan diganti dengan isi dokumen. Lanjutkan?")
+    ) {
+      return;
+    }
+    setText(result.text);
+    setDocumentId(result.document_id);
+    setImportNote({ filename, method: result.method, warnings: result.warnings });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const { ok } = await run(() =>
       submitAnswer(assignmentId, {
         text_answer: text.trim(),
         started_at: startedAtRef.current,
+        document_id: documentId ?? undefined,
         // Hanya dikirim saat mengarang dari nol. Pada mode revisi kotak sudah
         // terisi jawaban sebelumnya, sehingga cuplikan dasar mencatat ratusan
         // kata sejak detik nol dan backend akan membacanya sebagai lonjakan.
@@ -135,6 +168,7 @@ export function SubmitAnswerForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <DocumentUploadField assignmentId={assignmentId} onImported={handleImported} />
       <Card className="overflow-hidden border-2 border-primary/40 shadow-soft">
         <Textarea
           id="answer"
@@ -150,6 +184,18 @@ export function SubmitAnswerForm({
           <span>{countWords(text)} kata &middot; {text.trim().length} karakter</span>
         </div>
       </Card>
+      {importNote ? (
+        <div className="rounded-xl border border-border bg-accent p-3 text-body-sm text-accent-foreground">
+          <p>
+            Teks dari <b>{importNote.filename}</b> ({READ_METHOD_LABEL[importNote.method]}).
+            Periksa dan perbaiki hasilnya sebelum mengumpulkan. Jawaban dari dokumen tidak
+            punya jejak mengetik, jadi dosen melihat tanda &ldquo;diimpor dari dokumen&rdquo;.
+          </p>
+          {importNote.warnings.map((warning) => (
+            <p key={warning} className="mt-1 font-semibold">{warning}</p>
+          ))}
+        </div>
+      ) : null}
       <p className="flex items-start gap-2 text-caption text-muted-foreground">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span>

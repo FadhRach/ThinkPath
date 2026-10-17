@@ -61,7 +61,8 @@ export function fetchApi(
 
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
-  if (!headers.has("Content-Type") && init.body) {
+  // FormData: biarkan peramban mengisi Content-Type beserta boundary multipart.
+  if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   if (token) {
@@ -99,6 +100,10 @@ export async function resolveJson<T>(response: Response): Promise<T> {
 function backendMessage(body: unknown, includeFieldErrors = false): string | null {
   if (typeof body !== "object" || body === null) {
     return null;
+  }
+  // ValidationError("pesan") di view DRF dibalas sebagai ["pesan"], tanpa kunci.
+  if (Array.isArray(body)) {
+    return typeof body[0] === "string" ? body[0] : null;
   }
   const { detail, non_field_errors: nonField } = body as {
     detail?: unknown;

@@ -381,6 +381,8 @@ export interface SubmissionDetail {
   };
   student: StudentMini;
   text_answer: string;
+  /** Jawaban berasal dari dokumen unggahan, jadi tanpa jejak mengetik. */
+  is_imported: boolean;
   started_at: string;
   submitted_at: string | null;
   duration_seconds: number | null;

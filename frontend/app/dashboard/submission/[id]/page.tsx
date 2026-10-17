@@ -1,3 +1,4 @@
+import { FileUp } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AiScoreRing } from "@/components/common/AiScoreRing";
@@ -117,6 +118,15 @@ export default async function SubmissionDetailPage({
           {isFlagged ? (
             <span className="hidden items-center rounded-full bg-danger-soft px-3 py-1 text-body-sm font-semibold text-danger lg:inline-flex">
               {aiBandLabel("high")}
+            </span>
+          ) : null}
+          {detail.is_imported ? (
+            <span
+              title="Jawaban berasal dari dokumen unggahan, jadi forensik proses tidak dinilai."
+              className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-body-sm font-semibold text-foreground"
+            >
+              <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
+              Diimpor dari dokumen
             </span>
           ) : null}
           <span
