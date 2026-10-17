@@ -52,7 +52,7 @@ thinkpath/
 Frontend tidak pernah menyentuh database langsung:
 
 ```
-Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS)
+Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS Jakarta)
                                          |
                                          +-> Analisis: Winston -> Groq (AI as a Judge) -> heuristik
 ```
