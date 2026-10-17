@@ -54,26 +54,39 @@ Frontend tidak pernah menyentuh database langsung:
 ```
 Browser -> Next.js (Vercel) -> Caddy -> Django + DRF -> PostgreSQL   (VPS Jakarta)
                                          |
-                                         +-> Analisis: Winston -> Groq -> heuristik
+                                         +-> Analisis: Winston -> Groq (AI as a Judge) -> heuristik
 ```
 
 ## Setup Lokal
 
 Prasyarat: Python 3.12+, Node.js 20+, dan PostgreSQL 15+ yang menyala dengan database `thinkpath` (macOS: `brew services start postgresql@18 && createdb thinkpath`; OS lain lihat [backend/README.md](./backend/README.md#menjalankan-di-lokal)).
 
+Backend dan frontend dijalankan di dua terminal terpisah.
+
+Terminal 1, backend (http://127.0.0.1:7860):
+
 ```bash
 cd backend
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt        # Windows: venv\Scripts\pip install -r requirements.txt
-cp .env.example .env                            # Windows: isi POSTGRES_USER=postgres + password
-cd ..
-npm ci --prefix frontend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env                 # Windows: isi POSTGRES_USER=postgres + password
+python manage.py migrate
+python manage.py seed_demo_data      # akun + data demo, aman diulang
+python manage.py runserver 127.0.0.1:7860
+```
+
+Terminal 2, frontend (http://localhost:3000):
+
+```bash
+cd frontend
+cp .env.local.example .env.local
+npm install
 npm run dev
 ```
 
-`npm run dev` memakai Python dari `backend/venv`, menjalankan migrasi ke Postgres lokal, mengisi data demo hanya jika database kosong, lalu memulai Django di port 7860 dan Next.js di port 3000. Buka http://localhost:3000. Ctrl+C menghentikan keduanya. Berkas `.env` yang sudah ada tidak pernah ditimpa.
+Backend juga bisa dijalankan dengan Docker, baik di laptop maupun di VPS; lihat [backend/README.md](./backend/README.md).
 
-Menjalankan backend dan frontend di terminal terpisah: `make dev` di `backend/`, lalu `npm run dev` di `frontend/`. `python manage.py test` selalu memakai SQLite in-memory, apa pun isi `.env`.
+Aplikasi selalu memakai PostgreSQL (runserver, Docker, maupun VPS). Satu-satunya pengecualian adalah tes otomatis (`python manage.py test`), yang memakai SQLite in-memory agar tidak pernah menyentuh database sungguhan.
 
 Detail lanjutan ada di [backend/README.md](./backend/README.md), [frontend/README.md](./frontend/README.md), dan [ai_experiment/README.md](./ai_experiment/README.md).
 
