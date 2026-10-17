@@ -40,6 +40,7 @@ services:
   api:
     build: .
     image: thinkpath-api:latest
+    platform: linux/amd64  # wheel PyMuPDF musllinux hanya x86_64; VPS sudah x86_64
     restart: unless-stopped
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?isi DJANGO_SECRET_KEY di .env}
@@ -52,6 +53,9 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-}
       WINSTON_API_KEY: ${WINSTON_API_KEY:-}
+      GROQ_VISION_MODEL: ${GROQ_VISION_MODEL:-}
+    volumes:
+      - media:/app/data/media  # dokumen unggahan + teks hasil OCR
     depends_on:
       db:
         condition: service_healthy
@@ -79,5 +83,6 @@ services:
 
 volumes:
   pgdata:
+  media:
   caddy_data:
   caddy_config:
