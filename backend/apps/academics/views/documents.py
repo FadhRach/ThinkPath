@@ -11,6 +11,7 @@ from apps.academics.services import documents
 from apps.academics.services.submissions import reject_if_past_deadline, require_student_consent
 from apps.accounts.permissions import IsStudent
 from apps.accounts.services import get_request_profile
+from common.throttling import PerUserScopedThrottle
 
 
 class DocumentImportView(APIView):
@@ -21,6 +22,8 @@ class DocumentImportView(APIView):
     """
 
     permission_classes = [IsStudent]
+    throttle_classes = [PerUserScopedThrottle]
+    throttle_scope = "document_import"
 
     def post(self, request, assignment_id: str):
         assignment = require_member_assignment(request, assignment_id)

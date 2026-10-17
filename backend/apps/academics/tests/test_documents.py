@@ -32,6 +32,7 @@ from apps.academics.services import documents
 from apps.accounts.authentication import create_access_token
 from apps.accounts.models import ConsentAction, EducationLevel, Profile, Role
 from apps.accounts.privacy import ITEM_EXTERNAL_AI, REQUIRED_ITEMS, record_consent
+from common.throttling import PerUserScopedThrottle
 
 ANSWER = " ".join(
     [
@@ -231,6 +232,20 @@ class UploadTest(DocumentTestCase):
         record_consent(outsider.id, ConsentAction.GIVEN, REQUIRED_ITEMS[Role.STUDENT])
         self.assertEqual(self.upload(make_docx(ANSWER), student=outsider).status_code, 403)
         self.assertEqual(self.upload(make_docx(ANSWER), student=self.teacher).status_code, 403)
+
+    def test_uploads_are_rate_limited_per_student(self):
+        limit = {"document_import": "2/hour"}
+        with patch.dict(PerUserScopedThrottle.THROTTLE_RATES, limit):
+            codes = [self.upload(make_docx(ANSWER)).status_code for _ in range(3)]
+            other = Profile.objects.create(
+                email="lain@test.local", display_name="Lain", role=Role.STUDENT
+            )
+            ClassMembership.objects.create(class_ref=self.assignment.class_ref, student_profile=other)
+            record_consent(other.id, ConsentAction.GIVEN, REQUIRED_ITEMS[Role.STUDENT])
+            neighbour = self.upload(make_docx(ANSWER), student=other).status_code
+
+        self.assertEqual(codes, [201, 201, 429])
+        self.assertEqual(neighbour, 201)  # batas per mahasiswa, bukan per IP
 
     def test_upload_without_privacy_consent_is_refused(self):
         record_consent(self.student.id, ConsentAction.WITHDRAWN, ())

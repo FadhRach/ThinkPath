@@ -72,7 +72,9 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Folder, bukan berkas: `git pull` mengganti berkas dengan inode baru, dan
+      # mount berkas tunggal tetap menunjuk yang lama sampai container dibuat ulang.
+      - ./deploy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
