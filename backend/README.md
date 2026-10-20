@@ -317,7 +317,7 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 
 ### Unggah dokumen (OCR)
 
-Mahasiswa bisa mengisi jawaban dari berkas, bukan hanya mengetik. Alurnya dua langkah, dan unggahan **tidak pernah mengumpulkan jawaban sendiri**:
+Dosen memilih per tugas lewat `Assignment.allow_file_upload` (bawaan `false`, wajib diketik): bila mati, endpoint unggah dibalas `403` dan `document_id` diabaikan. Bila hidup, mahasiswa bisa mengisi jawaban dari berkas. Alurnya dua langkah, dan unggahan **tidak pernah mengumpulkan jawaban sendiri**:
 
 1. `POST /api/assignments/<id>/documents` (multipart, field `file`, maks 10 MB, tenggat dan persetujuan privasi diperiksa seperti submit) membalas `{document_id, text, page_count, method, warnings}`. Mahasiswa meninjau `text` di editor.
 2. Submit biasa dengan tambahan `document_id`.

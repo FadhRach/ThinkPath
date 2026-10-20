@@ -87,6 +87,11 @@ def _analyse_for(
     )
 
 
+def _uploaded_id(assignment: Assignment, validated: dict):
+    """document_id kiriman klien, diabaikan bila tugas ini wajib diketik."""
+    return validated.get("document_id") if assignment.allow_file_upload else None
+
+
 def submit_answer(
     assignment: Assignment, student: Profile, validated: dict, *, allow_external: bool
 ) -> tuple[Submission, bool]:
@@ -125,7 +130,9 @@ def _create(
         )
         for s in samples
     )
-    source_document = verified_source(student.id, validated.get("document_id"), text_answer)
+    source_document = verified_source(
+        student.id, _uploaded_id(assignment, validated), text_answer
+    )
     analysis = _analyse_for(
         text_answer,
         assignment,
@@ -180,7 +187,7 @@ def _revise(
     # kembali dinilai lewat jejak prosesnya.
     source_document = verified_source(
         submission.student_profile_id,
-        validated.get("document_id") or submission.source_document,
+        _uploaded_id(assignment, validated) or submission.source_document,
         text_answer,
     )
     # revision_count di sini masih nilai lama; revisi yang sedang berjalan

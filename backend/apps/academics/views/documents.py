@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -27,6 +27,8 @@ class DocumentImportView(APIView):
 
     def post(self, request, assignment_id: str):
         assignment = require_member_assignment(request, assignment_id)
+        if not assignment.allow_file_upload:
+            raise PermissionDenied("Dosen tidak mengizinkan unggah berkas untuk tugas ini. Ketik jawabanmu langsung.")
         reject_if_past_deadline(assignment)
         student = get_request_profile(request)
         allow_external = require_student_consent(

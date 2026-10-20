@@ -145,6 +145,9 @@ class Assignment(models.Model):
     expected_bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],
     )
+    # Dosen memilih: hanya diketik, atau boleh diisi dari berkas (PDF/DOCX/gambar).
+    # Jawaban dari berkas tidak punya jejak mengetik, jadi dinilai dari teksnya saja.
+    allow_file_upload = models.BooleanField(default=False)
     # education_level sengaja TIDAK ada di sini. Sebelumnya kolom ini
     # menduplikasi jenjang milik kelas, sehingga sebuah tugas bisa tersimpan
     # dengan jenjang yang berbeda dari kelas tempatnya berada. Jenjang sekarang

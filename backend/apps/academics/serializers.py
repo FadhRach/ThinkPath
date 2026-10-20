@@ -125,6 +125,7 @@ class AssignmentListSerializer(serializers.ModelSerializer):
             "instructions",
             "deadline",
             "expected_bloom_level",
+            "allow_file_upload",
             "education_level",
             "submission_count",
             "high_band_count",
@@ -166,6 +167,7 @@ class AssignmentCreateSerializer(serializers.ModelSerializer):
             "instructions",
             "deadline",
             "expected_bloom_level",
+            "allow_file_upload",
         ]
 
 
@@ -198,6 +200,7 @@ class StudentAssignmentSerializer(serializers.ModelSerializer):
             "instructions",
             "deadline",
             "expected_bloom_level",
+            "allow_file_upload",
             "education_level",
         ]
 

@@ -80,6 +80,7 @@ erDiagram
         varchar title
         text instructions
         timestamptz deadline "null = tanpa tenggat"
+        boolean allow_file_upload "dosen mengizinkan jawaban dari berkas"
         smallint expected_bloom_level "1-6"
         timestamptz created_at
     }

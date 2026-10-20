@@ -72,6 +72,7 @@ export default async function SubmitAssignmentPage({
             isPastDeadline={isPastDeadline}
             isReviewed={Boolean(isReviewed)}
             assignmentId={assignment.id}
+            allowUpload={assignment.allow_file_upload}
             classId={detail.class.id}
           />
         </div>
@@ -117,6 +118,7 @@ function SubmissionSection({
   isPastDeadline,
   isReviewed,
   assignmentId,
+  allowUpload,
   classId,
 }: {
   submission: StudentSubmissionWithText | null;
@@ -124,6 +126,7 @@ function SubmissionSection({
   isPastDeadline: boolean;
   isReviewed: boolean;
   assignmentId: string;
+  allowUpload: boolean;
   classId: string;
 }) {
   if (submission === null && isPastDeadline) {
@@ -134,7 +137,7 @@ function SubmissionSection({
     return (
       <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5">
         <div className="mb-4 flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-accent-foreground"><MessageSquareText className="h-4 w-4" /></span><div><h2 className="font-bold text-foreground">Kumpulkan tugasmu</h2></div></div>
-        <SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} />
+        <SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} allowUpload={allowUpload} />
       </Card>
     );
   }
@@ -146,7 +149,7 @@ function SubmissionSection({
           <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="mt-1 text-sm font-bold text-foreground">Jawabanmu sudah diterima</p></div><AssignmentStatusBadge submission={submission} /></div>
           <p className="mt-2 text-xs text-muted-foreground">Dikumpulkan {formatRelativeTime(submission.submitted_at)}. Kamu masih bisa memperbaiki jawaban sebelum tenggat.</p>
         </Card>
-        <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5"><p className="mb-4 text-sm font-bold text-foreground">Perbarui jawaban</p><SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} mode="revise" initialText={submission.text_answer} /></Card>
+        <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5"><p className="mb-4 text-sm font-bold text-foreground">Perbarui jawaban</p><SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} mode="revise" initialText={submission.text_answer} allowUpload={allowUpload} /></Card>
       </div>
     );
   }

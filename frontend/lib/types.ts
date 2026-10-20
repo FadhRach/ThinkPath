@@ -258,6 +258,8 @@ export interface StudentAssignment {
   instructions: string;
   deadline: string | null;
   expected_bloom_level: number;
+  /** Dosen mengizinkan jawaban diisi dari berkas; bila false, wajib diketik. */
+  allow_file_upload: boolean;
   education_level: EducationLevel;
 }
 
@@ -315,6 +317,7 @@ export interface AssignmentSummary {
   instructions: string;
   deadline: string | null;
   expected_bloom_level: number;
+  allow_file_upload: boolean;
   education_level: EducationLevel;
   submission_count: number;
   high_band_count: number;

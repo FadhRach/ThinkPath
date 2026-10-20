@@ -67,10 +67,18 @@ class Extraction:
     warnings: list[str] = field(default_factory=list)
 
 
-def _close_sentence(text: str) -> str:
-    """Analisis memecah kalimat dari tanda baca akhir, bukan dari baris baru."""
+# Blok PDF sependek ini dianggap judul.
+HEADING_MAX_WORDS = 6
+
+
+def _close_sentence(text: str, *, heading: bool = False) -> str:
+    """Analisis memecah kalimat dari tanda baca akhir, bukan dari baris baru.
+
+    Judul dibiarkan tanpa titik: titik paksa menjadikannya "kalimat" pendek yang
+    membuat variasi panjang kalimat tampak lebih manusiawi daripada aslinya.
+    """
     text = " ".join(text.split())
-    return text if not text or text[-1] in ".!?:;" else text + "."
+    return text if heading or not text or text[-1] in ".!?:;" else text + "."
 
 
 def _is_docx(data: bytes) -> bool:
@@ -111,7 +119,9 @@ def _extract_docx(data: bytes) -> Extraction:
             for node in paragraph.iter()
             if node.tag in (f"{WORD_NS}t", f"{WORD_NS}tab", f"{WORD_NS}br")
         )
-        if closed := _close_sentence(text):
+        style = paragraph.find(f"{WORD_NS}pPr/{WORD_NS}pStyle")
+        style_id = style.get(f"{WORD_NS}val", "") if style is not None else ""
+        if closed := _close_sentence(text, heading=style_id.startswith(("Heading", "Title"))):
             paragraphs.append(closed)
     return Extraction("\n\n".join(paragraphs), page_count=1, method="text")
 
@@ -146,7 +156,9 @@ def _extract_pages(data: bytes, kind: str, *, allow_external: bool) -> Extractio
     scanned: list[int] = []
     for index, page in enumerate(document):
         blocks = (block[4] for block in page.get_text("blocks", sort=True) if block[6] == 0)
-        text = "\n\n".join(filter(None, map(_close_sentence, blocks)))
+        text = "\n\n".join(
+            filter(None, (_close_sentence(b, heading=len(b.split()) <= HEADING_MAX_WORDS) for b in blocks))
+        )
         if len(text) >= MIN_TEXT_CHARS:
             texts[index] = text
         else:

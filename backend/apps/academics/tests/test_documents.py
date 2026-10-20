@@ -58,6 +58,18 @@ def make_docx(text: str) -> bytes:
     return buffer.getvalue()
 
 
+def make_docx_with_heading(heading: str, body: str) -> bytes:
+    xml = (
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
+        f'<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>{heading}</w:t></w:r></w:p>'
+        f"<w:p><w:r><w:t>{body}</w:t></w:r></w:p></w:body></w:document>"
+    )
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("word/document.xml", xml)
+    return buffer.getvalue()
+
+
 def make_pdf(text: str | None) -> bytes:
     """PDF satu halaman; text=None menghasilkan halaman tanpa lapisan teks."""
     document = pymupdf.open()
@@ -109,6 +121,7 @@ class DocumentTestCase(TestCase):
             instructions="",
             deadline=timezone.now() + timedelta(days=7),
             expected_bloom_level=4,
+            allow_file_upload=True,
         )
 
     def allow_external(self):
@@ -154,6 +167,15 @@ class UploadTest(DocumentTestCase):
             response.data["text"],
         )
         self.assertFalse(Submission.objects.exists())
+
+    def test_headings_get_no_forced_period_but_body_does(self):
+        data = make_docx_with_heading("1. Pendahuluan", "Paragraf isi tanpa titik di akhir")
+
+        response = self.upload(data)
+
+        self.assertEqual(
+            response.data["text"], "1. Pendahuluan\n\nParagraf isi tanpa titik di akhir."
+        )
 
     def test_pdf_text_layer_needs_no_external_service(self):
         with patch.object(documents.groq_vision, "transcribe") as transcribe:
@@ -219,6 +241,15 @@ class UploadTest(DocumentTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("10 MB", str(response.data))
 
+    def test_upload_is_refused_when_the_lecturer_requires_typing(self):
+        Assignment.objects.filter(pk=self.assignment.pk).update(allow_file_upload=False)
+
+        response = self.upload(make_docx(ANSWER))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("Ketik jawabanmu", str(response.data))
+        self.assertFalse(Submission.objects.exists())
+
     def test_upload_is_closed_after_the_deadline(self):
         Assignment.objects.filter(pk=self.assignment.pk).update(
             deadline=timezone.now() - timedelta(minutes=1)
@@ -267,6 +298,16 @@ class ImportedSubmissionTest(DocumentTestCase):
         self.assertNotIn("process_forensics", self.breakdown_keys(submission))
         detail = self.client_for(self.teacher).get(f"/api/submissions/{submission.id}")
         self.assertTrue(detail.data["is_imported"])
+
+    def test_document_id_is_ignored_when_the_lecturer_requires_typing(self):
+        document_id = self.upload(make_docx(ANSWER)).data["document_id"]
+        Assignment.objects.filter(pk=self.assignment.pk).update(allow_file_upload=False)
+
+        created = self.submit(document_id=document_id)
+
+        submission = Submission.objects.get(pk=created.data["id"])
+        self.assertFalse(submission.is_imported)
+        self.assertIn("process_forensics", self.breakdown_keys(submission))
 
     def test_light_edits_still_count_as_imported(self):
         document_id = self.upload(make_docx(ANSWER)).data["document_id"]

@@ -33,6 +33,7 @@ export interface CreateAssignmentInput {
   instructions: string;
   deadline: string;
   expected_bloom_level: number;
+  allow_file_upload: boolean;
 }
 
 export function createClass(input: CreateClassInput) {

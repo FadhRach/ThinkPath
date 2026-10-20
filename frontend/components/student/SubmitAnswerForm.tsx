@@ -31,6 +31,8 @@ interface Props {
   backHref: string;
   mode?: Mode;
   initialText?: string;
+  /** Dosen mengizinkan jawaban diisi dari berkas. */
+  allowUpload?: boolean;
 }
 
 function countWords(text: string): number {
@@ -75,6 +77,7 @@ export function SubmitAnswerForm({
   backHref,
   mode = "create",
   initialText = "",
+  allowUpload = false,
 }: Props) {
   // Waktu mulai direkam sekali saat form dirender, dikirim sebagai started_at.
   const startedAtRef = useRef(new Date().toISOString());
@@ -168,7 +171,9 @@ export function SubmitAnswerForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <DocumentUploadField assignmentId={assignmentId} onImported={handleImported} />
+      {allowUpload ? (
+        <DocumentUploadField assignmentId={assignmentId} onImported={handleImported} />
+      ) : null}
       <Card className="overflow-hidden border-2 border-primary/40 shadow-soft">
         <Textarea
           id="answer"
