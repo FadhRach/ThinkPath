@@ -217,6 +217,7 @@ class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
             "grade",
             "teacher_feedback",
             "text_answer",
+            "is_imported",
             "revision_count",
         ]
 

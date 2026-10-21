@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DocumentUploadField } from "@/components/student/DocumentUploadField";
+import { OriginalDocumentButton } from "@/components/submission/OriginalDocumentButton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   submitAnswer,
@@ -195,7 +196,16 @@ export function SubmitAnswerForm({
             Teks dari <b>{importNote.filename}</b> ({READ_METHOD_LABEL[importNote.method]}).
             Periksa dan perbaiki hasilnya sebelum mengumpulkan. Jawaban dari dokumen tidak
             punya jejak mengetik, jadi dosen melihat tanda &ldquo;diimpor dari dokumen&rdquo;.
+            Hapus nama atau NIM dari teks bila ada: teks jawaban ikut dianalisis.
           </p>
+          {documentId ? (
+            <div className="mt-2">
+              <OriginalDocumentButton
+                path={`/api/assignments/${assignmentId}/documents/${documentId}`}
+                label="Lihat berkas yang diunggah"
+              />
+            </div>
+          ) : null}
           {importNote.warnings.map((warning) => (
             <p key={warning} className="mt-1 font-semibold">{warning}</p>
           ))}

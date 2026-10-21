@@ -273,6 +273,8 @@ export interface StudentSubmissionStatus {
   grade: number | null;
   teacher_feedback: string;
   revision_count: number;
+  /** Jawaban berasal dari berkas unggahan; berkas aslinya bisa dibuka kembali. */
+  is_imported: boolean;
 }
 
 export interface StudentSubmissionWithText extends StudentSubmissionStatus {

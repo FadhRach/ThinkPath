@@ -177,6 +177,20 @@ class UploadTest(DocumentTestCase):
             response.data["text"], "1. Pendahuluan\n\nParagraf isi tanpa titik di akhir."
         )
 
+    def test_pdf_drops_repeated_footers_and_joins_split_sentences(self):
+        pdf = pymupdf.open()
+        for number, body in ((1, "Kalimat pertama berakhir di sini. Tanggung jawab sosial"), (2, "Isi halaman kedua yang cukup panjang untuk dibaca.")):
+            page = pdf.new_page()
+            page.insert_textbox(pymupdf.Rect(40, 40, 550, 80), body, fontsize=11)
+            page.insert_textbox(pymupdf.Rect(40, 120, 550, 160), "perusahaan swasta ikut mendanai program" if number == 1 else "Penutup halaman kedua selesai.", fontsize=11)
+            page.insert_textbox(pymupdf.Rect(40, 800, 550, 830), f"Lembar Jawaban Halaman {number} dari 2", fontsize=9)
+
+        text = self.upload(pdf.tobytes()).data["text"]
+
+        self.assertNotIn("Lembar Jawaban", text)
+        self.assertIn("Tanggung jawab sosial perusahaan swasta", text)  # blok terpotong disambung
+        self.assertIn("Isi halaman kedua", text)
+
     def test_pdf_text_layer_needs_no_external_service(self):
         with patch.object(documents.groq_vision, "transcribe") as transcribe:
             response = self.upload(make_pdf(ANSWER))
@@ -308,6 +322,58 @@ class ImportedSubmissionTest(DocumentTestCase):
         submission = Submission.objects.get(pk=created.data["id"])
         self.assertFalse(submission.is_imported)
         self.assertIn("process_forensics", self.breakdown_keys(submission))
+
+    def test_lecturer_can_open_the_original_file(self):
+        data = make_docx(ANSWER)
+        document_id = self.upload(data).data["document_id"]
+        submission_id = self.submit(document_id=document_id).data["id"]
+
+        response = self.client_for(self.teacher).get(f"/api/submissions/{submission_id}/document")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), data)
+        self.assertIn("wordprocessingml", response["Content-Type"])
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+
+    def test_original_file_is_private_to_the_lecturer_and_the_author(self):
+        document_id = self.upload(make_docx(ANSWER)).data["document_id"]
+        submission_id = self.submit(document_id=document_id).data["id"]
+        stranger = Profile.objects.create(
+            email="dosen2@test.local", display_name="Dosen Lain", role=Role.TEACHER
+        )
+        classmate = Profile.objects.create(
+            email="mhs2@test.local", display_name="Mahasiswa Dua", role=Role.STUDENT
+        )
+        url = f"/api/submissions/{submission_id}/document"
+
+        self.assertEqual(self.client_for(self.student).get(url).status_code, 200)
+        self.assertEqual(self.client_for(stranger).get(url).status_code, 404)
+        self.assertEqual(self.client_for(classmate).get(url).status_code, 404)
+
+    def test_student_can_preview_the_upload_before_submitting_but_only_their_own(self):
+        data = make_docx(ANSWER)
+        document_id = self.upload(data).data["document_id"]
+        classmate = Profile.objects.create(
+            email="mhs2@test.local", display_name="Mahasiswa Dua", role=Role.STUDENT
+        )
+        ClassMembership.objects.create(
+            class_ref=self.assignment.class_ref, student_profile=classmate
+        )
+        url = f"/api/assignments/{self.assignment.id}/documents/{document_id}"
+
+        mine = self.client_for(self.student).get(url)
+
+        self.assertEqual(mine.status_code, 200)
+        self.assertEqual(b"".join(mine.streaming_content), data)
+        self.assertEqual(self.client_for(classmate).get(url).status_code, 404)
+        self.assertEqual(self.client_for(self.teacher).get(url).status_code, 403)
+
+    def test_typed_answer_has_no_original_file(self):
+        submission_id = self.submit().data["id"]
+
+        response = self.client_for(self.teacher).get(f"/api/submissions/{submission_id}/document")
+
+        self.assertEqual(response.status_code, 404)
 
     def test_light_edits_still_count_as_imported(self):
         document_id = self.upload(make_docx(ANSWER)).data["document_id"]

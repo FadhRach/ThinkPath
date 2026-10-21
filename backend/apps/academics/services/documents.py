@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import uuid
 import zipfile
 from collections import Counter
@@ -55,6 +56,12 @@ SOURCE_MATCH_RATIO = 0.5
 
 WORD_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 EXTENSIONS = {"pdf": "pdf", "png": "png", "jpeg": "jpg", "docx": "docx"}
+CONTENT_TYPES = {
+    "pdf": "application/pdf",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 UNSUPPORTED = "Jenis berkas tidak didukung. Unggah PDF, DOCX, PNG, atau JPG."
 UNREADABLE = "Tidak ada teks yang bisa dibaca dari dokumen ini. Coba berkas lain atau ketik jawabanmu."
 
@@ -79,6 +86,28 @@ def _close_sentence(text: str, *, heading: bool = False) -> str:
     """
     text = " ".join(text.split())
     return text if heading or not text or text[-1] in ".!?:;" else text + "."
+
+
+def _page_paragraphs(blocks: list[str]) -> str:
+    """Blok teks PDF menjadi paragraf: sambung blok yang memotong kalimat, tutup sisanya."""
+    merged: list[str] = []
+    for block in blocks:
+        # Blok berikutnya berawalan huruf kecil: kalimat yang sama, bukan paragraf baru.
+        if merged and merged[-1][-1] not in ".!?:;" and block[0].islower():
+            merged[-1] += " " + block
+        else:
+            merged.append(block)
+    closed = (_close_sentence(m, heading=len(m.split()) <= HEADING_MAX_WORDS) for m in merged)
+    return "\n\n".join(filter(None, closed))
+
+
+def _drop_repeated(pages: list[list[str]]) -> list[list[str]]:
+    """Buang kepala/kaki halaman: blok yang sama (selain angka) di separuh halaman atau lebih."""
+    if len(pages) < 2:
+        return pages
+    key = lambda block: re.sub(r"\d+", "#", block.lower())  # noqa: E731
+    seen = Counter(k for page in pages for k in {key(b) for b in page})
+    return [[b for b in page if seen[key(b)] < max(2, len(pages) / 2)] for page in pages]
 
 
 def _is_docx(data: bytes) -> bool:
@@ -152,13 +181,16 @@ def _extract_pages(data: bytes, kind: str, *, allow_external: bool) -> Extractio
     if document.page_count > MAX_PAGES:
         raise ValidationError(f"Dokumen melebihi {MAX_PAGES} halaman.")
 
+    pages = _drop_repeated(
+        [
+            [text for block in page.get_text("blocks", sort=True) if block[6] == 0 and (text := " ".join(block[4].split()))]
+            for page in document
+        ]
+    )
     texts: dict[int, str] = {}
     scanned: list[int] = []
-    for index, page in enumerate(document):
-        blocks = (block[4] for block in page.get_text("blocks", sort=True) if block[6] == 0)
-        text = "\n\n".join(
-            filter(None, (_close_sentence(b, heading=len(b.split()) <= HEADING_MAX_WORDS) for b in blocks))
-        )
+    for index, blocks in enumerate(pages):
+        text = _page_paragraphs(blocks)
         if len(text) >= MIN_TEXT_CHARS:
             texts[index] = text
         else:
@@ -217,6 +249,20 @@ def import_document(upload, student_id: UUID, *, allow_external: bool) -> tuple[
     default_storage.save(f"{base}.{EXTENSIONS[kind]}", ContentFile(data))
     default_storage.save(f"{base}.txt", ContentFile(result.text.encode("utf-8")))
     return document_id, result
+
+
+def open_original(student_id: UUID, document_id: UUID):
+    """(berkas terbuka, content-type) dari unggahan asli, atau None bila tidak ada."""
+    folder = f"documents/{student_id}"
+    try:
+        _, names = default_storage.listdir(folder)
+    except FileNotFoundError:
+        return None
+    for name in names:
+        stem, _, ext = name.rpartition(".")
+        if stem == str(document_id) and ext in CONTENT_TYPES:
+            return default_storage.open(f"{folder}/{name}"), CONTENT_TYPES[ext]
+    return None
 
 
 def verified_source(student_id: UUID, document_id: UUID | None, text: str) -> UUID | None:
