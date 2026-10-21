@@ -141,6 +141,10 @@ Frontend masih merender halaman di server Vercel, jadi data yang ditampilkan
 tetap **melewati** Amerika Serikat walau **disimpan** di Jakarta. Kebijakan
 menyebutnya terang-terangan, dan Vercel tetap tercantum sebagai penyedia.
 
+Versi 2026-10-17 menambah unggah dokumen jawaban: berkas dan teks hasil
+bacanya disimpan di server Jakarta (`backend/data/media`), dan halaman gambar
+dikirim ke Groq hanya bila mahasiswa memberi izin analisis luar negeri.
+
 Alamat IP untuk throttle login hanya ada di memori proses API (LocMemCache),
 tidak di basis data, sesuai bunyi kebijakan. Jangan mengganti cache throttle ke
 `DatabaseCache` atau Redis tanpa memperbarui kebijakan.

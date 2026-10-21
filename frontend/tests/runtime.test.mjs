@@ -12,6 +12,7 @@ const source = await readFile(new URL("../lib/api-shared.ts", import.meta.url), 
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
+process.env.NEXT_PUBLIC_BACKEND_URL ??= "http://backend.test";
 const api = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 
 test("Tailwind config loads and produces the existing animation utilities", async () => {
@@ -54,4 +55,24 @@ test("HTML server errors show a service error instead of an input error", async 
 test("network failures keep the connection message", () => {
   assert.equal(api.getApiErrorMessage(new api.NetworkError(new TypeError("fetch failed")), "Gagal."),
     api.NETWORK_ERROR_MESSAGE);
+});
+
+test("a bare DRF ValidationError (list body) shows its message", () => {
+  assert.equal(api.getApiErrorMessage(
+    new api.ApiError(400, ["Ukuran berkas maksimal 10 MB."]), "Gagal.",
+  ), "Ukuran berkas maksimal 10 MB.");
+});
+
+test("FormData uploads keep the browser's multipart Content-Type", async () => {
+  const sent = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => { sent.push(new Headers(init.headers)); return new Response("{}"); };
+  try {
+    await api.fetchApi("/upload", { method: "POST", body: new FormData() }, null);
+    await api.fetchApi("/json", { method: "POST", body: "{}" }, null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.equal(sent[0].get("Content-Type"), null);
+  assert.equal(sent[1].get("Content-Type"), "application/json");
 });

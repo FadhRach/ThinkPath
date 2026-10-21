@@ -3,8 +3,15 @@
 {$API_DOMAIN:localhost} {
 	encode zstd gzip
 
+	# Unggah dokumen: 10 MB berkas + sedikit overhead multipart.
+	@upload path /api/assignments/*/documents
+	request_body @upload {
+		max_size 11MB
+	}
+
 	# Jawaban esai + cuplikan proses jauh di bawah 2 MB.
-	request_body {
+	@json not path /api/assignments/*/documents
+	request_body @json {
 		max_size 2MB
 	}
 

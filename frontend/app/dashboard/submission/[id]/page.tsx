@@ -1,3 +1,4 @@
+import { FileUp } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AiScoreRing } from "@/components/common/AiScoreRing";
@@ -13,6 +14,7 @@ import {
 import { ConfidenceBadge } from "@/components/submission/ConfidenceBadge";
 import { EvidenceStrip } from "@/components/submission/EvidenceStrip";
 import { GradingForm } from "@/components/submission/GradingForm";
+import { OriginalDocumentButton } from "@/components/submission/OriginalDocumentButton";
 import { ProcessTimeline } from "@/components/submission/ProcessTimeline";
 import { ReanalyzeButton } from "@/components/submission/ReanalyzeButton";
 import { RecommendationBlock } from "@/components/submission/RecommendationBlock";
@@ -119,6 +121,16 @@ export default async function SubmissionDetailPage({
               {aiBandLabel("high")}
             </span>
           ) : null}
+          {detail.is_imported ? (
+            <span
+              title="Jawaban berasal dari dokumen unggahan, jadi forensik proses tidak dinilai."
+              className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-body-sm font-semibold text-foreground"
+            >
+              <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
+              Diimpor dari dokumen
+            </span>
+          ) : null}
+          {detail.is_imported ? <OriginalDocumentButton path={`/api/submissions/${detail.id}/document`} /> : null}
           <span
             className={cn(
               "inline-flex items-center rounded-full px-3 py-1 text-body-sm font-semibold",

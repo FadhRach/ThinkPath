@@ -61,10 +61,18 @@ REST_FRAMEWORK = {
     "UNAUTHENTICATED_USER": None,
     # Hanya endpoint auth yang dibatasi; penghitungnya di memori proses (LocMemCache).
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"auth_register": "30/hour", "auth_login": "20/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_register": "30/hour",
+        "auth_login": "20/min",
+        # Tiap unggahan bisa memicu hingga 6 panggilan OCR berbayar ke Groq.
+        "document_import": "30/hour",
+    },
 }
 
 AUTH_TOKEN_LIFETIME_DAYS = 7
+
+# Dokumen unggahan mahasiswa dan teks hasil OCR-nya (lihat services/documents.py).
+MEDIA_ROOT = BASE_DIR / "data" / "media"
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"

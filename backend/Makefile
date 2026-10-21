@@ -56,9 +56,10 @@ restore: ## make restore FILE=backups/thinkpath-xxx.sql.gz
 	@test -n "$(FILE)" || (echo "Pakai: make restore FILE=backups/<berkas>.sql.gz" && exit 1)
 	gunzip -c "$(FILE)" | $(COMPOSE) exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
-deploy: ## tarik kode terbaru, build ulang, buang image lama
+deploy: ## tarik kode terbaru, build ulang, muat ulang Caddy, buang image lama
 	git pull --ff-only
 	$(COMPOSE) up -d --build
+	$(COMPOSE) exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 	docker image prune -f
 
 prune: ## bersihkan image & build cache

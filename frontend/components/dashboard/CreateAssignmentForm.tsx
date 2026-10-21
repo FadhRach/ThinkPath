@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { BLOOM_LEVELS, bloomCode, bloomShortLabel } from "@/lib/bloom";
 import { createAssignment, updateAssignment } from "@/lib/mutations";
@@ -26,6 +27,7 @@ export function CreateAssignmentForm({ classId, assignment }: Props) {
   const [instructions, setInstructions] = useState(assignment?.instructions || "");
   const [deadline, setDeadline] = useState(formatDateTimeInput(assignment?.deadline || null));
   const [expectedBloomLevel, setExpectedBloomLevel] = useState(assignment?.expected_bloom_level || 4);
+  const [allowFileUpload, setAllowFileUpload] = useState(assignment?.allow_file_upload ?? false);
   const targetLocked = !!assignment && assignment.submission_count > 0;
   const { pending, error, run, router } = useAction(
     "Gagal menyimpan tugas. Periksa isian lalu coba lagi.",
@@ -40,6 +42,7 @@ export function CreateAssignmentForm({ classId, assignment }: Props) {
           instructions: instructions.trim(),
           deadline: parseDateTimeInput(deadline),
           expected_bloom_level: expectedBloomLevel,
+          allow_file_upload: allowFileUpload,
         };
         return assignment ? updateAssignment(assignment.id, input) : createAssignment(classId, input);
       },
@@ -116,6 +119,23 @@ export function CreateAssignmentForm({ classId, assignment }: Props) {
           })}
         </div>
         {targetLocked ? <p className="text-xs text-muted-foreground">Target Bloom tetap karena sudah ada pengumpulan. Judul, instruksi, dan tenggat masih dapat diperbarui.</p> : null}
+      </div>
+
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+        <Switch
+          id="assignment-file-upload"
+          checked={allowFileUpload}
+          onCheckedChange={setAllowFileUpload}
+          className="mt-0.5"
+        />
+        <div className="space-y-1">
+          <Label htmlFor="assignment-file-upload">Izinkan jawaban dari berkas</Label>
+          <p className="text-xs text-muted-foreground">
+            Mahasiswa boleh mengunggah PDF, DOCX, atau gambar (maks. 10 MB) lalu memeriksa teksnya.
+            Jawaban dari berkas tidak punya jejak mengetik, jadi dinilai dari teksnya saja: detektor
+            AI, level Bloom, dan pola bahasa. Biarkan mati bila tugas wajib diketik langsung.
+          </p>
+        </div>
       </div>
 
       {error ? <p role="alert" className="text-body-sm text-danger">{error}</p> : null}

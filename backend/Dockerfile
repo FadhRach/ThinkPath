@@ -4,7 +4,8 @@
 # Alpine, bukan slim: semua dependensi tersedia sebagai wheel musllinux
 # (psycopg[binary] membawa libpq sendiri), jadi tidak perlu compiler, dan base
 # image ~100 MB lebih kecil. venv dibuat tanpa pip karena pip tidak dipakai
-# saat runtime.
+# saat runtime. PyMuPDF (baca PDF) hanya punya wheel musllinux x86_64, jadi di
+# Mac Apple Silicon image dibangun sebagai amd64 (platform di docker-compose.yml).
 
 FROM python:3.13-alpine AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -21,10 +22,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Proses berjalan sebagai user tanpa hak root. Kode dimiliki root sehingga
 # tidak bisa diubah oleh proses aplikasi.
-RUN adduser -S -D -H -u 10001 app
+# libstdc++: pustaka C++ yang dimuat PyMuPDF; tidak ada di image Alpine dasar.
+RUN apk add --no-cache libstdc++ && adduser -S -D -H -u 10001 app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY . .
+# Tujuan volume `media` (unggahan mahasiswa). Dibuat sebelum USER app supaya
+# volume baru mewarisi pemilik yang bisa menulis.
+RUN mkdir -p /app/data/media && chown -R app /app/data
 
 USER app
 EXPOSE 8000

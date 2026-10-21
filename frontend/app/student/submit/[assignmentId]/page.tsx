@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 import { BloomStepper } from "@/components/common/BloomStepper";
 import { AssignmentStatusBadge } from "@/components/student/AssignmentStatusBadge";
 import { SubmitAnswerForm } from "@/components/student/SubmitAnswerForm";
+import { OriginalDocumentButton } from "@/components/submission/OriginalDocumentButton";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
 import { bloomCode, bloomShortLabel } from "@/lib/bloom";
@@ -72,6 +73,7 @@ export default async function SubmitAssignmentPage({
             isPastDeadline={isPastDeadline}
             isReviewed={Boolean(isReviewed)}
             assignmentId={assignment.id}
+            allowUpload={assignment.allow_file_upload}
             classId={detail.class.id}
           />
         </div>
@@ -117,6 +119,7 @@ function SubmissionSection({
   isPastDeadline,
   isReviewed,
   assignmentId,
+  allowUpload,
   classId,
 }: {
   submission: StudentSubmissionWithText | null;
@@ -124,6 +127,7 @@ function SubmissionSection({
   isPastDeadline: boolean;
   isReviewed: boolean;
   assignmentId: string;
+  allowUpload: boolean;
   classId: string;
 }) {
   if (submission === null && isPastDeadline) {
@@ -134,7 +138,7 @@ function SubmissionSection({
     return (
       <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5">
         <div className="mb-4 flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-accent-foreground"><MessageSquareText className="h-4 w-4" /></span><div><h2 className="font-bold text-foreground">Kumpulkan tugasmu</h2></div></div>
-        <SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} />
+        <SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} allowUpload={allowUpload} />
       </Card>
     );
   }
@@ -145,8 +149,9 @@ function SubmissionSection({
         <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="mt-1 text-sm font-bold text-foreground">Jawabanmu sudah diterima</p></div><AssignmentStatusBadge submission={submission} /></div>
           <p className="mt-2 text-xs text-muted-foreground">Dikumpulkan {formatRelativeTime(submission.submitted_at)}. Kamu masih bisa memperbaiki jawaban sebelum tenggat.</p>
+          {submission.is_imported ? <div className="mt-3"><OriginalDocumentButton path={`/api/submissions/${submission.id}/document`} label="Lihat berkas yang diunggah" /></div> : null}
         </Card>
-        <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5"><p className="mb-4 text-sm font-bold text-foreground">Perbarui jawaban</p><SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} mode="revise" initialText={submission.text_answer} /></Card>
+        <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5"><p className="mb-4 text-sm font-bold text-foreground">Perbarui jawaban</p><SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} mode="revise" initialText={submission.text_answer} allowUpload={allowUpload} /></Card>
       </div>
     );
   }
@@ -156,7 +161,7 @@ function SubmissionSection({
     <Card className="space-y-4 rounded-xl border-border bg-card p-5 shadow-none sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="mt-1 text-sm font-bold text-foreground">Jawabanmu telah dikirim</p></div><AssignmentStatusBadge submission={submission} /></div>
       <p className="text-xs leading-relaxed text-muted-foreground">Dikumpulkan {formatRelativeTime(submission.submitted_at)}. {lockReason}</p>
-      <div className="border-t border-border pt-4"><p className="mb-2 text-sm font-bold text-foreground">Jawabanmu</p><p className="whitespace-pre-wrap rounded-xl bg-background p-4 text-sm leading-7 text-foreground">{submission.text_answer}</p></div>
+      <div className="border-t border-border pt-4"><p className="mb-2 text-sm font-bold text-foreground">Jawabanmu</p>{submission.is_imported ? <div className="mb-3"><OriginalDocumentButton path={`/api/submissions/${submission.id}/document`} label="Lihat berkas yang diunggah" /></div> : null}<p className="whitespace-pre-wrap rounded-xl bg-background p-4 text-sm leading-7 text-foreground">{submission.text_answer}</p></div>
       {isReviewed ? <div className="rounded-xl bg-accent p-4"><p className="inline-flex items-center gap-2 text-sm font-semibold text-accent-foreground"><CheckCircle2 className="h-4 w-4" />Nilai: {submission.grade ?? "-"}</p>{submission.teacher_feedback ? <p className="mt-2 border-t border-border pt-2 text-sm leading-relaxed text-foreground"><strong>Umpan balik dosen:</strong> {submission.teacher_feedback}</p> : <p className="mt-1 text-xs text-muted-foreground">Belum ada catatan umpan balik dari dosen.</p>}</div> : <StatusNotice tone="teal" title="Menunggu penilaian" text="Jawabanmu sudah diterima. Nilai dan umpan balik dosen akan tampil di bagian ini." />}
     </Card>
   );

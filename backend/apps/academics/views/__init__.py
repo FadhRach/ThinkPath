@@ -9,6 +9,11 @@ from apps.academics.views.classes import (
     ClassRosterView,
     JoinClassView,
 )
+from apps.academics.views.documents import (
+    DocumentFileView,
+    DocumentImportView,
+    SubmissionDocumentView,
+)
 from apps.academics.views.insights import (
     ReportOverviewView,
     StudentCognitiveProfileView,
@@ -38,6 +43,8 @@ __all__ = [
     "ClassListCreateView",
     "ClassMaterialListCreateView",
     "ClassRosterView",
+    "DocumentFileView",
+    "DocumentImportView",
     "JoinClassView",
     "MaterialDetailView",
     "ReportOverviewView",
@@ -48,6 +55,7 @@ __all__ = [
     "StudentOwnProgressView",
     "StudentScheduleView",
     "SubmissionDetailView",
+    "SubmissionDocumentView",
     "SubmissionListView",
     "SubmissionReanalyzeView",
     "SubmissionVerificationView",

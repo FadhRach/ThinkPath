@@ -145,6 +145,9 @@ class Assignment(models.Model):
     expected_bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],
     )
+    # Dosen memilih: hanya diketik, atau boleh diisi dari berkas (PDF/DOCX/gambar).
+    # Jawaban dari berkas tidak punya jejak mengetik, jadi dinilai dari teksnya saja.
+    allow_file_upload = models.BooleanField(default=False)
     # education_level sengaja TIDAK ada di sini. Sebelumnya kolom ini
     # menduplikasi jenjang milik kelas, sehingga sebuah tugas bisa tersimpan
     # dengan jenjang yang berbeda dari kelas tempatnya berada. Jenjang sekarang
@@ -243,6 +246,10 @@ class Submission(models.Model):
         related_name="submissions",
     )
     text_answer = models.TextField(blank=True, default="")
+    # Dokumen unggahan yang menjadi sumber jawaban (documents/<mahasiswa>/<id>.*
+    # di MEDIA_ROOT), hanya bila teks jawaban terbukti berasal darinya. Jawaban
+    # begini tidak punya jejak mengetik, jadi forensik prosesnya dilewati.
+    source_document = models.UUIDField(null=True, blank=True, default=None)
     started_at = models.DateTimeField()
     submitted_at = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.IntegerField(
@@ -266,6 +273,10 @@ class Submission(models.Model):
     )
     teacher_feedback = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_imported(self) -> bool:
+        return self.source_document is not None
 
     class Meta:
         db_table = "submissions"

@@ -258,6 +258,8 @@ export interface StudentAssignment {
   instructions: string;
   deadline: string | null;
   expected_bloom_level: number;
+  /** Dosen mengizinkan jawaban diisi dari berkas; bila false, wajib diketik. */
+  allow_file_upload: boolean;
   education_level: EducationLevel;
 }
 
@@ -271,6 +273,8 @@ export interface StudentSubmissionStatus {
   grade: number | null;
   teacher_feedback: string;
   revision_count: number;
+  /** Jawaban berasal dari berkas unggahan; berkas aslinya bisa dibuka kembali. */
+  is_imported: boolean;
 }
 
 export interface StudentSubmissionWithText extends StudentSubmissionStatus {
@@ -315,6 +319,7 @@ export interface AssignmentSummary {
   instructions: string;
   deadline: string | null;
   expected_bloom_level: number;
+  allow_file_upload: boolean;
   education_level: EducationLevel;
   submission_count: number;
   high_band_count: number;
@@ -381,6 +386,8 @@ export interface SubmissionDetail {
   };
   student: StudentMini;
   text_answer: string;
+  /** Jawaban berasal dari dokumen unggahan, jadi tanpa jejak mengetik. */
+  is_imported: boolean;
   started_at: string;
   submitted_at: string | null;
   duration_seconds: number | null;

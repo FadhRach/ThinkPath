@@ -5,5 +5,6 @@ django-cors-headers>=4.4,<5
 psycopg[binary]>=3.2.3,<4     # wheel berisi libpq, image tidak butuh compiler
 PyJWT>=2.8,<3
 requests>=2.32,<3
+PyMuPDF>=1.26,<2              # baca PDF/gambar; wheel musllinux membawa MuPDF sendiri
 python-dotenv>=1.0.1,<2
 gunicorn>=23,<27

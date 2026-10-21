@@ -4,6 +4,7 @@
 *.env
 *.sqlite3
 backups/
+data/
 
 # Tidak dibutuhkan saat runtime
 **/tests/

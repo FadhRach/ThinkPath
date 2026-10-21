@@ -9,8 +9,8 @@ import type { Role } from "@/lib/types";
  * Pasal 21 ayat (2) UU No. 27 Tahun 2022: perubahan informasi diberitahukan
  * sebelum terjadi.
  */
-export const PRIVACY_POLICY_VERSION = "2026-10-12";
-export const PRIVACY_POLICY_EFFECTIVE_LABEL = "12 Oktober 2026";
+export const PRIVACY_POLICY_VERSION = "2026-10-17";
+export const PRIVACY_POLICY_EFFECTIVE_LABEL = "17 Oktober 2026";
 
 /**
  * Surel untuk permohonan hak subjek data (Pasal 14: permohonan tercatat).
@@ -47,7 +47,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "data_perkuliahan",
       title: "Data akun dan perkuliahan",
-      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas, nilai, dan umpan balik dosen untuk menjalankan perkuliahan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang kamu buka atau kirim lewat halaman ikut melewati server Vercel.",
+      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas (termasuk dokumen yang kamu unggah), nilai, dan umpan balik dosen untuk menjalankan perkuliahan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang kamu buka atau kirim lewat halaman ikut melewati server Vercel.",
       required: true,
       anchor: "data-yang-dikumpulkan",
     },
@@ -68,7 +68,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "analisis_luar_negeri",
       title: "Analisis tambahan oleh penyedia di luar negeri",
-      body: "Izinkan teks jawabanmu dikirim ke Groq (Amerika Serikat) dan Winston AI (Kanada) untuk analisis yang lebih lengkap. Yang dikirim hanya teks jawaban, ditambah jenjang studi untuk Groq, tanpa nama atau email. Winston menyimpan teks yang dinilai sebagai laporan sampai laporan itu dihapus. Tanpa izin ini, jawabanmu tetap dianalisis, tetapi hanya dengan metode heuristik di server ThinkPath; hasilnya bisa kurang akurat, dan dosen melihat bahwa skornya berasal dari heuristik.",
+      body: "Izinkan teks jawabanmu dikirim ke Groq (Amerika Serikat) dan Winston AI (Kanada) untuk analisis yang lebih lengkap. Yang dikirim hanya teks jawaban, ditambah jenjang studi untuk Groq, tanpa nama atau email. Bila kamu mengunggah dokumen scan atau foto, gambar halamannya juga dikirim ke Groq agar bisa dibaca; tanpa izin ini, unggahan seperti itu ditolak. Winston menyimpan teks yang dinilai sebagai laporan sampai laporan itu dihapus. Tanpa izin ini, jawabanmu tetap dianalisis, tetapi hanya dengan metode heuristik di server ThinkPath; hasilnya bisa kurang akurat, dan dosen melihat bahwa skornya berasal dari heuristik.",
       required: false,
       anchor: "penyedia-layanan",
     },

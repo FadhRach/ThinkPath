@@ -125,6 +125,7 @@ class AssignmentListSerializer(serializers.ModelSerializer):
             "instructions",
             "deadline",
             "expected_bloom_level",
+            "allow_file_upload",
             "education_level",
             "submission_count",
             "high_band_count",
@@ -166,6 +167,7 @@ class AssignmentCreateSerializer(serializers.ModelSerializer):
             "instructions",
             "deadline",
             "expected_bloom_level",
+            "allow_file_upload",
         ]
 
 
@@ -198,6 +200,7 @@ class StudentAssignmentSerializer(serializers.ModelSerializer):
             "instructions",
             "deadline",
             "expected_bloom_level",
+            "allow_file_upload",
             "education_level",
         ]
 
@@ -214,6 +217,7 @@ class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
             "grade",
             "teacher_feedback",
             "text_answer",
+            "is_imported",
             "revision_count",
         ]
 
@@ -271,6 +275,7 @@ class SubmissionListSerializer(serializers.ModelSerializer):
             "revision_count",
             "status",
             "grade",
+            "is_imported",
             "analysis",
         ]
 
@@ -307,6 +312,9 @@ class ProgressSampleSerializer(serializers.Serializer):
 
 class SubmissionCreateSerializer(serializers.Serializer):
     text_answer = serializers.CharField(min_length=50)
+    # Hasil unggahan dokumen (DocumentImportView); server memeriksa bahwa teks
+    # memang berasal darinya, jadi klaim ini tidak membuat apa pun dilewati.
+    document_id = serializers.UUIDField(required=False)
     started_at = serializers.DateTimeField(required=False)
     # Dibatasi supaya satu permintaan tidak bisa membanjiri basis data. Dengan
     # cuplikan tiap 30 detik, 240 sampel setara dua jam pengerjaan.
@@ -462,6 +470,7 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "assignment",
             "student",
             "text_answer",
+            "is_imported",
             "started_at",
             "submitted_at",
             "duration_seconds",
