@@ -109,7 +109,7 @@ memakai ThinkPath secara resmi perlu melakukan penilaian dampaknya sendiri.
 
 | Risiko | Akibat bagi mahasiswa | Mitigasi yang sudah berjalan | Sisa risiko dan tindak lanjut |
 |---|---|---|---|
-| Skor indikasi AI salah menuduh | Mahasiswa jujur dicurigai | Skor bukan vonis; tidak ada sanksi otomatis; kesimpulan sesi diskusi tidak memuat "terbukti menyontek"; hasil sesi tidak mengubah skor; dosen menyetujui tanggung jawabnya | ROC-AUC 0,900 diukur pada abstrak jurnal, bukan esai mahasiswa; ambang tinggi 70 belum terukur |
+| Skor indikasi AI salah menuduh | Mahasiswa jujur dicurigai | Skor bukan vonis; tidak ada sanksi otomatis; Cek Paham tidak menyediakan vonis "terbukti menyontek"; hasilnya tidak mengubah skor atau nilai; dosen menyetujui tanggung jawabnya | ROC-AUC 0,900 diukur pada abstrak jurnal, bukan esai mahasiswa; ambang tinggi 70 belum terukur |
 | Level Bloom keliru | Umpan balik perkembangan menyesatkan | Ditampilkan sebagai perkembangan, bukan nilai | Belum divalidasi penilai manusia |
 | Transfer ke luar negeri | Data tunduk pada yurisdiksi lain | Hanya teks jawaban tanpa identitas; opsional dan bisa dicabut; hosting diungkapkan | Penilaian kesetaraan (Pasal 56 ayat (2)) dan perjanjian pemrosesan dengan penyedia belum ada |
 | Token login dicuri lewat XSS | Akun diambil alih | SameSite=Lax, Secure, HTTPS | Cookie belum HttpOnly; rencana: sesi sisi server |

@@ -10,3 +10,8 @@ data/gold/
 # Label penilai memuat jawaban mahasiswa dan identitas penilai. Jangan
 # masuk repo. Yang dibagikan ke naskah cukup angka ringkasannya.
 data/labels/
+
+# Rekaman suara dan sesi berlabel Cek Paham: data pribadi orang lain. Yang
+# dibagikan cukup angka ringkasan di results/.
+data/asr_clips/
+data/cekpaham_gold/

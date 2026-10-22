@@ -37,7 +37,9 @@ erDiagram
     profiles ||--o{ submissions : "mahasiswa penjawab"
     submissions ||--o{ reasoning_events : "jejak proses"
     submissions ||--o| analysis_results : "hasil analisis"
-    submissions ||--o| verbal_verifications : "sesi diskusi"
+    submissions ||--o{ cekpaham_requests : "diminta dosen"
+    cekpaham_requests ||--o{ cekpaham_attempts : "sesi menjawab"
+    cekpaham_attempts ||--o{ cekpaham_reports : "laporan mahasiswa"
     profiles ||--o{ notifications : "penerima"
 
     profiles {
@@ -137,16 +139,40 @@ erDiagram
         varchar analysis_source "llm | heuristic | detector | seed"
         timestamptz created_at
     }
-    verbal_verifications {
+    cekpaham_requests {
         uuid id PK
-        uuid submission_id FK "1:1"
-        varchar status "scheduled | completed | cancelled"
-        timestamptz scheduled_at
-        varchar outcome "wajib bila completed"
-        text notes
-        timestamptz completed_at
-        timestamptz created_at
-        timestamptz updated_at
+        uuid submission_id FK
+        uuid created_by_id FK "dosen pemilik kelas"
+        text question_text "10-1000 karakter"
+        varchar language "id | en"
+        smallint answer_seconds "15-300"
+        timestamptz window_start
+        timestamptz window_end
+        varchar status "active | cancelled"
+        jsonb keyterms
+    }
+    cekpaham_attempts {
+        uuid id PK
+        uuid cekpaham_id FK
+        smallint number
+        varchar status "in_progress | processing | scored | processing_failed | interrupted | voided"
+        timestamptz deadline_at "dari server"
+        varchar audio_path "relatif MEDIA_ROOT, dihapus setelah 30 hari"
+        text live_transcript "klien, tak tepercaya, hanya pembanding"
+        text final_transcript "dari audio utuh di server"
+        jsonb asr_quality
+        smallint ai_score "0-100, kosong bila bukti kurang"
+        varchar ai_band "kuat | sebagian | lemah (belum dikalibrasi)"
+        jsonb ai_dimensions "level 0-3 + kutipan bukti"
+        jsonb ai_flags
+        jsonb client_events "konteks saja, tidak diskor"
+    }
+    cekpaham_reports {
+        uuid id PK
+        uuid attempt_id FK
+        varchar reason "transcript_mismatch | mic_failure | other"
+        varchar status "open | dismissed | retry_granted"
+        timestamptz resolved_at "wajib bila tidak open"
     }
     notifications {
         uuid id PK
@@ -186,9 +212,10 @@ sana.
 | App | Tabel | Tanggung jawab |
 |---|---|---|
 | `apps.accounts` | `profiles`, `consent_records` | Identitas, JWT, persetujuan UU PDP |
-| `apps.academics` | `classes`, `class_memberships`, `assignments`, `materials`, `announcements`, `submissions`, `reasoning_events`, `verbal_verifications` | Perkuliahan dan pengumpulan |
+| `apps.academics` | `classes`, `class_memberships`, `assignments`, `materials`, `announcements`, `submissions`, `reasoning_events` | Perkuliahan dan pengumpulan |
 | `apps.analysis` | `analysis_results`, `detector_scores` | Hasil analisis dan cache detektor |
 | `apps.notifications` | `notifications` | Notifikasi per penerima |
+| `apps.cekpaham` | `cekpaham_requests`, `cekpaham_attempts`, `cekpaham_reports` | Tes lisan singkat dan saran skornya |
 
 Tidak ada tabel bawaan Django (`auth_*`, `django_content_type`, `django_session`).
 Identitas dikelola sendiri lewat `profiles`, dan app bawaan itu dilepas dari
@@ -212,7 +239,11 @@ Identitas dikelola sendiri lewat `profiles`, dan app bawaan itu dilepas dari
 | `submissions` | `submission_revision_count_positive`, `submission_duration_positive` | CHECK | Angka proses tidak negatif |
 | `submissions` | `sub_assign_recent_idx`, `sub_student_recent_idx`, `sub_assign_status_idx` | INDEX | Daftar per tugas, per mahasiswa, dan antrean "perlu dinilai" |
 | `reasoning_events` | `reason_sub_time_idx` | INDEX `(submission, occurred_at)` | Linimasa proses berurutan |
-| `verbal_verifications` | `verification_outcome_matches_status` | CHECK | Kesimpulan hanya ada setelah sesi selesai, dan sesi selesai wajib punya kesimpulan |
+| `cekpaham_requests` | `cekpaham_one_active_per_submission` | UNIQUE parsial `(submission) WHERE status='active'` | Satu Cek Paham aktif per jawaban; yang dibatalkan boleh banyak |
+| `cekpaham_requests` | `cekpaham_window_order`, `cekpaham_answer_seconds_range` | CHECK | Jendela berakhir setelah mulai; durasi 15–300 dtk (syarat jendela ≥ durasi + 60 dtk divalidasi di service, karena aritmetika datetime tidak portabel di CHECK) |
+| `cekpaham_attempts` | `cekpaham_attempt_number`, `cekpaham_one_live_attempt` | UNIQUE, UNIQUE parsial `WHERE status<>'voided'` | Satu sesi berlaku per Cek Paham; sesi baru hanya setelah dosen membatalkan yang lama |
+| `cekpaham_attempts` | `cekpaham_attempt_score_range` | CHECK | Skor saran ≤ 100 atau kosong |
+| `cekpaham_reports` | `cekpaham_report_resolved_matches_status` | CHECK | Laporan terbuka belum punya waktu penyelesaian, dan sebaliknya |
 | `analysis_results` | `analysis_ai_score_range`, `analysis_bloom_level_range` | CHECK | Skor 0–100, Bloom 1–6 |
 | `detector_scores` | `detector_score_unique_key` | UNIQUE `(text_hash, provider, model_version, language)` | Teks yang sama tidak dibayar dua kali; menaikkan versi model otomatis membatalkan cache lama |
 | `detector_scores` | `detector_probability_range` | CHECK | Probabilitas 0–1 |

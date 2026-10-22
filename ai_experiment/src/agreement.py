@@ -53,7 +53,9 @@ class AgreementReport:
         return "sangat kuat"
 
 
-def _pairs(a: dict[str, str], b: dict[str, str]) -> list[tuple[str, str, str]]:
+def _pairs(
+    a: dict[str, str], b: dict[str, str], labels: tuple[str, ...] = BLOOM_LABELS
+) -> list[tuple[str, str, str]]:
     """Pasangan label untuk item yang dinilai KEDUA penilai.
 
     Item yang salah satunya menandai X dibuang, bukan dihitung tidak sepakat.
@@ -64,17 +66,18 @@ def _pairs(a: dict[str, str], b: dict[str, str]) -> list[tuple[str, str, str]]:
     return [
         (item, a[item], b[item])
         for item in shared
-        if a[item] in BLOOM_LABELS and b[item] in BLOOM_LABELS
+        if a[item] in labels and b[item] in labels
     ]
 
 
-def _kappa(pairs: list[tuple[str, str, str]], weighted: bool) -> float:
+def _kappa(
+    pairs: list[tuple[str, str, str]], weighted: bool, labels: tuple[str, ...] = BLOOM_LABELS
+) -> float:
     """Cohen's kappa, dengan opsi bobot kuadratik untuk skala berurutan."""
     n = len(pairs)
     if n == 0:
         return float("nan")
 
-    labels = BLOOM_LABELS
     size = len(labels)
     index = {label: i for i, label in enumerate(labels)}
 
@@ -106,9 +109,15 @@ def _kappa(pairs: list[tuple[str, str, str]], weighted: bool) -> float:
     return 1.0 - (observed / expected)
 
 
-def compare_raters(a: dict[str, str], b: dict[str, str]) -> AgreementReport:
-    """Bandingkan dua penilai. Kunci dict adalah id item, nilainya label."""
-    pairs = _pairs(a, b)
+def compare_raters(
+    a: dict[str, str], b: dict[str, str], labels: tuple[str, ...] = BLOOM_LABELS
+) -> AgreementReport:
+    """Bandingkan dua penilai. Kunci dict adalah id item, nilainya label.
+
+    `labels` adalah skala berurutan; bawaannya level Bloom. Cek Paham memakai
+    ("0", "1", "2", "3") untuk level per dimensi rubriknya.
+    """
+    pairs = _pairs(a, b, labels)
     shared = len(set(a) & set(b))
 
     confusion: dict[tuple[str, str], int] = {}
@@ -125,8 +134,8 @@ def compare_raters(a: dict[str, str], b: dict[str, str]) -> AgreementReport:
     return AgreementReport(
         n=n,
         observed=exact / n if n else float("nan"),
-        kappa=_kappa(pairs, weighted=False),
-        weighted_kappa=_kappa(pairs, weighted=True),
+        kappa=_kappa(pairs, weighted=False, labels=labels),
+        weighted_kappa=_kappa(pairs, weighted=True, labels=labels),
         confusion=confusion,
         disagreements=sorted(
             disagreements, key=lambda d: -abs(int(d[1]) - int(d[2]))

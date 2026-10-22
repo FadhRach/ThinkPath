@@ -6,7 +6,7 @@ tanpa perkakas tambahan.
 | Berkas | Isi |
 |---|---|
 | [01 · Arsitektur Sistem](./01-arsitektur-sistem.md) | Peta lapisan, perjalanan satu permintaan, lapisan analisis, susunan penempatan |
-| [02 · Interaksi dengan Dosen](./02-alur-dosen.md) | Perjalanan dosen, peta kelas empat kuadran, alur meninjau submission, verifikasi verbal |
+| [02 · Interaksi dengan Dosen](./02-alur-dosen.md) | Perjalanan dosen, peta kelas empat kuadran, alur meninjau submission, Cek Paham |
 | [03 · Interaksi dengan Mahasiswa](./03-alur-mahasiswa.md) | Perjalanan mahasiswa, batas yang ditampilkan, perekaman jejak, daur hidup submission |
 | [04 · Interaksi Gabungan](./04-interaksi-gabungan.md) | Siklus penuh satu tugas, pembagian wewenang, tindak lanjut per kuadran, model data |
 | [05 · Alur Analisis](./05-alur-analisis.md) | Pipeline, rantai tiga lapis skor AI, E1, sinyal proses, E2, E4, dan cara validasi diukur |

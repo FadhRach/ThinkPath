@@ -33,12 +33,11 @@ sequenceDiagram
     alt Bukti cukup meyakinkan
         DS->>S: beri nilai + umpan balik
     else Perlu diperiksa langsung
-        DS->>S: jadwalkan verifikasi verbal
-        S-->>DS: masuk antrean
-        DS->>MH: ajak bicara (di luar sistem)
-        MH->>DS: jelaskan jawabannya sendiri
-        DS->>S: catat kesimpulan sesi
-        Note over S: ai_score TIDAK berubah
+        DS->>S: minta Cek Paham
+        S-->>MH: kabar netral di lonceng dan Jadwal
+        MH->>S: jawab satu soal dengan suara
+        S-->>DS: audio, transkrip, saran skor + bukti
+        Note over S: ai_score dan nilai TIDAK berubah
         DS->>S: beri nilai + umpan balik
     end
 
@@ -46,10 +45,11 @@ sequenceDiagram
     S->>S: perbarui profil kognitif & tren kelas
 ```
 
-**Perhatikan dua panah yang keluar dari sistem.** Membagikan kode kelas dan
-percakapan verifikasi terjadi **di luar** aplikasi. Itu disengaja: ThinkPath
+**Perhatikan panah yang keluar dari sistem.** Membagikan kode kelas terjadi
+**di luar** aplikasi. Keputusan akhir juga tetap di tangan dosen: ThinkPath
 tidak menggantikan percakapan dosen dan mahasiswa, ia hanya memberi tahu
-percakapan mana yang paling layak dilakukan lebih dulu.
+percakapan mana yang paling layak dilakukan lebih dulu, dan Cek Paham memberi
+mahasiswa kesempatan menjelaskan jawabannya sendiri.
 
 ---
 
@@ -107,7 +107,7 @@ flowchart TD
     R -->|"rendah"| K3["<b>Celah pemahaman</b><br/>Terukur, paling sering luput.<br/>Tindakan: bantu materinya"]
     R -->|"tinggi"| K4["<b>Dua masalah</b><br/>Tindakan: mulai dari percakapan"]
 
-    T -->|"tinggi"| K1["<b>Mampu, proses dipertanyakan</b><br/>Tindakan: verifikasi verbal"]
+    T -->|"tinggi"| K1["<b>Mampu, proses dipertanyakan</b><br/>Tindakan: Cek Paham"]
     T -->|"rendah"| K2["<b>Aman</b><br/>Tidak menuntut tindakan"]
 
     classDef kritis fill:#FDF0F4,stroke:#C2547A
@@ -186,7 +186,7 @@ erDiagram
     Profile ||--o{ Submission : "mengumpulkan"
     Submission ||--|| AnalysisResult : "menghasilkan"
     Submission ||--o{ ReasoningEvent : "meninggalkan jejak"
-    Submission ||--o| VerbalVerification : "dapat diverifikasi"
+    Submission ||--o{ CekPaham : "dapat diminta"
     Kelas ||--o{ Material : "membagikan"
     Profile ||--o{ Notification : "menerima"
 
@@ -232,10 +232,10 @@ erDiagram
         json payload
         datetime occurred_at
     }
-    VerbalVerification {
-        string status "scheduled completed cancelled"
-        string outcome "tanpa nilai terbukti menyontek"
-        text notes
+    CekPaham {
+        text question_text
+        datetime window_end
+        string status "active cancelled"
     }
     Material {
         string topic "topik atau pertemuan; kosong berarti umum"

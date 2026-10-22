@@ -92,6 +92,34 @@ class ScoreCache:
             handle.write(json.dumps({"key": key, "score": score}) + "\n")
 
 
+class JsonCache:
+    """Seperti ScoreCache tetapi nilainya dokumen JSON (transkrip, hasil penilai).
+
+    Kunci selalu memuat nama model dan versi lewat ScoreCache.key(); alasannya
+    sama: mengganti model tidak boleh membaca hasil model lama.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def load(self) -> dict[str, dict]:
+        if not self.path.exists():
+            return {}
+        cache: dict[str, dict] = {}
+        for line in self.path.read_text(encoding="utf-8").splitlines():
+            try:
+                row = json.loads(line)
+                cache[row["key"]] = row["value"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue
+        return cache
+
+    def append(self, key: str, value: dict) -> None:
+        ensure_dirs()
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"key": key, "value": value}, ensure_ascii=False) + "\n")
+
+
 def balanced_sample(rows: list[dict], limit: int) -> list[dict]:
     """Ambil separuh manusia separuh AI, berselang seling, deterministik.
 

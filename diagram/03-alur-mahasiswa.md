@@ -164,8 +164,8 @@ stateDiagram-v2
     Draf --> Terkumpul: kumpulkan
     Terkumpul --> Terkumpul: revisi<br/>(sebelum tenggat, belum dinilai)
     Terkumpul --> Dinilai: dosen memberi nilai
-    Terkumpul --> Diverifikasi: dosen menjadwalkan sesi
-    Diverifikasi --> Dinilai
+    Terkumpul --> CekPaham: dosen meminta Cek Paham
+    CekPaham --> Dinilai
     Dinilai --> [*]
 
     note right of Terkumpul
@@ -173,9 +173,9 @@ stateDiagram-v2
         dan memicu analisis ulang.
         Jumlah revisi ditampilkan, tidak diskor
     end note
-    note right of Diverifikasi
-        Kesimpulan sesi tidak pernah
-        mengubah skor AI
+    note right of CekPaham
+        Hasilnya tidak pernah mengubah
+        skor AI maupun nilai
     end note
 ```
 

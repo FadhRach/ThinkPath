@@ -262,6 +262,32 @@ Kalau hasilnya menunjukkan detektor berbayar tidak mengungguli heuristik,
 jawabannya adalah mencabut integrasinya, bukan menggeser ambang sampai angkanya
 terlihat bagus.
 
+## Cek Paham: membandingkan ASR dan menguji penilai
+
+Dua skrip untuk fitur tes lisan (`backend/apps/cekpaham`). Keduanya memanggil kode produksi, bukan
+salinannya, dan hasilnya di-cache (kunci memuat nama model dan versi).
+
+```bash
+python -m src.evaluate_asr                 # WER/CER, recall istilah, latensi, halusinasi; tiga model
+python -m src.evaluate_cekpaham_judge      # kappa vs konsensus manusia, stabilitas, injeksi, salah dengar
+```
+
+- **ASR**: `groq-turbo` (`whisper-large-v3-turbo`, yang dipakai produksi), `groq-large-v3`, dan
+  `faster-whisper-small` (CPU, int8; bukti layak tidaknya self-host di VPS 2 core / 2 GB). Rekaman dan
+  cara merekamnya: [protocol/cekpaham_clip_recording.md](./protocol/cekpaham_clip_recording.md).
+  Deepgram sengaja tidak dibandingkan karena produk tidak memakainya.
+- **Penilai**: 30 sesi berlabel dua manusia, [protocol/cekpaham_judge_labeling.md](./protocol/cekpaham_judge_labeling.md).
+  Kappa antar manusia dilaporkan lebih dulu sebagai langit-langit. Bila kriteria gagal, perbaiki rubrik
+  atau prompt, jangan menggeser ambang band.
+- `agreement.compare_raters(..., labels=...)` kini menerima skala selain Bloom; Cek Paham memakai level 0–3.
+- Laporan ada di `results/`. Rekaman suara dan sesi berlabel memuat data pribadi dan tidak masuk git.
+
+**Temuan awal (uji jalur skrip dengan 6 klip sintetis TTS; bukan ukuran kualitas ASR):** pada satu klip
+hening 6 detik, kedua model mengarang "Terima kasih.", dan filter produksi
+(`apps/cekpaham/providers/groq_stt.filter_segments`) membuangnya. `no_speech_prob` TIDAK menangkapnya
+(nilainya 0); yang membedakan adalah segmen berakhir di detik 29,98 padahal audio hanya 6 detik. Satu klip
+bukan statistik: ukur ulang dengan beberapa klip hening sungguhan sesuai protokol.
+
 ## Memvalidasi E2 level Bloom
 
 Ini satu satunya bagian yang tidak bisa diotomatiskan. Level kognitif hanya ada
