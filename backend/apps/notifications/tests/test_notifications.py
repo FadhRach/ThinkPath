@@ -2,8 +2,7 @@
 
 Keputusan produk yang dijaga:
 
-1. Notifikasi ke mahasiswa tidak pernah menyebut indikasi AI, termasuk undangan
-   sesi diskusi yang lahir dari verifikasi verbal.
+1. Notifikasi ke mahasiswa tidak pernah menyebut indikasi AI.
 2. Dosen tidak dibanjiri: pengumpulan untuk tugas yang sama digabung selama
    belum dibaca.
 3. Pengingat tenggat dikirim sekali, tanpa penjadwal, saat mahasiswa membuka
@@ -26,13 +25,12 @@ from apps.academics.models import (
     Material,
     Submission,
     SubmissionStatus,
-    VerbalVerification,
-    VerificationStatus,
 )
 from apps.academics.schedule import build_student_schedule
 from apps.accounts.authentication import create_access_token
 from apps.accounts.models import ConsentAction, EducationLevel, Profile, Role
 from apps.accounts.privacy import REQUIRED_ITEMS, record_consent
+from apps.cekpaham.models import AttemptStatus, CekPaham, CekPahamAttempt, RequestStatus
 from apps.notifications.models import Notification, NotificationKind
 from apps.notifications.services import notify_once
 
@@ -248,47 +246,6 @@ class StudentNotificationTest(Base):
         self.assertEqual(graded.count(), 1)
         self.assertIn("Nilai 88", graded.get().body)
 
-    def test_session_invite_never_mentions_ai(self):
-        assignment = self.make_assignment()
-        self.submit(self.mhs, assignment)
-        submission = Submission.objects.get(student_profile=self.mhs)
-        dosen = self.client_for(self.dosen)
-        url = f"/api/submissions/{submission.id}/verification"
-        when = timezone.now() + timedelta(days=2)
-
-        dosen.put(url, {"status": "scheduled", "scheduled_at": when.isoformat()}, format="json")
-        invite = self.inbox(self.mhs).get(kind=NotificationKind.SESSION_SCHEDULED)
-        self.assertEqual(invite.title, "Undangan sesi diskusi jawaban")
-        for text in (invite.title, invite.body):
-            self.assertNotIn("AI", text)
-            self.assertNotIn("indikasi", text.lower())
-
-        # Menyimpan ulang tanpa mengubah jam tidak mengirim apa pun.
-        dosen.put(url, {"status": "scheduled", "scheduled_at": when.isoformat()}, format="json")
-        self.assertEqual(self.inbox(self.mhs).filter(kind=NotificationKind.SESSION_SCHEDULED).count(), 1)
-
-        later = when + timedelta(hours=3)
-        dosen.put(url, {"status": "scheduled", "scheduled_at": later.isoformat()}, format="json")
-        self.assertEqual(self.inbox(self.mhs).first().title, "Jadwal sesi diskusi jawaban diubah")
-
-        dosen.delete(url)
-        self.assertEqual(self.inbox(self.mhs).first().kind, NotificationKind.SESSION_CANCELLED)
-
-    def test_completed_session_is_not_announced(self):
-        assignment = self.make_assignment()
-        self.submit(self.mhs, assignment)
-        submission = Submission.objects.get(student_profile=self.mhs)
-        self.client_for(self.dosen).put(
-            f"/api/submissions/{submission.id}/verification",
-            {"status": "completed", "outcome": "can_explain"},
-            format="json",
-        )
-        self.assertFalse(
-            self.inbox(self.mhs)
-            .filter(kind__in=[NotificationKind.SESSION_SCHEDULED, NotificationKind.SESSION_CANCELLED])
-            .exists()
-        )
-
     def test_deadline_reminder_is_created_once_when_the_bell_opens(self):
         soon = self.make_assignment(title="Tenggat besok", deadline_in=timedelta(hours=10))
         self.make_assignment(title="Masih lama", deadline_in=timedelta(days=3))
@@ -400,26 +357,43 @@ class InboxApiTest(Base):
 
 
 class ScheduleTest(Base):
-    def test_agenda_lists_upcoming_deadlines_and_own_sessions(self):
+    def make_cekpaham(self, student, assignment, *, ends_in, status=RequestStatus.ACTIVE, answered=False):
+        """Cek Paham atas jawaban `student`; `answered` menambah satu sesi yang sudah dinilai."""
+        now = timezone.now()
+        submission = Submission.objects.get(assignment=assignment, student_profile=student)
+        cekpaham = CekPaham.objects.create(
+            submission=submission,
+            created_by=self.dosen,
+            question_text="Jelaskan alasan memilih pendekatan itu dengan kata-katamu sendiri.",
+            language="id",
+            answer_seconds=60,
+            window_start=now + ends_in - timedelta(hours=2),
+            window_end=now + ends_in,
+            status=status,
+        )
+        if answered:
+            CekPahamAttempt.objects.create(
+                cekpaham=cekpaham,
+                number=1,
+                status=AttemptStatus.SCORED,
+                started_at=now,
+                deadline_at=now + timedelta(seconds=60),
+                ai_summary="Ringkasan penilai yang tidak boleh bocor.",
+            )
+        return cekpaham
+
+    def test_agenda_lists_upcoming_deadlines_and_own_pending_cekpaham(self):
         past = self.make_assignment(title="Sudah lewat", deadline_in=-timedelta(days=1))
         open_task = self.make_assignment(title="Belum dikerjakan", deadline_in=timedelta(days=2))
         graded = self.make_assignment(title="Sudah dinilai", deadline_in=timedelta(days=4))
-        self.submit(self.mhs, graded)
+        answered = self.make_assignment(title="Sudah dijawab", deadline_in=timedelta(days=5))
+        for task in (graded, answered):
+            self.submit(self.mhs, task)
         Submission.objects.filter(assignment=graded).update(status=SubmissionStatus.REVIEWED)
-
-        own = Submission.objects.get(assignment=graded, student_profile=self.mhs)
-        VerbalVerification.objects.create(
-            submission=own,
-            status=VerificationStatus.SCHEDULED,
-            scheduled_at=timezone.now() + timedelta(days=1),
-        )
+        self.make_cekpaham(self.mhs, graded, ends_in=timedelta(days=1))
+        self.make_cekpaham(self.mhs, answered, ends_in=timedelta(days=1), answered=True)
         self.submit(self.mhs2, open_task)
-        theirs = Submission.objects.get(assignment=open_task, student_profile=self.mhs2)
-        VerbalVerification.objects.create(
-            submission=theirs,
-            status=VerificationStatus.SCHEDULED,
-            scheduled_at=timezone.now() + timedelta(days=1),
-        )
+        self.make_cekpaham(self.mhs2, open_task, ends_in=timedelta(days=1))
 
         response = self.client_for(self.mhs).get("/api/student/schedule")
         self.assertEqual(response.status_code, 200)
@@ -427,12 +401,15 @@ class ScheduleTest(Base):
         self.assertEqual(
             rows,
             [
-                ("session", "scheduled", "Sesi diskusi jawaban: Sudah dinilai"),
+                ("cekpaham", "scheduled", "Cek Paham: Sudah dinilai"),
                 ("deadline", "not_submitted", "Belum dikerjakan"),
                 ("deadline", "graded", "Sudah dinilai"),
+                ("deadline", "submitted", "Sudah dijawab"),
             ],
         )
         self.assertNotIn(past.title, [row["title"] for row in response.data])
+        link = next(row["link"] for row in response.data if row["kind"] == "cekpaham")
+        self.assertTrue(link.startswith("/student/cekpaham/"))
 
     def test_non_member_sees_nothing(self):
         self.make_assignment()
@@ -444,7 +421,7 @@ class ScheduleTest(Base):
             {"start": start.isoformat(), "end": end.isoformat()},
         )
 
-    def test_calendar_range_includes_past_items_and_session_history(self):
+    def test_calendar_range_includes_past_items_and_answered_cekpaham(self):
         now = timezone.now()
         missed = self.make_assignment(title="Terlewat", deadline_in=-timedelta(days=3))
         done = self.make_assignment(title="Selesai dibahas", deadline_in=-timedelta(days=6))
@@ -453,14 +430,7 @@ class ScheduleTest(Base):
         Assignment.objects.filter(pk=done.pk).update(deadline=now + timedelta(days=1))
         self.submit(self.mhs, done)
         Assignment.objects.filter(pk=done.pk).update(deadline=now - timedelta(days=6))
-        own = Submission.objects.get(assignment=done, student_profile=self.mhs)
-        VerbalVerification.objects.create(
-            submission=own,
-            status=VerificationStatus.COMPLETED,
-            scheduled_at=now - timedelta(days=4),
-            outcome="can_explain",
-            notes="Catatan dosen yang tidak boleh bocor.",
-        )
+        self.make_cekpaham(self.mhs, done, ends_in=-timedelta(days=4), answered=True)
 
         response = self.calendar(now - timedelta(days=14), now + timedelta(days=14))
         self.assertEqual(response.status_code, 200)
@@ -469,24 +439,20 @@ class ScheduleTest(Base):
             rows,
             [
                 ("deadline", "submitted", "Selesai dibahas"),
-                ("session", "done", "Sesi diskusi jawaban: Selesai dibahas"),
+                ("cekpaham", "done", "Cek Paham: Selesai dibahas"),
                 ("deadline", "not_submitted", missed.title),
             ],
         )
         self.assertTrue(all(row["class_id"] == str(self.kelas.id) for row in response.data))
-        # Riwayat sesi tidak membawa kesimpulan maupun catatan dosen.
-        self.assertNotIn("Catatan dosen", str(response.data))
-        self.assertNotIn("can_explain", str(response.data))
+        # Agenda tidak membawa soal, ringkasan penilai, maupun skor.
+        self.assertNotIn("Ringkasan penilai", str(response.data))
+        self.assertNotIn("Jelaskan alasan", str(response.data))
 
-    def test_cancelled_session_is_left_out_of_the_calendar(self):
+    def test_cancelled_cekpaham_is_left_out_of_the_calendar(self):
         now = timezone.now()
         assignment = self.make_assignment()
         self.submit(self.mhs, assignment)
-        VerbalVerification.objects.create(
-            submission=Submission.objects.get(student_profile=self.mhs),
-            status=VerificationStatus.CANCELLED,
-            scheduled_at=now + timedelta(days=1),
-        )
+        self.make_cekpaham(self.mhs, assignment, ends_in=timedelta(days=1), status=RequestStatus.CANCELLED)
         response = self.calendar(now, now + timedelta(days=30))
         self.assertEqual([row["kind"] for row in response.data], ["deadline"])
 

@@ -3,12 +3,12 @@
 import {
   Bell,
   BookOpen,
-  CalendarClock,
-  CalendarX2,
   CheckCircle2,
   ClipboardList,
   Hourglass,
   Inbox,
+  MessageSquareReply,
+  Mic,
   UserPlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -21,8 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { jadwalHref } from "@/lib/calendar";
-import { dayKey, formatClockHHMM, formatDate, formatRelativeTime } from "@/lib/formatting";
+import { formatClockHHMM, formatDate, formatRelativeTime } from "@/lib/formatting";
 import { fetchNotifications, markNotificationsRead } from "@/lib/mutations";
 import type { NotificationInbox, NotificationItem, NotificationKind } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -37,9 +36,10 @@ const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   assignment_new: ClipboardList,
   material_new: BookOpen,
   submission_graded: CheckCircle2,
-  session_scheduled: CalendarClock,
-  session_cancelled: CalendarX2,
   deadline_soon: Hourglass,
+  cekpaham_new: Mic,
+  cekpaham_resolved: MessageSquareReply,
+  cekpaham_result: Mic,
   submissions_new: Inbox,
   students_joined: UserPlus,
 };
@@ -47,25 +47,13 @@ const KIND_ICON: Record<NotificationKind, LucideIcon> = {
 /** Keterangan waktu kedua, untuk notifikasi yang membicarakan waktu tertentu. */
 function eventLine(item: NotificationItem): string | null {
   if (!item.event_at) return null;
-  if (item.kind === "session_scheduled") {
-    return `Sesi ${formatDate(item.event_at)} pukul ${formatClockHHMM(item.event_at)}`;
+  if (item.kind === "cekpaham_new") {
+    return `Dikerjakan sebelum ${formatDate(item.event_at)} pukul ${formatClockHHMM(item.event_at)}`;
   }
   if (item.kind === "assignment_new" || item.kind === "deadline_soon") {
     return `Tenggat ${formatRelativeTime(item.event_at)}`;
   }
   return null;
-}
-
-/**
- * Tujuan saat notifikasi diklik. Undangan sesi dibuka langsung pada pekan
- * sesinya di kalender. Tanggalnya dihitung di sini, pada zona tampilan,
- * karena backend sengaja tidak menulis tanggal lokal ke dalam tautan.
- */
-function destinationOf(item: NotificationItem): string {
-  if (item.kind === "session_scheduled" && item.event_at) {
-    return jadwalHref({ view: "minggu", date: dayKey(item.event_at) });
-  }
-  return item.link;
 }
 
 export function NotificationBell() {
@@ -117,8 +105,7 @@ export function NotificationBell() {
       // Gagal menandai dibaca tidak boleh menghalangi pindah halaman.
       markNotificationsRead([item.id]).catch(() => undefined);
     }
-    const destination = destinationOf(item);
-    if (destination) router.push(destination);
+    if (item.link) router.push(item.link);
   }
 
   function markAll() {

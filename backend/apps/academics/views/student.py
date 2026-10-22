@@ -131,7 +131,7 @@ def _parse_instant(raw: str | None) -> datetime | None:
 
 
 class StudentScheduleView(APIView):
-    """GET agenda mahasiswa: tenggat tugas dan sesi diskusi.
+    """GET agenda mahasiswa: tenggat tugas dan batas waktu Cek Paham.
 
     Tanpa parameter: agenda mendatang (kartu beranda). Dengan start & end
     (ISO 8601 berzona): seluruh agenda di rentang itu (kalender). Batas hari

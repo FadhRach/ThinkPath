@@ -49,8 +49,8 @@ export default async function StudentSchedulePage({
     ? items.filter((item) => item.class_id === selectedClass)
     : items;
   const byDay = itemsByDay(visible);
-  const hasUpcomingSession = visible.some(
-    (item) => item.kind === "session" && item.status === "scheduled",
+  const hasPendingCekPaham = visible.some(
+    (item) => item.kind === "cekpaham" && item.status === "scheduled",
   );
   // Daftar agenda hanya memuat bulan yang sedang dibuka. Sisa pekan dari
   // bulan tetangga tetap tampil di kalender, tetapi dibaca di bulannya sendiri.
@@ -64,7 +64,7 @@ export default async function StudentSchedulePage({
     <div className="space-y-5">
       <PageHeader
         title="Jadwal"
-        subtitle="Tenggat tugas dan sesi diskusi jawaban dari semua kelasmu dalam satu kalender."
+        subtitle="Tenggat tugas dan batas Cek Paham dari semua kelasmu dalam satu kalender."
       />
 
       <CalendarToolbar
@@ -92,7 +92,7 @@ export default async function StudentSchedulePage({
             items={monthItems}
             today={today}
             now={now}
-            emptyText="Tidak ada tenggat atau sesi diskusi di bulan ini."
+            emptyText="Tidak ada tenggat atau Cek Paham di bulan ini."
           />
         </div>
       ) : (
@@ -102,11 +102,11 @@ export default async function StudentSchedulePage({
         </div>
       )}
 
-      {hasUpcomingSession ? (
-        <Callout variant="info" title="Tentang sesi diskusi jawaban">
-          Dosen ingin mendengar kamu menjelaskan jawabanmu sendiri: bagaimana kamu
-          menyusunnya dan kenapa kamu sampai pada kesimpulan itu. Tidak perlu
-          persiapan khusus selain memahami kembali jawabanmu.
+      {hasPendingCekPaham ? (
+        <Callout variant="info" title="Tentang Cek Paham">
+          Cek Paham adalah satu pertanyaan singkat tentang jawabanmu sendiri, dijawab
+          dengan suara. Tidak perlu persiapan khusus selain memahami kembali jawabanmu.
+          Izin rekaman suara bisa diatur di Pengaturan, bagian Privasi.
         </Callout>
       ) : null}
 

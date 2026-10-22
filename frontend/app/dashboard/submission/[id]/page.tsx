@@ -11,6 +11,7 @@ import {
   AnalysisSourceBadge,
   AnalysisSourceNote,
 } from "@/components/submission/AnalysisSourceBadge";
+import { RequestCekPahamPanel } from "@/components/cekpaham/RequestCekPahamPanel";
 import { ConfidenceBadge } from "@/components/submission/ConfidenceBadge";
 import { EvidenceStrip } from "@/components/submission/EvidenceStrip";
 import { GradingForm } from "@/components/submission/GradingForm";
@@ -21,12 +22,11 @@ import { RecommendationBlock } from "@/components/submission/RecommendationBlock
 import { SentenceRhythm } from "@/components/submission/SentenceRhythm";
 import { SignalBreakdown } from "@/components/submission/SignalBreakdown";
 import { SignalList, uniqueSignals } from "@/components/submission/SignalList";
-import { VerificationPanel } from "@/components/submission/VerificationPanel";
 import { Card } from "@/components/ui/card";
 import { academicLabel } from "@/lib/academic";
 import { ApiError } from "@/lib/api";
 import { bloomCode, bloomLabel } from "@/lib/bloom";
-import { getSubmissionDetail } from "@/lib/data";
+import { getSubmissionCekPaham, getSubmissionDetail } from "@/lib/data";
 import { bandsForDetail } from "@/lib/evidence";
 import { formatDurationSeconds } from "@/lib/formatting";
 import type { SubmissionDetail } from "@/lib/types";
@@ -62,6 +62,8 @@ export default async function SubmissionDetailPage({
     throw error;
   }
 
+  // Halaman ini tetap harus terbuka bila fitur Cek Paham sedang bermasalah.
+  const cekpahamItems = await getSubmissionCekPaham(detail.id).catch(() => []);
   const bands = bandsForDetail(detail);
   const evidenceRows = [
     { label: "Proses", band: bands.processBand, detail: buildProcessSentence(detail) },
@@ -148,7 +150,7 @@ export default async function SubmissionDetailPage({
         </SectionCard>
         <aside className="lg:sticky lg:top-24"><GradingForm key={detail.id} submissionId={detail.id} initialGrade={detail.grade} initialFeedback={detail.teacher_feedback} /></aside>
       </div>
-      <VerificationPanel submissionId={detail.id} verification={detail.verification} />
+      <RequestCekPahamPanel submissionId={detail.id} items={cekpahamItems} />
       <details className="group rounded-2xl border border-border bg-card p-4 sm:p-5">
         <summary className="cursor-pointer text-sm font-bold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Lihat analisis dan bukti pengerjaan <span className="ml-2 text-xs font-normal text-muted-foreground">Bloom, sinyal teks, dan linimasa</span></summary>
       <div className="mt-5 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">

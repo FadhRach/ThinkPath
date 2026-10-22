@@ -1,12 +1,11 @@
-"""Agenda mahasiswa: tenggat tugas dan sesi diskusi jawaban, terurut waktu.
+"""Agenda mahasiswa: tenggat tugas dan batas waktu Cek Paham, terurut waktu.
 
 Tidak ada tabel jadwal tersendiri. Kedua jenis agenda sudah tersimpan sebagai
-tenggat tugas dan jadwal verifikasi verbal, jadi agenda dirakit dari sana dan
+tenggat tugas dan jendela waktu Cek Paham, jadi agenda dirakit dari sana dan
 tidak mungkin berbeda dari yang dilihat dosen.
 
-Sesi verifikasi tampil di sini sebagai "sesi diskusi jawaban", tanpa hasil
-dan catatannya. Mahasiswa perlu tahu kapan harus hadir; kesimpulan sesi tetap
-catatan dosen.
+Cek Paham tampil dengan batas akhir jendelanya dan status "sudah dikerjakan"
+atau belum. Skor, band, dan soalnya tidak ikut: itu bukan urusan mahasiswa.
 """
 from __future__ import annotations
 
@@ -15,20 +14,13 @@ from uuid import UUID
 
 from django.utils import timezone
 
-from apps.academics.models import (
-    Assignment,
-    Submission,
-    SubmissionStatus,
-    VerbalVerification,
-    VerificationStatus,
-)
+from apps.academics.models import Assignment, Submission, SubmissionStatus
+from apps.cekpaham.models import CekPaham, RequestStatus
+from apps.cekpaham.selectors import live_attempt
 
 # Sejauh ini ke depan agenda dibaca. Tenggat yang lebih jauh belum menuntut
 # tindakan apa pun.
 HORIZON = timedelta(days=60)
-# Sesi yang baru saja lewat tetap tampil sebentar, karena dosen biasanya baru
-# menandainya selesai setelah percakapan berakhir.
-SESSION_GRACE = timedelta(hours=3)
 
 
 def _submission_state(submission: Submission | None) -> str:
@@ -69,31 +61,39 @@ def _deadlines(student_id: UUID, start: datetime, end: datetime) -> list[dict]:
     ]
 
 
-def _sessions(
-    student_id: UUID, start: datetime, end: datetime, statuses: list[str]
-) -> list[dict]:
-    sessions = VerbalVerification.objects.filter(
-        submission__student_profile_id=student_id,
-        status__in=statuses,
-        scheduled_at__gte=start,
-        scheduled_at__lt=end,
-    ).select_related("submission__assignment__class_ref")
+def _cekpaham(student_id: UUID, start: datetime, end: datetime, *, include_done: bool) -> list[dict]:
+    """Cek Paham aktif yang jendelanya berakhir dalam rentang.
+
+    Dianggap dikerjakan bila sudah ada sesi yang berlaku (selesai, diproses,
+    atau terputus): mahasiswa tidak punya tindakan lagi sampai dosen memberi
+    kesempatan ulang, dan saat itu sesi lamanya di-void.
+    """
+    requests = (
+        CekPaham.objects.filter(
+            submission__student_profile_id=student_id,
+            status=RequestStatus.ACTIVE,
+            window_end__gte=start,
+            window_end__lt=end,
+        )
+        .select_related("submission__assignment__class_ref")
+        .prefetch_related("attempts")
+    )
     items = []
-    for session in sessions:
-        assignment = session.submission.assignment
+    for cekpaham in requests:
+        done = live_attempt(cekpaham) is not None
+        if done and not include_done:
+            continue
+        assignment = cekpaham.submission.assignment
         items.append(
             {
-                "id": f"session:{session.id}",
-                "kind": "session",
-                "at": session.scheduled_at,
-                "title": f"Sesi diskusi jawaban: {assignment.title}",
+                "id": f"cekpaham:{cekpaham.id}",
+                "kind": "cekpaham",
+                "at": cekpaham.window_end,
+                "title": f"Cek Paham: {assignment.title}",
                 "class_id": str(assignment.class_ref_id),
                 "class_name": assignment.class_ref.name,
-                # Hanya "sudah berlangsung". Kesimpulannya tidak ikut.
-                "status": "done"
-                if session.status == VerificationStatus.COMPLETED
-                else "scheduled",
-                "link": f"/student/submit/{assignment.id}",
+                "status": "done" if done else "scheduled",
+                "link": f"/student/cekpaham/{cekpaham.id}",
             }
         )
     return items
@@ -102,11 +102,8 @@ def _sessions(
 def build_student_schedule(student_id: UUID, now: datetime | None = None) -> list[dict]:
     """Agenda yang akan datang, untuk kartu "Agenda terdekat" di beranda."""
     now = now or timezone.now()
-    items = _deadlines(student_id, now, now + HORIZON) + _sessions(
-        student_id,
-        now - SESSION_GRACE,
-        now + HORIZON,
-        [VerificationStatus.SCHEDULED],
+    items = _deadlines(student_id, now, now + HORIZON) + _cekpaham(
+        student_id, now, now + HORIZON, include_done=False
     )
     items.sort(key=lambda item: item["at"])
     return items
@@ -116,14 +113,11 @@ def build_student_calendar(student_id: UUID, start: datetime, end: datetime) -> 
     """Seluruh agenda dalam satu rentang kalender, termasuk yang sudah lewat.
 
     Kalender juga dipakai untuk melihat ke belakang, jadi tenggat yang lewat
-    ikut tampil beserta statusnya. Sesi yang sudah berlangsung tampil sebagai
-    riwayat; sesi yang dibatalkan tidak, karena memang tidak pernah terjadi.
+    ikut tampil beserta statusnya. Cek Paham yang sudah dikerjakan tampil
+    sebagai riwayat; yang dibatalkan dosen tidak, karena tidak lagi berlaku.
     """
-    items = _deadlines(student_id, start, end) + _sessions(
-        student_id,
-        start,
-        end,
-        [VerificationStatus.SCHEDULED, VerificationStatus.COMPLETED],
+    items = _deadlines(student_id, start, end) + _cekpaham(
+        student_id, start, end, include_done=True
     )
     items.sort(key=lambda item: item["at"])
     return items

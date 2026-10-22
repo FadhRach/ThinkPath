@@ -25,8 +25,8 @@ flowchart TD
     TBL -->|"klik baris"| SUB["/dashboard/submission/:id<br/><b>Bukti lengkap</b>"]
     TBL -->|"klik Tren"| PROF
 
-    SUB --> VER["Jadwalkan verifikasi verbal"]
-    VER --> ANT["/dashboard/verifikasi<br/>Antrean sesi"]
+    SUB --> VER["Minta Cek Paham"]
+    VER --> ANT["/dashboard/cekpaham<br/>Daftar & hasil"]
 
     OV --> TGS["/dashboard/tugas<br/>Seluruh tugas lintas kelas"]
     OV --> LAP["/dashboard/laporan<br/>Agregat prodi & semester"]
@@ -93,36 +93,34 @@ sequenceDiagram
     UI-->>DS: ritme kalimat pada teks jawaban
 
     alt Dosen ingin menindaklanjuti
-        DS->>UI: jadwalkan verifikasi verbal
-        UI->>API: PUT /api/submissions/:id/verification
-        Note right of API: status = scheduled<br/>kesimpulan BELUM boleh diisi
-        DS->>DS: bicara langsung dengan mahasiswa
-        DS->>UI: catat kesimpulan
-        UI->>API: PUT status = completed + outcome
-        Note right of API: ai_score TIDAK berubah
+        DS->>UI: minta Cek Paham (soal, bahasa, durasi, jendela waktu)
+        UI->>API: POST /api/submissions/:id/cekpaham
+        Note right of API: mahasiswa diberi tahu secara netral,<br/>tanpa alasan atau skor
+        API-->>UI: setelah mahasiswa menjawab: audio, transkrip, saran skor + bukti
+        DS->>UI: baca hasil, putuskan sendiri
+        Note right of API: ai_score dan nilai TIDAK berubah
     else Tidak perlu
         DS->>UI: langsung nilai
         UI->>API: PATCH nilai + umpan balik
     end
 ```
 
-**Dua penjagaan yang disengaja.** Kesimpulan tidak bisa diisi sebelum status
-`completed`, karena membiarkan dosen menyimpulkan saat baru menjadwalkan berarti
-menyimpulkan sebelum berbicara. Dan hasil percakapan **tidak pernah** menulis
-balik ke `ai_score`: skor yang keliru tidak boleh membenarkan dirinya sendiri
-lewat percakapan yang ia picu sendiri.
+**Penjagaan yang disengaja.** Hasil Cek Paham **tidak pernah** menulis balik
+ke `ai_score`, level Bloom, atau nilai: skor yang keliru tidak boleh
+membenarkan dirinya sendiri lewat tes yang ia picu sendiri. Skor Cek Paham
+sendiri hanya saran dan belum dikalibrasi, sehingga selalu berlabel demikian.
 
 ---
 
-## 2.4 Pilihan kesimpulan verifikasi
+## 2.4 Yang dosen terima dari Cek Paham
 
 ```mermaid
 flowchart LR
-    S["Sesi selesai"] --> A["Dapat menjelaskan"]
-    S --> B["Sebagian dapat dijelaskan"]
-    S --> C["Tidak dapat menjelaskan"]
-    S --> D["Belum konklusif"]
-    S -.-x E["✗ Terbukti menyontek"]
+    S["Mahasiswa selesai menjawab"] --> A["Audio + transkrip server"]
+    S --> B["Saran skor 4 dimensi<br/>+ kutipan bukti"]
+    S --> C["Konteks: pindah tab,<br/>ganti mikrofon (tidak diskor)"]
+    S --> D["Laporan kendala mahasiswa<br/>(opsional)"]
+    S -.-x E["✗ Vonis menyontek"]
 
     classDef ada fill:#D9F2E6,stroke:#2E7D5B
     classDef tidak fill:#FDF0F4,stroke:#C2547A,stroke-dasharray:4 3
@@ -130,9 +128,9 @@ flowchart LR
     class E tidak
 ```
 
-Nilai "terbukti menyontek" **sengaja tidak disediakan**. Satu percakapan tidak
-menghasilkan kepastian itu, dan menyediakan tombolnya berarti mengundang
-kesimpulan yang tidak ditopang bukti apa pun yang dimiliki sistem.
+Sistem tidak menyediakan vonis. Skor hanya saran, kutipan buktinya diperiksa
+harus benar-benar ada di transkrip, dan mahasiswa yang merasa transkripnya
+keliru dapat melapor sehingga dosen bisa mengizinkan percobaan ulang.
 
 ---
 
@@ -149,8 +147,8 @@ stateDiagram-v2
     Terkumpul --> Dianalisis: E1 + E2 otomatis
     Dianalisis --> Ditinjau: dosen membaca bukti
     Ditinjau --> Dinilai
-    Ditinjau --> Verifikasi: bila perlu percakapan
-    Verifikasi --> Dinilai
+    Ditinjau --> CekPaham: bila perlu
+    CekPaham --> Dinilai
     Dinilai --> [*]
 ```
 

@@ -5,8 +5,7 @@ Kalimat untuk mahasiswa memakai "kamu" dan untuk dosen memakai "Anda",
 mengikuti design system.
 
 Batas yang dijaga: notifikasi ke mahasiswa tidak pernah menyebut skor AI,
-indikasi AI, atau alasan sesi diskusi dijadwalkan. Undangan sesi dibingkai
-sebagai kesempatan menjelaskan jawaban, sama seperti di layar dosen.
+indikasi AI, atau alasan Cek Paham diminta.
 """
 from __future__ import annotations
 
@@ -22,17 +21,22 @@ from apps.academics.models import (
     ClassMembership,
     Material,
     Submission,
-    VerbalVerification,
-    VerificationStatus,
 )
 from apps.accounts.models import Profile
+from apps.cekpaham.models import (
+    AttemptStatus,
+    CekPaham,
+    CekPahamAttempt,
+    CekPahamReport,
+    ReportReason,
+    ReportStatus,
+    RequestStatus,
+)
 from apps.notifications.models import NotificationKind
 from apps.notifications.services import notify, notify_grouped, notify_once
 
 # Pengingat dikirim bila tenggat jatuh dalam rentang ini dan jawaban belum ada.
 DEADLINE_REMINDER_WINDOW = timedelta(hours=24)
-
-SESSION_INVITE_BODY = "Dosen ingin mendengar penjelasanmu tentang jawaban ini."
 
 
 def _member_ids(class_id: UUID) -> list[UUID]:
@@ -93,48 +97,59 @@ def submission_graded(submission: Submission) -> int:
     )
 
 
-def session_changed(
-    verification: VerbalVerification | None,
-    *,
-    submission: Submission,
-    previous_status: str | None,
-    previous_at: datetime | None,
-) -> int:
-    """Kabari mahasiswa soal undangan, perubahan jadwal, atau pembatalan sesi.
-
-    verification None berarti sesinya dihapus. Sesi yang selesai tidak
-    dikabarkan: kesimpulannya catatan dosen, bukan untuk mahasiswa.
-    """
-    student = [submission.student_profile_id]
-    assignment_title = submission.assignment.title
-    was_scheduled = previous_status == VerificationStatus.SCHEDULED
-
-    if verification is None or verification.status == VerificationStatus.CANCELLED:
-        if not was_scheduled:
-            return 0
-        return notify(
-            student,
-            kind=NotificationKind.SESSION_CANCELLED,
-            title="Sesi diskusi jawaban dibatalkan",
-            body=assignment_title,
-            link="/student/jadwal",
-        )
-
-    if verification.status != VerificationStatus.SCHEDULED:
-        return 0
-    if was_scheduled and previous_at == verification.scheduled_at:
-        return 0
+def cekpaham_created(cekpaham: CekPaham) -> int:
+    """Kabar netral: tidak menyebut alasan, skor, atau dugaan apa pun."""
+    submission = cekpaham.submission
     return notify(
-        student,
-        kind=NotificationKind.SESSION_SCHEDULED,
-        title=(
-            "Jadwal sesi diskusi jawaban diubah"
-            if was_scheduled
-            else "Undangan sesi diskusi jawaban"
+        [submission.student_profile_id],
+        kind=NotificationKind.CEKPAHAM_NEW,
+        title=f"Cek Paham untuk tugas: {submission.assignment.title}",
+        body=f"{submission.assignment.class_ref.name}. Dijawab dengan suara, {cekpaham.answer_seconds} detik.",
+        link=f"/student/cekpaham/{cekpaham.id}",
+        event_at=cekpaham.window_end,
+    )
+
+
+def cekpaham_report_resolved(report: CekPahamReport) -> int:
+    cekpaham = report.attempt.cekpaham
+    retry = report.status == ReportStatus.RETRY_GRANTED
+    return notify(
+        [cekpaham.submission.student_profile_id],
+        kind=NotificationKind.CEKPAHAM_RESOLVED,
+        title="Laporan Cek Paham-mu sudah ditanggapi",
+        body=(
+            "Dosen mengizinkanmu mengulang. Buka Cek Paham untuk memulai lagi."
+            if retry
+            else "Dosen sudah menanggapi laporanmu."
         ),
-        body=f"{assignment_title}. {SESSION_INVITE_BODY}",
-        link="/student/jadwal",
-        event_at=verification.scheduled_at,
+        link=f"/student/cekpaham/{cekpaham.id}",
+    )
+
+
+def _cekpaham_reminders(student_id: UUID, now: datetime) -> int:
+    """Cek Paham yang jendelanya tutup dalam 24 jam dan belum dikerjakan."""
+    due = (
+        CekPaham.objects.filter(
+            submission__student_profile_id=student_id,
+            status=RequestStatus.ACTIVE,
+            window_start__lte=now,
+            window_end__gt=now,
+            window_end__lte=now + DEADLINE_REMINDER_WINDOW,
+        )
+        .exclude(attempts__status__in=[s for s in AttemptStatus.values if s != AttemptStatus.VOIDED])
+        .select_related("submission__assignment")
+    )
+    return sum(
+        notify_once(
+            student_id,
+            kind=NotificationKind.CEKPAHAM_NEW,
+            group_key=f"cekpaham:{cekpaham.id}",
+            title=f"Cek Paham segera ditutup: {cekpaham.submission.assignment.title}",
+            body="Waktu pengerjaannya kurang dari 24 jam lagi.",
+            link=f"/student/cekpaham/{cekpaham.id}",
+            event_at=cekpaham.window_end,
+        )
+        for cekpaham in due
     )
 
 
@@ -167,7 +182,7 @@ def ensure_deadline_reminders(student_id: UUID, now: datetime | None = None) -> 
             link=f"/student/submit/{assignment.id}",
             event_at=assignment.deadline,
         )
-    return sent
+    return sent + _cekpaham_reminders(student_id, now)
 
 
 # --- Untuk dosen ------------------------------------------------------------
@@ -211,4 +226,37 @@ def student_joined(klass: Class, student: Profile) -> None:
         group_key=f"joined:{klass.id}",
         build=build,
         link=f"/dashboard/classes/{klass.id}",
+    )
+
+
+def cekpaham_finished(attempt: CekPahamAttempt) -> None:
+    """Dosen diberi tahu sesi selesai, gagal diproses, atau terputus."""
+    cekpaham = attempt.cekpaham
+    submission = cekpaham.submission
+    student = submission.student_profile.label
+    titles = {
+        AttemptStatus.SCORED: f"Hasil Cek Paham siap: {student}",
+        AttemptStatus.PROCESSING_FAILED: f"Cek Paham {student} perlu diproses ulang",
+        AttemptStatus.INTERRUPTED: f"Sesi Cek Paham {student} terputus",
+    }
+    title = titles.get(attempt.status)
+    if title:
+        notify(
+            [submission.assignment.class_ref.owner_id],
+            kind=NotificationKind.CEKPAHAM_RESULT,
+            title=title,
+            body=submission.assignment.title,
+            link=f"/dashboard/cekpaham/{cekpaham.id}",
+        )
+
+
+def cekpaham_reported(report: CekPahamReport) -> None:
+    cekpaham = report.attempt.cekpaham
+    submission = cekpaham.submission
+    notify(
+        [submission.assignment.class_ref.owner_id],
+        kind=NotificationKind.CEKPAHAM_RESULT,
+        title=f"Laporan Cek Paham dari {submission.student_profile.label}",
+        body=ReportReason(report.reason).label,
+        link=f"/dashboard/cekpaham/{cekpaham.id}",
     )

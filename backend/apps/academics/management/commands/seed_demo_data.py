@@ -27,13 +27,12 @@ from apps.academics.models import (
     ReasoningEvent,
     Submission,
     SubmissionStatus,
-    VerbalVerification,
-    VerificationOutcome,
-    VerificationStatus,
 )
 from apps.analysis.choices import AiBand, AnalysisSource
 from apps.analysis.models import AnalysisResult
 from apps.accounts.models import EducationLevel, Profile, Role
+from apps.cekpaham.models import CekPaham, RequestStatus
+from apps.cekpaham.seed import seed_cekpaham_demo
 from apps.notifications import events as notify_events
 from apps.notifications.models import Notification, NotificationKind
 
@@ -410,78 +409,6 @@ def _seed_submissions_for_assignment(
     return created
 
 
-def _seed_verifications(
-    students: Sequence[Profile], assignments: Sequence[Assignment]
-) -> int:
-    """Contoh sesi verifikasi verbal supaya layar Verifikasi tidak pernah kosong.
-
-    Dipilih dari mahasiswa berpola tempel: dua sesi sudah selesai dengan
-    kesimpulan yang berbeda, satu masih dijadwalkan. Kesimpulan "mampu
-    menjelaskan" sengaja ada, karena skor tinggi tidak sama dengan menyontek.
-    """
-    if len(students) < 8:
-        return 0
-
-    def _has(assignment: Assignment, status: str) -> bool:
-        return assignment.submissions.filter(status=status).exists()
-
-    graded = [a for a in assignments if _has(a, SubmissionStatus.REVIEWED)]
-    open_ones = [a for a in assignments if _has(a, SubmissionStatus.SUBMITTED)]
-
-    plans = []
-    if graded:
-        plans += [
-            (
-                students[6],
-                graded[-1],
-                VerificationStatus.COMPLETED,
-                VerificationOutcome.PARTIAL,
-                "Bisa menjelaskan kerangka umum, tetapi belum bisa menguraikan "
-                "contoh yang ia tulis sendiri.",
-            ),
-            (
-                students[7],
-                graded[0],
-                VerificationStatus.COMPLETED,
-                VerificationOutcome.CAN_EXPLAIN,
-                "Menjelaskan alur argumen dengan runtut dan menjawab pertanyaan "
-                "lanjutan tanpa melihat teks.",
-            ),
-        ]
-    if open_ones:
-        plans.append((students[6], open_ones[-1], VerificationStatus.SCHEDULED, "", ""))
-
-    now = timezone.now()
-    # Sesi yang masih dijadwalkan jatuh pukul 10.00 WIB (03.00 UTC) lusa.
-    upcoming_slot = (now + timedelta(days=2)).replace(
-        hour=3, minute=0, second=0, microsecond=0
-    )
-    count = 0
-    for student, assignment, status_value, outcome, notes in plans:
-        submission = Submission.objects.filter(
-            assignment=assignment, student_profile=student
-        ).first()
-        if submission is None:
-            continue
-        completed = status_value == VerificationStatus.COMPLETED
-        VerbalVerification.objects.update_or_create(
-            submission=submission,
-            defaults={
-                "status": status_value,
-                "scheduled_at": (submission.submitted_at + timedelta(days=2))
-                if completed
-                else upcoming_slot,
-                "outcome": outcome,
-                "notes": notes,
-                "completed_at": (submission.submitted_at + timedelta(days=2))
-                if completed
-                else None,
-            },
-        )
-        count += 1
-    return count
-
-
 # Materi demo: (label, topik, judul, ringkasan, tautan, berapa hari lalu
 # dibagikan). Topik mengikuti pertemuan tempat tugasnya dibahas; topik kosong
 # berarti materi umum. Setiap tautan sudah diperiksa bisa dibuka; materi tanpa
@@ -737,20 +664,16 @@ def _seed_notifications(
             created_at=at, read_at=at + timedelta(hours=2)
         )
 
-    # Undangan sesi diskusi yang masih dijadwalkan.
-    scheduled = VerbalVerification.objects.filter(
-        status=VerificationStatus.SCHEDULED, submission__student_profile__in=students
-    ).select_related("submission__assignment")
-    for verification in scheduled:
-        notify_events.session_changed(
-            verification,
-            submission=verification.submission,
-            previous_status=None,
-            previous_at=None,
-        )
-    mine.filter(kind=NotificationKind.SESSION_SCHEDULED).update(
-        created_at=now - timedelta(hours=3)
-    )
+    # Cek Paham yang jendelanya masih terbuka dan belum dikerjakan.
+    open_requests = CekPaham.objects.filter(
+        status=RequestStatus.ACTIVE,
+        window_end__gt=now,
+        attempts__isnull=True,
+        submission__student_profile__in=students,
+    ).select_related("submission__assignment__class_ref")
+    for cekpaham in open_requests:
+        notify_events.cekpaham_created(cekpaham)
+    mine.filter(kind=NotificationKind.CEKPAHAM_NEW).update(created_at=now - timedelta(hours=3))
     return mine.count()
 
 
@@ -1001,7 +924,7 @@ class Command(BaseCommand):
                         weeks_ago=weeks_ago,
                     )
 
-            verification_count = _seed_verifications(students, assignments)
+            cekpaham_count = seed_cekpaham_demo(teacher, students)
 
             for target_class, (label, title, instructions, bloom) in open_items.items():
                 assignments.append(
@@ -1023,12 +946,12 @@ class Command(BaseCommand):
         self.stdout.write(
             "Seeded teacher={teacher_id}, classes=2, assignments={assignments}, "
             "submissions={submissions}, analysis_results={submissions}, "
-            "verifications={verifications}, materials={materials}, "
+            "cekpaham={cekpaham}, materials={materials}, "
             "notifications={notifications}".format(
                 teacher_id=teacher.id,
                 assignments=len(assignments),
                 submissions=total_submissions,
-                verifications=verification_count,
+                cekpaham=cekpaham_count,
                 materials=len(materials),
                 notifications=notification_count,
             )

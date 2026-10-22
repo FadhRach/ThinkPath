@@ -33,7 +33,7 @@ export function AgendaRow({ item, now = new Date(), compact = false }: Props) {
       <div className="w-12 shrink-0 text-center">
         <p className="font-bold tabular-nums text-foreground">{formatClockHHMM(item.at)}</p>
         <p className="text-caption text-muted-foreground">
-          {item.kind === "session" ? "Sesi" : "Tenggat"}
+          {item.kind === "cekpaham" ? "Batas" : "Tenggat"}
         </p>
       </div>
       <span aria-hidden="true" className={cn("w-1 self-stretch rounded-full", style.mark)} />

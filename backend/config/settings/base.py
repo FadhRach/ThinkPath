@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "apps.academics",
     "apps.analysis",
     "apps.notifications",
+    "apps.cekpaham",
 ]
 
 MIDDLEWARE = [
@@ -66,6 +67,10 @@ REST_FRAMEWORK = {
         "auth_login": "20/min",
         # Tiap unggahan bisa memicu hingga 6 panggilan OCR berbayar ke Groq.
         "document_import": "30/hour",
+        # Caption live (best-effort, satu potongan ~4 detik) dan finalisasi
+        # (STT + penilai berbayar). Satu sesi sah jauh di bawah batas ini.
+        "cekpaham_live": "40/min",
+        "cekpaham_finalize": "30/hour",
     },
 }
 

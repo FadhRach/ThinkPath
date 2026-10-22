@@ -19,12 +19,13 @@ class NotificationKind(models.TextChoices):
     MATERIAL_NEW = "material_new", "Materi baru"
     ANNOUNCEMENT_NEW = "announcement_new", "Pengumuman kelas"
     SUBMISSION_GRADED = "submission_graded", "Jawaban dinilai"
-    SESSION_SCHEDULED = "session_scheduled", "Sesi diskusi dijadwalkan"
-    SESSION_CANCELLED = "session_cancelled", "Sesi diskusi dibatalkan"
     DEADLINE_SOON = "deadline_soon", "Tenggat dekat"
+    CEKPAHAM_NEW = "cekpaham_new", "Cek Paham"
+    CEKPAHAM_RESOLVED = "cekpaham_resolved", "Laporan Cek Paham ditanggapi"
     # Untuk dosen
     SUBMISSIONS_NEW = "submissions_new", "Pengumpulan baru"
     STUDENTS_JOINED = "students_joined", "Mahasiswa bergabung"
+    CEKPAHAM_RESULT = "cekpaham_result", "Hasil Cek Paham"
 
 
 class Notification(models.Model):
@@ -39,7 +40,7 @@ class Notification(models.Model):
     body = models.CharField(max_length=300, blank=True, default="")
     # Rute frontend yang dibuka ketika notifikasi diklik.
     link = models.CharField(max_length=300, blank=True, default="")
-    # Waktu yang dibicarakan notifikasi, misalnya tenggat atau jadwal sesi.
+    # Waktu yang dibicarakan notifikasi, misalnya tenggat tugas atau batas Cek Paham.
     # Disimpan sebagai waktu, tidak dirakit ke dalam kalimat: backend berjalan
     # pada UTC dan jam hanya boleh diformat di frontend, di zona pembacanya.
     event_at = models.DateTimeField(null=True, blank=True)

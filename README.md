@@ -22,8 +22,8 @@ Password untuk semua akun: `thinkpath123`
 
 | Peran | Email | Isi |
 |---|---|---|
-| Dosen | `dosen@thinkpath.local` | 2 kelas, 10 tugas, 64 submission teranalisis, 16 materi dalam 11 topik, 3 sesi verifikasi verbal |
-| Mahasiswa | `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local` | 8 mahasiswa dengan lintasan Bloom dan cara mengerjakan berbeda; `mhs07` punya undangan sesi diskusi di halaman Jadwal |
+| Dosen | `dosen@thinkpath.local` | 2 kelas, 10 tugas, 64 submission teranalisis, 16 materi dalam 11 topik, 3 Cek Paham (terbuka untuk `mhs07`, hasil siap, dan satu dengan laporan terbuka) |
+| Mahasiswa | `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local` | 8 mahasiswa dengan lintasan Bloom dan cara mengerjakan berbeda; `mhs07` punya satu Cek Paham (muncul di Jadwal dan lonceng) yang bisa langsung dikerjakan (izin rekaman suaranya sudah dicatat seed) |
 
 Cara mengerjakan di data demo direkam seperti di produksi, yaitu cuplikan jumlah kata tiap 30 detik, bukan angka karangan: empat mahasiswa menulis bertahap, dua sebagian besar mengetik dengan satu kutipan pendek, dan dua memunculkan seluruh jawaban sekaligus lalu mengumpulkan. Sebaran band yang dihasilkan: 32 rendah, 16 sedang, 16 tinggi. Lonceng notifikasi kedua peran juga sudah terisi.
 
@@ -100,9 +100,9 @@ Runbook lengkap (menyiapkan server, DNS, `.env`, backup harian, rollback) ada di
 
 ### Alur pengguna
 
-Dosen membuat kelas, membagikan kode gabung dan materi, membuat tugas beserta target level Bloom, menerima submission yang sudah dianalisis otomatis, meninjau bukti, menjadwalkan verifikasi verbal bila perlu, lalu memberi nilai.
+Dosen membuat kelas, membagikan kode gabung dan materi, membuat tugas beserta target level Bloom, menerima submission yang sudah dianalisis otomatis, meninjau bukti, meminta Cek Paham (tes lisan singkat) bila perlu, lalu memberi nilai.
 
-Mahasiswa bergabung lewat kode kelas, membaca materi, mengerjakan tugas dengan proses pengerjaan terekam, boleh merevisi selama tenggat belum lewat dan belum dinilai, lalu melihat nilai, umpan balik, dan perkembangan penalarannya. Mahasiswa tidak pernah melihat skor AI tentang dirinya, dan undangan sesi diskusi pun tidak menyebut alasannya.
+Mahasiswa bergabung lewat kode kelas, membaca materi, mengerjakan tugas dengan proses pengerjaan terekam, boleh merevisi selama tenggat belum lewat dan belum dinilai, lalu melihat nilai, umpan balik, dan perkembangan penalarannya. Mahasiswa tidak pernah melihat skor AI tentang dirinya, dan permintaan Cek Paham pun tidak menyebut alasannya.
 
 Materi dan Jadwal sengaja berbentuk berbeda karena cara mencarinya berbeda:
 
@@ -111,7 +111,7 @@ Materi dan Jadwal sengaja berbentuk berbeda karena cara mencarinya berbeda:
 
 Yang direkam saat mengerjakan hanya jumlah kata tiap 30 detik, bukan isi tulisannya, dan form pengerjaan memberitahukan hal ini sebelum mahasiswa menulis. Tindakan menempel tidak direkam: menempel kutipan dari rujukan itu wajar.
 
-Kedua peran punya lonceng notifikasi: mahasiswa diberi tahu soal tugas dan materi baru, nilai, undangan atau perubahan sesi diskusi, dan tenggat yang tinggal 24 jam; dosen diberi tahu soal pengumpulan baru dan mahasiswa yang bergabung, digabung per tugas supaya tidak membanjiri.
+Kedua peran punya lonceng notifikasi: mahasiswa diberi tahu soal tugas dan materi baru, nilai, Cek Paham baru, dan tenggat yang tinggal 24 jam; dosen diberi tahu soal pengumpulan baru dan mahasiswa yang bergabung, digabung per tugas supaya tidak membanjiri.
 
 ### Privasi dan persetujuan
 
@@ -158,11 +158,11 @@ Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosak
 - Linimasa pengerjaan berupa kurva pertumbuhan kata
 - Pemberitahuan terbuka ke mahasiswa tentang apa yang direkam saat ia menulis
 - Materi kelas tersusun per topik atau pertemuan, dengan pencarian lintas kelas
-- Jadwal mahasiswa berbentuk kalender bulan dan pekan: tenggat tugas dan sesi diskusi
+- Jadwal mahasiswa berbentuk kalender bulan dan pekan: tenggat tugas dan batas Cek Paham
 - Notifikasi di dalam aplikasi untuk dosen dan mahasiswa
 - Kebijakan Privasi dan persetujuan berbasis UU PDP, dengan bukti persetujuan per versi, izin analisis di luar negeri yang bisa dicabut, dan penarikan persetujuan
 - Ritme kalimat sebagai bukti gaya menulis
-- Verifikasi verbal, mencatat hasil sesi tanya jawab tanpa mengubah skor AI
+- Cek Paham, tes lisan singkat: mahasiswa menjawab satu soal dosen hanya dengan suara, lalu dosen menerima audio, transkrip, dan saran skor berikut kutipan buktinya. Nilai tetap dosen
 - Profil kognitif, tren level penalaran lintas tugas
 - Laporan agregat per kelas, program studi, dan semester
 
@@ -176,6 +176,7 @@ Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosak
 | Ambang tinggi 70 dan bobot forensik proses | Belum terukur; tidak ada sampel gold set yang mencapai 70 |
 | Detektor eksternal Winston | Tersambung, belum diukur pada teks Indonesia |
 | Level Bloom E2 | Berjalan, belum divalidasi penilai manusia |
+| Cek Paham (saran skor lisan) | Berjalan end-to-end di lokal (audio TTS, bukan suara manusia). **Rubrik dan ambang band belum dikalibrasi**; WER ASR dan kesepakatan penilai belum diukur, UI selalu melabelinya |
 | Jawaban di bawah 120 kata | Di luar rentang panjang gold set; sinyal keragaman kosakata dinetralkan di sana |
 
 ROC-AUC 0,900 diukur pada abstrak akademik, sedangkan produk ini menilai esai mahasiswa. Angka itu sah untuk membandingkan antar-detektor, tetapi bukan akurasi ThinkPath pada esai mahasiswa. Metodologi dan cara mereproduksinya ada di [ai_experiment/README.md](./ai_experiment/README.md).
@@ -184,7 +185,7 @@ ROC-AUC 0,900 diukur pada abstrak akademik, sedangkan produk ini menilai esai ma
 
 1. Bukan menghukum, tapi memberi visibilitas. Tujuannya membantu dosen menemukan siapa yang butuh percakapan, bukan menyusun daftar tersangka.
 2. Tidak ada satu skor pun yang jadi vonis. Setiap penanda selalu disertai bukti yang bisa dijelaskan dan dibantah.
-3. Kesimpulan tetap milik manusia. Hasil verifikasi verbal sengaja tidak dialirkan balik ke skor, supaya skor yang keliru tidak bisa membenarkan dirinya sendiri.
+3. Kesimpulan tetap milik manusia. Hasil Cek Paham sengaja tidak dialirkan balik ke skor AI maupun nilai, supaya skor yang keliru tidak bisa membenarkan dirinya sendiri.
 
 ---
 

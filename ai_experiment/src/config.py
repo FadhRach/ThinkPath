@@ -20,6 +20,10 @@ except ImportError:  # dotenv opsional, environment variable tetap terbaca
 DATA_DIR = BASE_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
 GOLD_DIR = DATA_DIR / "gold"
+# Cek Paham: rekaman klip uji ASR, sesi berlabel untuk penilai, dan laporan keluarannya.
+ASR_CLIPS_DIR = DATA_DIR / "asr_clips"
+JUDGE_GOLD_DIR = DATA_DIR / "cekpaham_gold"
+RESULTS_DIR = BASE_DIR / "results"
 
 HUMAN_CACHE = CACHE_DIR / "human_openalex.jsonl"
 AI_CACHE = CACHE_DIR / "ai_generated.jsonl"
@@ -83,5 +87,5 @@ BACKOFF_BASE_SECONDS = 2.0
 
 
 def ensure_dirs() -> None:
-    for directory in (DATA_DIR, CACHE_DIR, GOLD_DIR):
+    for directory in (DATA_DIR, CACHE_DIR, GOLD_DIR, ASR_CLIPS_DIR, JUDGE_GOLD_DIR, RESULTS_DIR):
         directory.mkdir(parents=True, exist_ok=True)

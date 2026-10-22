@@ -194,7 +194,7 @@ berdasarkan `profile.role`, bukan menduplikasi berkasnya.
 
 **Setiap layar yang menampilkan dugaan wajib menyertakan batasnya.** Contoh yang
 sudah terpasang: halaman laporan memuat kartu bertuliskan "Belum tervalidasi",
-dan panel verifikasi menjelaskan mengapa kesimpulan sesi tidak mengubah skor.
+dan halaman Cek Paham menjelaskan bahwa skornya saran yang belum dikalibrasi.
 
 ---
 

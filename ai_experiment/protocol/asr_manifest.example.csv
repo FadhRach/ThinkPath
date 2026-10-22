@@ -1,0 +1,4 @@
+clip_id,language,device,noise,style,duration_s,reference_text,keyterms
+k01,id,laptop,tenang,spontan,48,saya memilih pendekatan kualitatif karena yang saya teliti pengalaman mahasiswa bukan angka,kualitatif|pengalaman
+k02,en,hp,sedang,spontan,41,i picked a hash table because lookups are constant time on average,hash table
+k03,id,laptop,tenang,silence,15,,

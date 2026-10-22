@@ -28,6 +28,4 @@ urlpatterns = [
     path("submissions/<str:submission_id>", views.SubmissionDetailView.as_view()),
     path("submissions/<str:submission_id>/document", views.SubmissionDocumentView.as_view()),
     path("submissions/<str:submission_id>/reanalyze", views.SubmissionReanalyzeView.as_view()),
-    path("submissions/<str:submission_id>/verification", views.SubmissionVerificationView.as_view()),
-    path("verifications", views.VerificationQueueView.as_view()),
 ]

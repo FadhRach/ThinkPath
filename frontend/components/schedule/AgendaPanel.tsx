@@ -53,14 +53,14 @@ export function AgendaPanel({ title, items, today, now, emptyText }: Props) {
   const upcoming = byDayInOrder(items.filter((item) => dayKey(item.at) >= today));
   const past = byDayInOrder(items.filter((item) => dayKey(item.at) < today).reverse());
   const deadlines = items.filter((item) => item.kind === "deadline").length;
-  const sessions = items.length - deadlines;
+  const cekpaham = items.length - deadlines;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
       <div className="border-b border-border px-4 py-3">
         <h2 className="font-bold text-foreground">{title}</h2>
         <p className="text-caption text-muted-foreground">
-          {deadlines} tenggat · {sessions} sesi diskusi
+          {deadlines} tenggat · {cekpaham} Cek Paham
         </p>
       </div>
       {items.length === 0 ? (

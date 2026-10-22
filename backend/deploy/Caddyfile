@@ -9,8 +9,15 @@
 		max_size 11MB
 	}
 
+	# Audio jawaban Cek Paham: 5 MB + overhead multipart. Potongan caption live
+	# (<= 1 MB) cukup di bawah batas 2 MB di bawah.
+	@audio path /api/student/cekpaham/*/finalize
+	request_body @audio {
+		max_size 6MB
+	}
+
 	# Jawaban esai + cuplikan proses jauh di bawah 2 MB.
-	@json not path /api/assignments/*/documents
+	@json not path /api/assignments/*/documents /api/student/cekpaham/*/finalize
 	request_body @json {
 		max_size 2MB
 	}
