@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { formatClockHHMM, formatDate } from "@/lib/formatting";
-import { setExternalAnalysis, withdrawConsent } from "@/lib/mutations";
+import { setExternalAnalysis, setVoiceRecording, withdrawConsent } from "@/lib/mutations";
 import { PRIVACY_CONTACT_EMAIL } from "@/lib/privacy";
 import type { ConsentActionKind, ConsentStatus, Role } from "@/lib/types";
 import { useAction } from "@/lib/use-action";
@@ -46,6 +46,13 @@ export function PrivacyPanel({ role, consent }: { role: Role; consent: ConsentSt
   async function handleExternal(allowed: boolean) {
     await toggle.run(
       () => setExternalAnalysis(allowed),
+      (next) => setStatus(next),
+    );
+  }
+
+  async function handleVoice(allowed: boolean) {
+    await toggle.run(
+      () => setVoiceRecording(allowed),
       (next) => setStatus(next),
     );
   }
@@ -104,6 +111,27 @@ export function PrivacyPanel({ role, consent }: { role: Role; consent: ConsentSt
               : "Nonaktif: jawabanmu yang berikutnya hanya dianalisis heuristik di server ThinkPath. Hasilnya bisa kurang akurat, dan dosen melihat bahwa skornya berasal dari heuristik."}
           </p>
           {toggle.error ? <p className="text-body-sm text-danger">{toggle.error}</p> : null}
+        </div>
+      ) : null}
+
+      {isStudent ? (
+        <div className="space-y-2 rounded-xl border border-border p-4">
+          <div className="flex items-start justify-between gap-4">
+            <label htmlFor="voice-cekpaham" className="font-semibold text-foreground">
+              Rekaman suara untuk Cek Paham
+            </label>
+            <Switch
+              id="voice-cekpaham"
+              checked={status.voice_cekpaham}
+              onCheckedChange={handleVoice}
+              disabled={toggle.pending}
+            />
+          </div>
+          <p className="text-body-sm text-muted-foreground">
+            {status.voice_cekpaham
+              ? "Aktif: suaramu direkam saat menjawab Cek Paham, disimpan di server ThinkPath di Jakarta (dihapus otomatis setelah 30 hari), dan dikirim ke Groq (Amerika Serikat) untuk diubah menjadi teks. Cek Paham juga memerlukan analisis di luar negeri di atas."
+              : "Nonaktif: kamu belum bisa mengerjakan Cek Paham. Dosen tetap dapat mengajakmu berdiskusi langsung."}
+          </p>
         </div>
       ) : null}
 

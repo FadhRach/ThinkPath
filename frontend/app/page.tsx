@@ -19,7 +19,7 @@ const FEATURES = [
   {
     icon: Sparkles,
     title: "Bukti, bukan vonis",
-    body: "Skor jadi bahan verifikasi verbal dan umpan balik, keputusan tetap di tangan dosen.",
+    body: "Skor jadi bahan Cek Paham dan umpan balik, keputusan tetap di tangan dosen.",
   },
 ];
 

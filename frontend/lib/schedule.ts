@@ -32,11 +32,14 @@ export type AgendaState =
   | "missed"
   | "submitted"
   | "graded"
-  | "session"
-  | "session_done";
+  | "cekpaham"
+  | "cekpaham_done";
 
 export function agendaState(item: ScheduleItem, now: Date): AgendaState {
-  if (item.kind === "session") return item.status === "done" ? "session_done" : "session";
+  if (item.kind === "cekpaham") {
+    if (item.status === "done") return "cekpaham_done";
+    return new Date(item.at).getTime() < now.getTime() ? "missed" : "cekpaham";
+  }
   if (item.status === "graded") return "graded";
   if (item.status === "submitted") return "submitted";
   return new Date(item.at).getTime() < now.getTime() ? "missed" : "todo";
@@ -79,23 +82,23 @@ export const AGENDA_STYLE: Record<AgendaState, AgendaStyle> = {
     chip: "bg-success-soft text-foreground",
     text: "text-success",
   },
-  session: {
-    label: "Dijadwalkan",
+  cekpaham: {
+    label: "Menunggu dikerjakan",
     mark: "bg-primary",
     chip: "bg-primary text-primary-foreground",
     text: "text-primary",
   },
-  session_done: {
-    label: "Sudah berlangsung",
+  cekpaham_done: {
+    label: "Sudah dikerjakan",
     mark: "bg-muted-foreground/40",
     chip: "bg-muted text-muted-foreground",
     text: "text-muted-foreground",
   },
 };
 
-const SESSION_PREFIX = /^Sesi diskusi jawaban:\s*/;
+const CEKPAHAM_PREFIX = /^Cek Paham:\s*/;
 
-/** Judul ringkas untuk kotak kalender yang sempit; ikon sudah menandai sesinya. */
+/** Judul ringkas untuk kotak kalender yang sempit; ikon sudah menandai Cek Paham. */
 export function shortTitle(item: ScheduleItem): string {
-  return item.kind === "session" ? item.title.replace(SESSION_PREFIX, "") : item.title;
+  return item.kind === "cekpaham" ? item.title.replace(CEKPAHAM_PREFIX, "") : item.title;
 }

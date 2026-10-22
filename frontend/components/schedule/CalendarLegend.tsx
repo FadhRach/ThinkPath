@@ -1,4 +1,4 @@
-import { MessagesSquare } from "lucide-react";
+import { Mic } from "lucide-react";
 
 import { AGENDA_STYLE, type AgendaState } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
@@ -25,16 +25,16 @@ export function CalendarLegend() {
           {entry.label}
         </li>
       ))}
-      {/* Sesi digambar seperti kartunya di kalender, bukan titik, supaya tidak
-          tertukar dengan warna "Terkumpul" yang sama-sama kehijauan. */}
+      {/* Cek Paham digambar seperti kartunya di kalender, bukan titik, supaya
+          tidak tertukar dengan warna "Terkumpul" yang sama-sama kehijauan. */}
       <li className="inline-flex items-center gap-1.5">
         <span
           aria-hidden="true"
           className="grid h-4 w-4 place-items-center rounded bg-primary text-primary-foreground"
         >
-          <MessagesSquare className="h-2.5 w-2.5" />
+          <Mic className="h-2.5 w-2.5" />
         </span>
-        Sesi diskusi jawaban
+        Batas Cek Paham
       </li>
     </ul>
   );

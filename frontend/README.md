@@ -68,13 +68,15 @@ frontend/
 | Dosen | `/dashboard/classes` | Daftar kelas dan kode gabung |
 | Dosen | `/dashboard/classes/[id]` | Detail kelas: pemilih tugas + tabel submission |
 | Dosen | `/dashboard/tugas` | Seluruh tugas lintas kelas |
-| Dosen | `/dashboard/verifikasi` | Antrean dan riwayat verifikasi verbal |
+| Dosen | `/dashboard/cekpaham` | Daftar Cek Paham, ringkasan, dan laporan menunggu |
+| Dosen | `/dashboard/cekpaham/[id]` | Hasil Cek Paham: audio, transkrip server vs caption, saran skor berlabel "belum dikalibrasi", bukti, laporan mahasiswa |
 | Dosen | `/dashboard/laporan` | Laporan agregat per kelas, prodi, semester |
 | Dosen | `/dashboard/students/[id]` | Profil kognitif seorang mahasiswa |
 | Dosen | `/dashboard/submission/[id]` | Bukti lengkap satu jawaban + linimasa proses |
 | Mahasiswa | `/student` | Beranda: tugas aktif dan nilai |
 | Mahasiswa | `/student/tugas` | Daftar tugas dan tenggat |
 | Mahasiswa | `/student/submit/[id]` | Mengerjakan / merevisi jawaban |
+| Mahasiswa | `/student/cekpaham/[id]` | Cek Paham: persetujuan suara, tes mikrofon, menjawab dengan suara, transkrip sendiri, lapor (tanpa skor) |
 | Mahasiswa | `/student/progress` | Perkembangan penalaran dan rekap nilai tugas per kelas, **tanpa kolom indikasi AI** |
 | Keduanya | `/dashboard/pengaturan`, `/student/pengaturan` | Ubah nama tampil dan jenjang |
 

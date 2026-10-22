@@ -3,6 +3,10 @@ import { fileURLToPath } from "node:url";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: fileURLToPath(new URL(".", import.meta.url)),
+  // Halaman Verifikasi Verbal digantikan Cek Paham.
+  async redirects() {
+    return [{ source: "/dashboard/verifikasi", destination: "/dashboard/cekpaham", permanent: true }];
+  },
   experimental: {
     // Impor per-ikon/per-chart, bukan seluruh paket — mempercepat kompilasi dev
     // dan memperkecil bundel.

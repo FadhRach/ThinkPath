@@ -1,4 +1,4 @@
-import { Hourglass, MessagesSquare } from "lucide-react";
+import { Hourglass, Mic } from "lucide-react";
 import Link from "next/link";
 
 import { formatClockHHMM } from "@/lib/formatting";
@@ -17,14 +17,14 @@ export function EventChip({ item, now, variant }: Props) {
   const style = AGENDA_STYLE[agendaState(item, now)];
   const time = formatClockHHMM(item.at);
   const title = shortTitle(item);
-  const kind = item.kind === "session" ? "Sesi diskusi jawaban" : "Tenggat";
+  const kind = item.kind === "cekpaham" ? "Batas Cek Paham" : "Tenggat";
   const summary = `${kind} pukul ${time}: ${title}. ${item.class_name}. ${style.label}.`;
-  const Icon = item.kind === "session" ? MessagesSquare : Hourglass;
+  const Icon = item.kind === "cekpaham" ? Mic : Hourglass;
 
   if (variant === "month") {
-    // Jam hanya untuk sesi, yang memang janji temu. Tenggat hampir selalu
-    // 23.59, jadi jamnya cuma memakan tempat judul di kotak yang sempit;
-    // jam lengkapnya tetap ada di daftar agenda dan di tooltip.
+    // Jam hanya untuk Cek Paham, yang batas waktunya sengaja dipilih dosen.
+    // Tenggat hampir selalu 23.59, jadi jamnya cuma memakan tempat judul di
+    // kotak yang sempit; jam lengkapnya tetap ada di daftar agenda dan tooltip.
     return (
       <Link
         href={item.link}
@@ -35,9 +35,9 @@ export function EventChip({ item, now, variant }: Props) {
           style.chip,
         )}
       >
-        {item.kind === "session" ? (
+        {item.kind === "cekpaham" ? (
           <>
-            <MessagesSquare aria-hidden="true" className="h-3 w-3 shrink-0" />
+            <Mic aria-hidden="true" className="h-3 w-3 shrink-0" />
             <span className="shrink-0 tabular-nums opacity-80">{time}</span>
           </>
         ) : (
@@ -56,7 +56,7 @@ export function EventChip({ item, now, variant }: Props) {
     >
       <span className="flex items-center gap-1 text-[0.6875rem] font-semibold tabular-nums opacity-80">
         <Icon aria-hidden="true" className="h-3 w-3 shrink-0" />
-        {time} · {item.kind === "session" ? "Sesi diskusi" : "Tenggat"}
+        {time} · {kind}
       </span>
       <span className="mt-1 line-clamp-3 block text-body-sm font-semibold leading-snug">
         {title}

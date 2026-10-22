@@ -6,6 +6,8 @@ import type {
   ClassRosterStudent,
   TeacherSubmissionRow,
   AssignmentSummary,
+  CekPahamDetail,
+  CekPahamRow,
   ClassSummary,
   CognitiveProfile,
   ConsentStatus,
@@ -15,12 +17,12 @@ import type {
   ReportPayload,
   ScheduleItem,
   StudentAssignmentDetail,
+  StudentCekPaham,
   StudentClassWithAssignments,
   SubmissionDetail,
   SubmissionRow,
   TeacherAssignmentRow,
   TeacherOverview,
-  VerificationQueueRow,
 } from "./types";
 
 // Dibungkus React cache() supaya layout + page dalam satu render berbagi satu
@@ -45,10 +47,6 @@ export function getStudentProfile(studentId: string) {
 
 export function getOwnProgress() {
   return apiFetch<OwnProgress>("/api/student/progress");
-}
-
-export function getVerificationQueue() {
-  return apiFetch<VerificationQueueRow[]>("/api/verifications");
 }
 
 export function getClasses() {
@@ -117,4 +115,20 @@ export function getStudentSchedule(range?: { start: string; end: string }) {
     ? `?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`
     : "";
   return apiFetch<ScheduleItem[]>(`/api/student/schedule${query}`);
+}
+
+export function getCekPahamQueue() {
+  return apiFetch<CekPahamRow[]>("/api/cekpaham");
+}
+
+export function getSubmissionCekPaham(submissionId: string) {
+  return apiFetch<CekPahamRow[]>(`/api/submissions/${submissionId}/cekpaham`);
+}
+
+export function getCekPahamDetail(id: string) {
+  return apiFetch<CekPahamDetail>(`/api/cekpaham/${id}`);
+}
+
+export function getStudentCekPaham(id: string) {
+  return apiFetch<StudentCekPaham>(`/api/student/cekpaham/${id}`);
 }
