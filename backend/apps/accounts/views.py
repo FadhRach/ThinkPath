@@ -8,6 +8,7 @@ from apps.accounts.authentication import create_access_token
 from apps.accounts.models import ConsentAction, Role
 from apps.accounts.privacy import (
     ITEM_EXTERNAL_AI,
+    ITEM_VOICE_CEKPAHAM,
     consent_status,
     current_consent,
     record_consent,
@@ -29,6 +30,8 @@ from apps.accounts.services import (
 
 ROLE_NAME = {"teacher": "dosen", "student": "mahasiswa"}
 ROLE_OPTION = {"teacher": "Dosen", "student": "Mahasiswa"}
+# Nama field PATCH /me/consent -> butir persetujuan opsional mahasiswa.
+OPTIONAL_CHOICES = {"external_ai": ITEM_EXTERNAL_AI, "voice_cekpaham": ITEM_VOICE_CEKPAHAM}
 
 
 def role_mismatch_message(account_role: str) -> str:
@@ -108,7 +111,7 @@ class ConsentView(APIView):
     GET: keadaan yang berlaku beserta riwayatnya.
     POST: memberi persetujuan untuk versi kebijakan yang berlaku. Token baru
     dikembalikan karena klaim persetujuan di token lama sudah usang.
-    PATCH: mengubah pilihan opsional (mahasiswa: analisis di luar negeri).
+    PATCH: mengubah pilihan opsional (mahasiswa: analisis di luar negeri, rekaman suara Cek Paham).
     """
 
     def get(self, request):
@@ -136,9 +139,12 @@ class ConsentView(APIView):
             raise ValidationError("Setujui Kebijakan Privasi versi terbaru lebih dulu.")
         serializer = ConsentUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        items = set(current.items) - {ITEM_EXTERNAL_AI}
-        if serializer.validated_data["external_ai"]:
-            items.add(ITEM_EXTERNAL_AI)
+        items = set(current.items)
+        for field, item in OPTIONAL_CHOICES.items():
+            if field in serializer.validated_data:
+                items.discard(item)
+                if serializer.validated_data[field]:
+                    items.add(item)
         if items != set(current.items):
             record_consent(profile.id, ConsentAction.UPDATED, items)
         return Response({"consent": consent_status(profile.id)})

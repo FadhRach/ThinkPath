@@ -20,9 +20,6 @@ from apps.academics.models import (
     ClassMembership,
     Submission,
     SubmissionStatus,
-    VerbalVerification,
-    VerificationOutcome,
-    VerificationStatus,
 )
 from apps.academics.services import submissions as submission_service
 from apps.accounts.authentication import create_access_token
@@ -154,21 +151,3 @@ class DatabaseConstraintTest(TestCase):
     def test_semester_out_of_range(self):
         self.kelas.semester = 15
         self.assertRejected(self.kelas.save)
-
-    def test_outcome_requires_completed_status(self):
-        submission = self._submission()
-        self.assertRejected(
-            lambda: VerbalVerification.objects.create(
-                submission=submission,
-                status=VerificationStatus.SCHEDULED,
-                outcome=VerificationOutcome.CAN_EXPLAIN,
-            )
-        )
-
-    def test_completed_requires_outcome(self):
-        submission = self._submission()
-        self.assertRejected(
-            lambda: VerbalVerification.objects.create(
-                submission=submission, status=VerificationStatus.COMPLETED
-            )
-        )

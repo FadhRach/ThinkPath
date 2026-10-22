@@ -206,7 +206,7 @@ backend/
 │   └── gunicorn.conf.py
 ├── apps/
 │   ├── accounts/             # Profile, ConsentRecord, JWT, privasi (UU PDP)
-│   ├── academics/            # kelas, tugas, materi, pengumuman, submission, verifikasi
+│   ├── academics/            # kelas, tugas, materi, pengumuman, submission
 │   │   ├── views/            # satu modul per domain (classes, assignments, submissions, ...)
 │   │   ├── selectors.py      # query baca + pemeriksaan kepemilikan
 │   │   ├── services/         # alur tulis: submit/revisi/analisis ulang, join code
@@ -255,11 +255,11 @@ Diagram relasi, constraint, index, dan alasan normalisasi ada di [diagram/08-erd
 | App | Model → tabel |
 |---|---|
 | `accounts` | `Profile` → `profiles`, `ConsentRecord` → `consent_records` |
-| `academics` | `Class` → `classes`, `ClassMembership` → `class_memberships`, `Assignment` → `assignments`, `Material` → `materials`, `Announcement` → `announcements`, `Submission` → `submissions`, `ReasoningEvent` → `reasoning_events`, `VerbalVerification` → `verbal_verifications` |
+| `academics` | `Class` → `classes`, `ClassMembership` → `class_memberships`, `Assignment` → `assignments`, `Material` → `materials`, `Announcement` → `announcements`, `Submission` → `submissions`, `ReasoningEvent` → `reasoning_events` |
 | `analysis` | `AnalysisResult` → `analysis_results`, `DetectorScore` → `detector_scores` |
 | `notifications` | `Notification` → `notifications` |
 
-Aturan penting dijaga **di basis data**, bukan hanya di serializer: satu submission per mahasiswa per tugas, email unik tanpa peduli huruf besar, rentang nilai/Bloom/semester, dan kesimpulan verifikasi hanya ada setelah sesi selesai. Jenjang, program studi, dan semester **melekat di kelas**, bukan di profil atau tugas.
+Aturan penting dijaga **di basis data**, bukan hanya di serializer: satu submission per mahasiswa per tugas, email unik tanpa peduli huruf besar, rentang nilai/Bloom/semester, dan satu Cek Paham aktif per submission. Jenjang, program studi, dan semester **melekat di kelas**, bukan di profil atau tugas.
 
 Riwayat migrasi direset ke `0001_initial` per app saat pindah ke VPS (Oktober 2026, mulai dari DB bersih). Mulai sekarang migrasi ditambahkan seperti biasa (`makemigrations`), dan **tidak pernah** menyunting migrasi yang sudah diterapkan di produksi.
 
@@ -287,7 +287,6 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET | `/api/overview` | dosen | agregat layar Overview |
 | GET | `/api/reports/overview` | dosen | laporan per kelas, prodi, semester |
 | GET | `/api/students/<id>/profile` | dosen pengampu | profil kognitif mahasiswa |
-| GET | `/api/verifications` | dosen | antrean verifikasi verbal |
 | POST | `/api/join` | mahasiswa | gabung kelas via join code |
 | GET | `/api/student/classes` | mahasiswa | kelas diikuti + status tiap tugas |
 | GET | `/api/student/progress` | mahasiswa | perkembangan kognitif sendiri |
@@ -296,7 +295,18 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | POST | `/api/assignments/<id>/documents` | mahasiswa anggota | unggah PDF/DOCX/PNG/JPG (maks 10 MB, multipart `file`); membalas teks hasil baca |
 | GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik |
 | POST | `/api/submissions/<id>/reanalyze` | dosen pemilik | analisis ulang |
-| PUT/DELETE | `/api/submissions/<id>/verification` | dosen pemilik | jadwalkan / catat / hapus verifikasi |
+| GET/POST | `/api/submissions/<id>/cekpaham` | dosen pemilik | daftar / **minta Cek Paham** (soal, bahasa, durasi 15–300 dtk, jendela waktu) |
+| GET | `/api/cekpaham` | dosen | antrean; filter `status`, `phase` (`upcoming`/`open`/`closed`), `has_open_report` |
+| GET | `/api/cekpaham/<id>` | dosen pemilik | detail: transkrip, saran skor, bukti, flag, konteks sesi, laporan |
+| POST | `/api/cekpaham/<id>/cancel` | dosen pemilik | batalkan |
+| GET | `/api/cekpaham/<id>/attempts/<n>/audio` | dosen pemilik | audio jawaban (`Cache-Control: private, no-store`) |
+| POST | `/api/cekpaham/<id>/attempts/<n>/reprocess` | dosen pemilik | ulangi STT + penilai bila gagal atau macet |
+| POST | `/api/cekpaham/reports/<id>/resolve` | dosen pemilik | `dismissed` atau `grant_retry` |
+| GET | `/api/student/cekpaham/<id>` | mahasiswa penerima | metadata netral; **tanpa soal dan tanpa skor** |
+| POST | `/api/student/cekpaham/<id>/start` | mahasiswa penerima | mulai sesi; satu-satunya tempat soal keluar |
+| POST | `/api/student/cekpaham/<id>/live` | mahasiswa penerima | caption sementara dari satu potongan audio (`audio`, `purpose`) |
+| POST | `/api/student/cekpaham/<id>/finalize` | mahasiswa penerima | audio utuh + konteks; membalas `state` dan transkripnya sendiri |
+| POST | `/api/student/cekpaham/<id>/report` | mahasiswa penerima | lapor transkrip salah / mikrofon bermasalah |
 | GET/POST | `/api/classes/<id>/materials` | dosen pemilik | daftar / bagikan materi |
 | PATCH/DELETE | `/api/materials/<id>` | dosen pemilik | ubah (tanpa notifikasi ulang) / hapus materi |
 | GET | `/api/student/materials` | mahasiswa | materi dari seluruh kelas yang diikuti |
@@ -335,6 +345,26 @@ Teks `.txt` itu juga bukti: saat submit/revisi, `verified_source()` memeriksa ba
 
 Belum ada: penghapusan otomatis dokumen yatim (diunggah tapi tidak dikumpulkan) dan tampilan berkas asli untuk dosen.
 
+### Cek Paham (tes lisan)
+
+Dosen menulis satu soal atas satu jawaban; mahasiswa menjawab **hanya dengan suara** dalam 15–300 detik; sistem membuat transkrip dan skor **saran** beserta kutipan bukti. Nilai tugas, skor E1, dan level Bloom tidak pernah diubah olehnya (modulnya `apps/cekpaham` sengaja tidak mengimpor mesin analisis; dijaga `tests/test_decoupling.py`).
+
+```
+browser ── rekaman utuh ───────────────► finalize ─► audio disimpan ─► Groq Whisper (transkrip yang dinilai)
+        └─ potongan ~4 dtk (mandiri) ──► live ─────► Groq Whisper ─► teks caption saja (tidak disimpan)
+                                                          penilai (Groq chat, GROQ_MODEL, 2 jalan paralel) ─► skor + bukti
+```
+
+- **Transkrip yang dinilai hanya dari audio utuh di server.** `live_transcript` kiriman klien tidak tepercaya; ia disimpan untuk dibandingkan dosen dan tidak pernah sampai ke penilai.
+- **Tanpa env baru.** Memakai `GROQ_API_KEY` dan `GROQ_MODEL` yang sudah ada; model Whisper (`whisper-large-v3-turbo`), masa simpan audio (30 hari), dan batas ukuran (5 MB, potongan live 1 MB) adalah konstanta di kode. Endpoint yang memanggil Groq (buat, mulai, caption, finalisasi, proses ulang) membalas `503` bila kunci kosong; membaca hasil tetap jalan.
+- **Skor dihitung di kode** (`rubric.py`) dari level 0–3 per dimensi (ketepatan 35%, konsistensi 25%, kedalaman 25%, keakraban dengan isi jawaban 15%; rubrik v2 menganggap menjelaskan ulang isi jawaban tertulis sebagai bukti paham dan menyesuaikan harapan kedalaman dengan soalnya); LLM hanya memberi level dan kutipan. Penilai berjalan dua kali dengan urutan rubrik dibalik (selisih besar diberi flag `judge_disagreement`), kutipan yang bukan potongan transkrip dibuang (`evidence_unverified`), dan bukti kurang (< 15 kata atau tanpa ucapan) memberi skor **kosong**, bukan angka rendah. **Ambang band 70/40 belum dikalibrasi**; UI dosen selalu memberi label itu. Ukuran: ±2.000 token per jalan, dari jatah 8.000 token/menit Groq yang dipakai bersama analisis submission; 429 dihormati (tunggu sesuai permintaan, maks 10 dtk).
+- **Whisper mengarang kalimat pada audio hening** ("Terima kasih.") dengan `no_speech_prob = 0`, jadi angka kepercayaan saja tidak cukup. `filter_segments()` juga membuang segmen yang berakhir melewati durasi audio dan frasa penutup yang dikenal; potongan senyap tidak dikirim klien.
+- **Persetujuan** diperiksa di basis data pada `start`, `live`, dan `finalize`: butir `rekaman_suara_cekpaham` dan `analisis_luar_negeri` harus berlaku bersamaan (`PATCH /api/me/consent` menerima `voice_cekpaham`).
+- **Sesi**: satu attempt aktif per Cek Paham; tenggat dari server (`deadline_at`), `finalize` diterima sampai tenggat + 10 detik, idempoten, dan sesi yang ditinggalkan menjadi `interrupted`. Dosen memutuskan laporan: `dismissed`, atau `grant_retry` (sesi lama `voided`, jendela dijamin sisa ≥ 24 jam).
+- **Retensi**: `python manage.py purge_cekpaham_audio` menghapus audio > 30 hari (transkrip dan hasil tetap). Backend tidak punya penjadwal, jadi pasang di crontab VPS di samping backup, mis. `17 3 * * * cd /opt/thinkpath/backend && docker compose exec -T api python manage.py purge_cekpaham_audio`.
+- **Caddy**: jalur `/api/student/cekpaham/*/finalize` diberi batas body 6 MB (`deploy/Caddyfile`); jalankan `make deploy` (`caddy reload`) setelah `git pull`.
+- Notifikasi mahasiswa bersifat netral (tanpa kata AI, indikasi, atau curiga; dijaga tes); pengingat 24 jam dibuat saat lonceng dibuka.
+
 ### Materi dan jadwal
 
 `topic` adalah teks bebas seperti topik Google Classroom, misalnya "Pertemuan 3: Desain kualitatif". Spasi berlebih dirapikan supaya satu topik tidak terpecah menjadi dua kelompok. Pengurutan dan pengelompokan dilakukan frontend (materi umum dulu, lalu urutan alami: Pertemuan 2 sebelum Pertemuan 10).
@@ -343,13 +373,13 @@ Belum ada: penghapusan otomatis dokumen yatim (diunggah tapi tidak dikumpulkan) 
 
 ### Persetujuan data pribadi
 
-Versi kebijakan yang berlaku ada di `apps/accounts/privacy.py` (`PRIVACY_POLICY_VERSION`) dan wajib sama dengan `frontend/lib/privacy.ts`; tes memeriksa keduanya. Frontend dan backend di-deploy terpisah, jadi setelah versi dinaikkan ada jeda sampai keduanya selesai deploy. Selama jeda itu, dan di tab yang dibuka sebelum deploy, layar persetujuan mengirim versi lama dan ditolak `400` dengan pesan untuk memuat ulang halaman. Muat ulang setelah kedua deploy berstatus Ready. Butir persetujuan dipisah per tujuan (Pasal 22 ayat (4) UU PDP): mahasiswa wajib `data_perkuliahan`, `analisis_proses`, `usia_atau_izin_wali`, dan boleh `analisis_luar_negeri`; dosen wajib `data_perkuliahan` dan `tanggung_jawab_dosen`.
+Versi kebijakan yang berlaku ada di `apps/accounts/privacy.py` (`PRIVACY_POLICY_VERSION`) dan wajib sama dengan `frontend/lib/privacy.ts`; tes memeriksa keduanya. Frontend dan backend di-deploy terpisah, jadi setelah versi dinaikkan ada jeda sampai keduanya selesai deploy. Selama jeda itu, dan di tab yang dibuka sebelum deploy, layar persetujuan mengirim versi lama dan ditolak `400` dengan pesan untuk memuat ulang halaman. Muat ulang setelah kedua deploy berstatus Ready. Butir persetujuan dipisah per tujuan (Pasal 22 ayat (4) UU PDP): mahasiswa wajib `data_perkuliahan`, `analisis_proses`, `usia_atau_izin_wali`, dan boleh `analisis_luar_negeri` serta `rekaman_suara_cekpaham` (Cek Paham); dosen wajib `data_perkuliahan` dan `tanggung_jawab_dosen`.
 
 Token memuat klaim `consent` berisi versi yang disetujui, dibaca layout frontend untuk gerbang tampilan. Pemrosesan baru tidak memercayai klaim itu: pengumpulan jawaban dan Analisis Ulang memeriksa `ConsentRecord` terbaru di basis data dan menolak dengan `403` bila persetujuan tidak berlaku, sehingga penarikan berlaku seketika meski token lama masih beredar. Tanpa butir `analisis_luar_negeri`, `run_analysis(allow_external=False)` melewati Groq, detektor, dan cache detektor (Pasal 56 ayat (4)). Pemetaan pasal lengkapnya ada di `diagram/07-privasi-dan-persetujuan.md`.
 
 ### Notifikasi
 
-Dikirim setelah aksi utamanya tersimpan, dan kegagalannya tidak pernah menggagalkan aksi itu (`notifications.services.safe`). Pengumpulan untuk tugas yang sama digabung selama belum dibaca. Pengingat tenggat 24 jam dibuat saat mahasiswa membuka lonceng, bukan oleh penjadwal, karena backend tidak punya cron; tiap tugas hanya diingatkan sekali, dan constraint unik `notif_deadline_once` menjaganya walau dua permintaan lonceng tiba bersamaan. Notifikasi ke mahasiswa tidak pernah menyebut indikasi AI, termasuk undangan sesi diskusi. Notifikasi materi baru menaut langsung ke materinya (`/student/materi/<kelas>#materi-<id>`).
+Dikirim setelah aksi utamanya tersimpan, dan kegagalannya tidak pernah menggagalkan aksi itu (`notifications.services.safe`). Pengumpulan untuk tugas yang sama digabung selama belum dibaca. Pengingat tenggat 24 jam dibuat saat mahasiswa membuka lonceng, bukan oleh penjadwal, karena backend tidak punya cron; tiap tugas hanya diingatkan sekali, dan constraint unik `notif_deadline_once` menjaganya walau dua permintaan lonceng tiba bersamaan. Notifikasi ke mahasiswa tidak pernah menyebut indikasi AI, termasuk permintaan Cek Paham. Notifikasi materi baru menaut langsung ke materinya (`/student/materi/<kelas>#materi-<id>`).
 
 ---
 

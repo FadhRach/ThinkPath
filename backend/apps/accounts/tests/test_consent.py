@@ -263,3 +263,42 @@ class PolicyVersionSyncTest(TestCase):
         )
         self.assertIsNotNone(match)
         self.assertEqual(match.group(1), privacy.PRIVACY_POLICY_VERSION)
+
+
+class VoiceConsentTest(ConsentTestBase):
+    """Rekaman suara Cek Paham: butir opsional terpisah dari analisis di luar negeri (Pasal 22 ayat (4))."""
+
+    def patch_consent(self, body):
+        return self.client_for(self.mhs).patch("/api/me/consent", body, format="json")
+
+    def test_voice_is_optional_and_can_be_given_at_the_consent_screen(self):
+        self.assertEqual(self.give(self.mhs, STUDENT_REQUIRED).status_code, 201)
+        self.assertFalse(self.patch_consent({"external_ai": False}).data["consent"]["voice_cekpaham"])
+        ConsentRecord.objects.all().delete()
+        response = self.give(self.mhs, [*STUDENT_REQUIRED, privacy.ITEM_VOICE_CEKPAHAM])
+        self.assertTrue(response.data["consent"]["voice_cekpaham"])
+
+    def test_voice_and_external_analysis_change_independently(self):
+        self.give(self.mhs, STUDENT_REQUIRED)
+        on = self.patch_consent({"voice_cekpaham": True}).data["consent"]
+        self.assertEqual((on["voice_cekpaham"], on["external_ai"]), (True, False))
+        both = self.patch_consent({"external_ai": True}).data["consent"]
+        self.assertEqual((both["voice_cekpaham"], both["external_ai"]), (True, True))
+        off = self.patch_consent({"voice_cekpaham": False}).data["consent"]
+        self.assertEqual((off["voice_cekpaham"], off["external_ai"]), (False, True))
+
+    def test_unchanged_choice_adds_no_row_and_an_empty_patch_is_refused(self):
+        self.give(self.mhs, STUDENT_REQUIRED)
+        self.patch_consent({"voice_cekpaham": True})
+        rows = ConsentRecord.objects.filter(profile=self.mhs).count()
+        self.patch_consent({"voice_cekpaham": True})
+        self.assertEqual(ConsentRecord.objects.filter(profile=self.mhs).count(), rows)
+        self.assertEqual(self.patch_consent({}).status_code, 400)
+
+    def test_teacher_cannot_give_voice_consent(self):
+        self.assertEqual(self.give(self.dosen, [*TEACHER_REQUIRED, privacy.ITEM_VOICE_CEKPAHAM]).status_code, 400)
+
+    def test_withdrawal_removes_voice_consent_too(self):
+        self.give(self.mhs, [*STUDENT_REQUIRED, privacy.ITEM_VOICE_CEKPAHAM])
+        self.client_for(self.mhs).post("/api/me/consent/withdraw")
+        self.assertFalse(privacy.consent_status(self.mhs.id)["voice_cekpaham"])

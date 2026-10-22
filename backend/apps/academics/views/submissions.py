@@ -1,8 +1,6 @@
-"""Submission: kumpul/revisi (mahasiswa), antrean, detail, nilai, analisis ulang,
-dan verifikasi verbal (dosen)."""
+"""Submission: kumpul/revisi (mahasiswa), antrean, detail, nilai, dan analisis ulang."""
 from __future__ import annotations
 
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -11,8 +9,6 @@ from rest_framework.views import APIView
 from apps.academics.models import (
     Submission,
     SubmissionStatus,
-    VerbalVerification,
-    VerificationStatus,
 )
 from apps.academics.selectors import (
     require_member_assignment,
@@ -26,9 +22,6 @@ from apps.academics.serializers import (
     SubmissionGradeSerializer,
     SubmissionListSerializer,
     SubmissionQueueSerializer,
-    VerificationQueueSerializer,
-    VerificationSerializer,
-    VerificationWriteSerializer,
 )
 from apps.academics.services.submissions import (
     reanalyze,
@@ -136,78 +129,3 @@ class SubmissionReanalyzeView(APIView):
         submission = require_owned_submission(request, submission_id)
         result = reanalyze(submission)
         return Response({"analysis": AnalysisFullSerializer(result).data})
-
-
-class SubmissionVerificationView(APIView):
-    """PUT jadwalkan/catat hasil verifikasi verbal; DELETE hapus.
-
-    Satu endpoint untuk jadwal dan hasil karena keduanya menulis baris yang
-    sama. Aturan urutannya ada di VerificationWriteSerializer.
-    """
-
-    permission_classes = [IsTeacher]
-
-    def put(self, request, submission_id: str):
-        submission = require_owned_submission(request, submission_id)
-        serializer = VerificationWriteSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        previous = getattr(submission, "verification", None)
-        previous_status = previous.status if previous else None
-        previous_at = previous.scheduled_at if previous else None
-
-        completed = data["status"] == VerificationStatus.COMPLETED
-        verification, _ = VerbalVerification.objects.update_or_create(
-            submission=submission,
-            defaults={
-                "status": data["status"],
-                "scheduled_at": data.get("scheduled_at"),
-                "outcome": data.get("outcome") or "",
-                "notes": data.get("notes", ""),
-                "completed_at": timezone.now() if completed else None,
-            },
-        )
-        safe(
-            lambda: notify_events.session_changed(
-                verification,
-                submission=submission,
-                previous_status=previous_status,
-                previous_at=previous_at,
-            )
-        )
-        return Response(VerificationSerializer(verification).data)
-
-    def delete(self, request, submission_id: str):
-        submission = require_owned_submission(request, submission_id)
-        previous = getattr(submission, "verification", None)
-        VerbalVerification.objects.filter(submission=submission).delete()
-        if previous is not None:
-            safe(
-                lambda: notify_events.session_changed(
-                    None,
-                    submission=submission,
-                    previous_status=previous.status,
-                    previous_at=previous.scheduled_at,
-                )
-            )
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class VerificationQueueView(APIView):
-    """GET antrean verifikasi lintas kelas: terjadwal dulu, lalu riwayat."""
-
-    permission_classes = [IsTeacher]
-
-    def get(self, request):
-        queue = (
-            VerbalVerification.objects.filter(
-                submission__assignment__class_ref__owner_id=request_user_id(request)
-            )
-            .select_related(
-                "submission__student_profile",
-                "submission__assignment__class_ref",
-                "submission__analysis",
-            )
-            .order_by("status", "scheduled_at")
-        )
-        return Response(VerificationQueueSerializer(queue, many=True).data)

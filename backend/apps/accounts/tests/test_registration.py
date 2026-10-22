@@ -37,7 +37,7 @@ class RegistrationFlowTest(TestCase):
                 self.assertEqual(consent.status_code, 201)
                 self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {consent.data['token']}")
                 paths = ("/api/student/classes", "/api/student/progress", "/api/student/materials", "/api/student/schedule") if role == Role.STUDENT else (
-                    "/api/classes", "/api/assignments", "/api/submissions", "/api/overview", "/api/reports/overview", "/api/verifications",
+                    "/api/classes", "/api/assignments", "/api/submissions", "/api/overview", "/api/reports/overview", "/api/cekpaham",
                 )
                 for path in (*paths, "/api/notifications"):
                     with self.subTest(path=path):

@@ -80,7 +80,7 @@ def require_owned_submission(request, submission_id: str) -> Submission:
     """Submission di kelas milik dosen pemanggil, lengkap untuk layar detail."""
     submission = (
         Submission.objects.select_related(
-            "assignment__class_ref", "student_profile", "analysis", "verification"
+            "assignment__class_ref", "student_profile", "analysis"
         )
         # Sudah terurut di sini; serializer cukup memakai .all(). Memanggil
         # .order_by() lagi di serializer membuang hasil prefetch.

@@ -9,9 +9,6 @@ from apps.academics.models import (
     Material,
     ReasoningEvent,
     Submission,
-    VerbalVerification,
-    VerificationOutcome,
-    VerificationStatus,
 )
 from apps.analysis.models import AnalysisResult
 
@@ -344,94 +341,6 @@ class AnalysisFullSerializer(serializers.ModelSerializer):
         ]
 
 
-class VerificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = VerbalVerification
-        fields = [
-            "status",
-            "scheduled_at",
-            "outcome",
-            "notes",
-            "completed_at",
-            "updated_at",
-        ]
-
-
-class VerificationWriteSerializer(serializers.Serializer):
-    """Satu endpoint untuk menjadwalkan maupun mencatat hasil.
-
-    outcome hanya sah ketika status completed. Menerima outcome pada sesi yang
-    baru dijadwalkan berarti membiarkan dosen menyimpulkan sebelum berbicara,
-    yang justru kebalikan dari tujuan fitur ini.
-    """
-
-    status = serializers.ChoiceField(choices=VerificationStatus.choices)
-    scheduled_at = serializers.DateTimeField(required=False, allow_null=True)
-    outcome = serializers.ChoiceField(
-        choices=VerificationOutcome.choices, required=False, allow_blank=True
-    )
-    notes = serializers.CharField(required=False, allow_blank=True, default="")
-
-    def validate(self, attrs):
-        status_value = attrs.get("status")
-        outcome = attrs.get("outcome") or ""
-
-        if status_value == VerificationStatus.COMPLETED and not outcome:
-            raise serializers.ValidationError(
-                {"outcome": "Sesi yang sudah selesai wajib punya kesimpulan."}
-            )
-        if status_value != VerificationStatus.COMPLETED and outcome:
-            raise serializers.ValidationError(
-                {
-                    "outcome": (
-                        "Kesimpulan hanya boleh diisi setelah sesi berlangsung."
-                    )
-                }
-            )
-        if status_value == VerificationStatus.SCHEDULED and not attrs.get(
-            "scheduled_at"
-        ):
-            raise serializers.ValidationError(
-                {"scheduled_at": "Sesi terjadwal wajib punya waktu."}
-            )
-        return attrs
-
-
-class VerificationQueueSerializer(serializers.ModelSerializer):
-    """Baris antrean verifikasi lintas kelas."""
-
-    submission_id = serializers.UUIDField(read_only=True)
-    student_name = serializers.SerializerMethodField()
-    assignment_title = serializers.CharField(
-        source="submission.assignment.title", read_only=True
-    )
-    class_name = serializers.CharField(
-        source="submission.assignment.class_ref.name", read_only=True
-    )
-    ai_band = serializers.SerializerMethodField()
-
-    class Meta:
-        model = VerbalVerification
-        fields = [
-            "submission_id",
-            "student_name",
-            "assignment_title",
-            "class_name",
-            "ai_band",
-            "status",
-            "scheduled_at",
-            "outcome",
-            "completed_at",
-        ]
-
-    def get_student_name(self, obj) -> str:
-        return obj.submission.student_profile.label
-
-    def get_ai_band(self, obj) -> str:
-        analysis = getattr(obj.submission, "analysis", None)
-        return analysis.ai_band if analysis else ""
-
-
 class AssignmentMiniSerializer(serializers.ModelSerializer):
     # Dipakai halaman detail submission untuk kembali ke kelas asalnya.
     class_id = serializers.UUIDField(source="class_ref_id", read_only=True)
@@ -461,7 +370,6 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
     student = serializers.SerializerMethodField()
     reasoning_events = serializers.SerializerMethodField()
     analysis = serializers.SerializerMethodField()
-    verification = serializers.SerializerMethodField()
 
     class Meta:
         model = Submission
@@ -480,7 +388,6 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "teacher_feedback",
             "reasoning_events",
             "analysis",
-            "verification",
         ]
 
     def get_student(self, obj: Submission) -> dict:
@@ -498,9 +405,3 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
         if analysis is None:
             return None
         return AnalysisFullSerializer(analysis).data
-
-    def get_verification(self, obj: Submission) -> dict | None:
-        verification = getattr(obj, "verification", None)
-        if verification is None:
-            return None
-        return VerificationSerializer(verification).data

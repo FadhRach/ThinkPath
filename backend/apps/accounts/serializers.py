@@ -80,7 +80,13 @@ class ConsentGiveSerializer(serializers.Serializer):
 class ConsentUpdateSerializer(serializers.Serializer):
     """Mengubah pilihan opsional tanpa menarik persetujuan wajib."""
 
-    external_ai = serializers.BooleanField()
+    external_ai = serializers.BooleanField(required=False)
+    voice_cekpaham = serializers.BooleanField(required=False)
+
+    def validate(self, attrs: dict) -> dict:
+        if not attrs:
+            raise serializers.ValidationError("Tidak ada pilihan yang diubah.")
+        return attrs
 
 
 class ProfilePatchSerializer(serializers.Serializer):

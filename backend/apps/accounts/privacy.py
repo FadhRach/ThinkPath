@@ -40,13 +40,17 @@ ITEM_TEACHER_DUTIES = "tanggung_jawab_dosen"
 # Tanpa butir ini, jawaban hanya dianalisis heuristik di server ThinkPath dan
 # dokumen yang butuh pembacaan gambar ditolak.
 ITEM_EXTERNAL_AI = "analisis_luar_negeri"
+# Opsional: suara mahasiswa direkam saat menjawab Cek Paham, disimpan di VPS
+# Jakarta, dan dikirim ke Groq (AS) untuk ditranskripsi. Berlaku bersama
+# ITEM_EXTERNAL_AI karena pengiriman audio itu transfer ke luar negeri.
+ITEM_VOICE_CEKPAHAM = "rekaman_suara_cekpaham"
 
 REQUIRED_ITEMS: dict[str, tuple[str, ...]] = {
     Role.STUDENT: (ITEM_COURSE_DATA, ITEM_PROCESS_ANALYSIS, ITEM_AGE),
     Role.TEACHER: (ITEM_COURSE_DATA, ITEM_TEACHER_DUTIES),
 }
 OPTIONAL_ITEMS: dict[str, tuple[str, ...]] = {
-    Role.STUDENT: (ITEM_EXTERNAL_AI,),
+    Role.STUDENT: (ITEM_EXTERNAL_AI, ITEM_VOICE_CEKPAHAM),
     Role.TEACHER: (),
 }
 
@@ -129,6 +133,7 @@ def consent_status(profile_id: UUID) -> dict:
         "status": state,
         "items": list(current.items) if current else [],
         "external_ai": current is not None and ITEM_EXTERNAL_AI in current.items,
+        "voice_cekpaham": current is not None and ITEM_VOICE_CEKPAHAM in current.items,
         "given_at": given_at,
         "history": [
             {
