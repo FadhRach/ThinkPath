@@ -4,9 +4,11 @@ Satu versi Kebijakan Privasi berlaku pada satu waktu. Isinya ada di frontend
 (`/kebijakan-privasi`), dan versinya harus sama dengan konstanta di bawah;
 tes memeriksa keduanya supaya tidak menyimpang diam-diam.
 
-Butir persetujuan dipisah per tujuan karena Pasal 22 ayat (4) mewajibkan
-permintaan persetujuan yang memuat tujuan lain dapat dibedakan secara jelas.
-Persetujuan yang tidak memenuhi ketentuan itu batal demi hukum (ayat (5)).
+Pengguna menyetujui satu kali, di form daftar. Tiap tujuan tetap tercatat
+sebagai butir tersendiri di bukti persetujuan dan dijelaskan terpisah di
+halaman kebijakan, karena Pasal 22 ayat (4) mewajibkan tujuan yang berbeda
+dapat dibedakan secara jelas. Persetujuan yang tidak memenuhi ketentuan itu
+batal demi hukum (ayat (5)).
 """
 from __future__ import annotations
 
@@ -21,7 +23,7 @@ from apps.accounts.models import ConsentAction, ConsentRecord, Role
 # Tanggal berlaku versi kebijakan. Mengubahnya membuat semua persetujuan lama
 # tidak berlaku, sehingga setiap pengguna diminta membaca dan menyetujui ulang
 # sebelum pemrosesan berlanjut dengan ketentuan baru (Pasal 21 ayat (2)).
-PRIVACY_POLICY_VERSION = "2026-10-17"
+PRIVACY_POLICY_VERSION = "2026-10-22"
 
 # Data akun, kelas, jawaban, nilai, dan umpan balik untuk perkuliahan,
 # termasuk dokumen yang diunggah, penyimpanannya di VPS Jakarta, dan
@@ -35,24 +37,38 @@ ITEM_AGE = "usia_atau_izin_wali"
 # Dosen: memakai data mahasiswa hanya untuk kelasnya, menjaga kerahasiaan,
 # dan tidak menjatuhkan sanksi hanya berdasarkan skor.
 ITEM_TEACHER_DUTIES = "tanggung_jawab_dosen"
-# Opsional: teks jawaban boleh dikirim ke Groq (AS) dan Winston AI (Kanada),
-# begitu pula gambar halaman dokumen scan/foto yang diunggah untuk dibaca.
-# Tanpa butir ini, jawaban hanya dianalisis heuristik di server ThinkPath dan
-# dokumen yang butuh pembacaan gambar ditolak.
+# Teks jawaban dikirim ke Groq (AS) dan Winston AI (Kanada), begitu pula
+# gambar halaman dokumen scan/foto yang diunggah untuk dibaca. Tanpa butir ini
+# di catatan persetujuan, jawaban hanya dianalisis heuristik di server
+# ThinkPath dan dokumen yang butuh pembacaan gambar ditolak.
 ITEM_EXTERNAL_AI = "analisis_luar_negeri"
-# Opsional: suara mahasiswa direkam saat menjawab Cek Paham, disimpan di VPS
-# Jakarta, dan dikirim ke Groq (AS) untuk ditranskripsi. Berlaku bersama
-# ITEM_EXTERNAL_AI karena pengiriman audio itu transfer ke luar negeri.
+# Suara mahasiswa direkam saat menjawab Cek Paham, disimpan di VPS Jakarta, dan
+# dikirim ke Groq (AS) untuk ditranskripsi. Berlaku bersama ITEM_EXTERNAL_AI
+# karena pengiriman audio itu transfer ke luar negeri.
 ITEM_VOICE_CEKPAHAM = "rekaman_suara_cekpaham"
 
+# Semua butir wajib: satu centang di form daftar menyetujui seluruhnya.
 REQUIRED_ITEMS: dict[str, tuple[str, ...]] = {
-    Role.STUDENT: (ITEM_COURSE_DATA, ITEM_PROCESS_ANALYSIS, ITEM_AGE),
+    Role.STUDENT: (
+        ITEM_COURSE_DATA,
+        ITEM_PROCESS_ANALYSIS,
+        ITEM_AGE,
+        ITEM_EXTERNAL_AI,
+        ITEM_VOICE_CEKPAHAM,
+    ),
     Role.TEACHER: (ITEM_COURSE_DATA, ITEM_TEACHER_DUTIES),
 }
-OPTIONAL_ITEMS: dict[str, tuple[str, ...]] = {
-    Role.STUDENT: (ITEM_EXTERNAL_AI, ITEM_VOICE_CEKPAHAM),
-    Role.TEACHER: (),
-}
+
+# Asal baris persetujuan, untuk bukti bagaimana persetujuan diperoleh.
+SOURCE_REGISTER = "register"
+SOURCE_REACCEPT = "reaccept"
+SOURCE_WITHDRAW = "withdraw"
+SOURCE_SEED = "seed"
+
+
+def items_for(role: str) -> tuple[str, ...]:
+    """Butir yang disetujui satu centang untuk peran ini."""
+    return REQUIRED_ITEMS[role]
 
 
 def latest_record(profile_id: UUID) -> ConsentRecord | None:
@@ -63,7 +79,9 @@ def latest_record(profile_id: UUID) -> ConsentRecord | None:
     )
 
 
-def record_consent(profile_id: UUID, action: str, items: Iterable[str]) -> ConsentRecord:
+def record_consent(
+    profile_id: UUID, action: str, items: Iterable[str], *, source: str = ""
+) -> ConsentRecord:
     """Tambahkan satu peristiwa persetujuan untuk versi kebijakan yang berlaku.
 
     Waktunya dipaksa selalu naik: dua peristiwa berurutan yang kebetulan
@@ -78,6 +96,7 @@ def record_consent(profile_id: UUID, action: str, items: Iterable[str]) -> Conse
         action=action,
         policy_version=PRIVACY_POLICY_VERSION,
         items=sorted(set(items)),
+        source=source,
         created_at=now,
     )
 
@@ -132,14 +151,14 @@ def consent_status(profile_id: UUID) -> dict:
         "current_version": PRIVACY_POLICY_VERSION,
         "status": state,
         "items": list(current.items) if current else [],
-        "external_ai": current is not None and ITEM_EXTERNAL_AI in current.items,
-        "voice_cekpaham": current is not None and ITEM_VOICE_CEKPAHAM in current.items,
         "given_at": given_at,
         "history": [
             {
+                "id": str(record.id),
                 "action": record.action,
                 "policy_version": record.policy_version,
                 "items": list(record.items),
+                "source": record.source,
                 "created_at": record.created_at,
             }
             for record in history

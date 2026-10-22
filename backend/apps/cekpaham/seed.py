@@ -1,7 +1,7 @@
 """Data demo Cek Paham untuk `seed_demo_data` (idempoten lewat uuid5).
 
 Tiga keadaan supaya seluruh alur bisa didemokan tanpa mikrofon sungguhan:
-- terbuka untuk mhs07 (mhs07 sudah menyetujui rekaman suara, jadi bisa langsung mencoba);
+- terbuka untuk mhs07 (semua akun demo sudah menyetujui kebijakan, jadi bisa langsung mencoba);
 - sudah dinilai, dengan transkrip fixture (mhs08);
 - sudah dinilai dan ada laporan terbuka "transkrip tidak sesuai" (mhs06).
 
@@ -16,14 +16,7 @@ from typing import Sequence
 from django.utils import timezone
 
 from apps.academics.models import Submission
-from apps.accounts.models import ConsentAction, Profile, Role
-from apps.accounts.privacy import (
-    ITEM_EXTERNAL_AI,
-    ITEM_VOICE_CEKPAHAM,
-    REQUIRED_ITEMS,
-    current_consent,
-    record_consent,
-)
+from apps.accounts.models import Profile
 from apps.cekpaham import rubric
 from apps.cekpaham.models import (
     AttemptStatus,
@@ -106,16 +99,6 @@ def seed_cekpaham_demo(teacher: Profile, students: Sequence[Profile]) -> int:
         return 0
     now = timezone.now()
     used: set[uuid.UUID] = set()
-
-    # Akun demo yang menjalani alur nyata sudah menyetujui rekaman suara; akun lain
-    # melihat kotak info "izin rekaman suara belum aktif" saat pertama mencoba.
-    demo_student = students[6]
-    if current_consent(demo_student.id) is None:
-        record_consent(
-            demo_student.id,
-            ConsentAction.GIVEN,
-            [*REQUIRED_ITEMS[Role.STUDENT], ITEM_EXTERNAL_AI, ITEM_VOICE_CEKPAHAM],
-        )
 
     count = 0
     plans = [

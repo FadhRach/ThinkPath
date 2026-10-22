@@ -85,7 +85,7 @@ class Profile(models.Model):
 
 class ConsentAction(models.TextChoices):
     GIVEN = "given", "Diberikan"
-    # Pilihan opsional diubah tanpa menarik persetujuan wajib.
+    # Hanya ada di riwayat lama, saat pilihan opsional masih bisa diubah.
     UPDATED = "updated", "Diperbarui"
     WITHDRAWN = "withdrawn", "Ditarik"
 
@@ -98,7 +98,7 @@ class ConsentRecord(models.Model):
     (Pasal 24). Karena itu baris di sini tidak pernah diubah atau ditimpa:
     memberi, mengubah pilihan, dan menarik persetujuan masing-masing menjadi
     baris baru, sehingga riwayatnya utuh dan bisa ditunjukkan kepada pemiliknya.
-    Keadaan yang berlaku adalah baris terbaru; lihat core.privacy.
+    Keadaan yang berlaku adalah baris terbaru; lihat apps.accounts.privacy.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -111,9 +111,12 @@ class ConsentRecord(models.Model):
     # Versi kebijakan yang dibaca saat keputusan diambil. Persetujuan untuk
     # versi lama tidak berlaku lagi setelah kebijakannya berubah.
     policy_version = models.CharField(max_length=20)
-    # Kunci butir yang disetujui, lihat core.privacy. Kosong saat ditarik.
+    # Kunci butir yang disetujui, lihat apps.accounts.privacy. Kosong saat ditarik.
     items = models.JSONField(default=list, blank=True)
-    # Bukan auto_now_add: core.privacy.record_consent menjamin waktunya selalu
+    # Asal persetujuan (register, reaccept, withdraw, seed): bukti bagaimana
+    # persetujuan diperoleh. Tidak menyimpan IP; lihat kebijakan privasi.
+    source = models.CharField(max_length=16, blank=True, default="")
+    # Bukan auto_now_add: apps.accounts.privacy.record_consent menjamin waktunya selalu
     # naik per pengguna, karena keadaan yang berlaku dibaca dari baris terbaru.
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 

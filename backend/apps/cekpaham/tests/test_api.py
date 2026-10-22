@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.utils import timezone
 
 from apps.accounts.models import ConsentAction
-from apps.accounts.privacy import REQUIRED_ITEMS, record_consent
+from apps.accounts.privacy import record_consent
 from apps.cekpaham.judge import JudgeResult
 from apps.cekpaham.models import AttemptStatus, CekPaham, CekPahamAttempt, ReportStatus
 from apps.cekpaham.providers.groq_stt import Transcription
@@ -187,10 +187,10 @@ class ConsentGateTest(CekPahamAPITestCase):
         self.assertEqual(live.status_code, 403)
         self.assertEqual(self.finalize(cekpaham).status_code, 403)
 
-    def test_voice_and_external_analysis_are_both_required(self):
+    def test_a_record_missing_voice_or_external_analysis_is_refused(self):
+        # Pengaman: persetujuan lewat UI selalu memuat keduanya.
         cekpaham = self.make_request()
         for voice, external in ((True, False), (False, True), (False, False)):
-            record_consent(self.student.id, ConsentAction.GIVEN, REQUIRED_ITEMS["student"])  # reset
             self.grant_consent(self.student, voice=voice, external=external)
             self.assertEqual(self.start(cekpaham).status_code, 403, (voice, external))
 

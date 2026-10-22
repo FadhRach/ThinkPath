@@ -159,7 +159,7 @@ make seed                                # opsional: akun demo
 curl https://api.thinkpath.id/health     # {"status":"ok"}
 ```
 
-**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-17`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
+**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-22`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
 
 **6. Backup harian**
 
@@ -272,10 +272,10 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | Method | Path | Akses | Fungsi |
 |---|---|---|---|
 | GET | `/health` | publik | health check |
-| POST | `/api/auth/register` | publik | daftar, balikan token + profil |
+| POST | `/api/auth/register` | publik | daftar (wajib `accept_policy: true` + `policy_version` berlaku; persetujuan dicatat di transaksi yang sama), balikan token + profil |
 | POST | `/api/auth/login` | publik | login, balikan token + profil |
 | GET/PATCH | `/api/me` | login | profil sendiri |
-| GET/POST/PATCH | `/api/me/consent` | login | keadaan dan riwayat persetujuan / beri persetujuan (balikan token baru) / ubah izin analisis luar negeri |
+| GET/POST | `/api/me/consent` | login | keadaan dan riwayat persetujuan / setujui ulang versi berlaku, body `{policy_version}` (butir dari peran; balikan token baru) |
 | POST | `/api/me/consent/withdraw` | login | tarik persetujuan (balikan token tanpa klaim persetujuan) |
 | GET/POST | `/api/classes` | dosen | daftar / buat kelas |
 | GET/POST | `/api/classes/<id>/assignments` | dosen pemilik | daftar / buat tugas |
@@ -359,7 +359,7 @@ browser ── rekaman utuh ───────────────► fin
 - **Tanpa env baru.** Memakai `GROQ_API_KEY` dan `GROQ_MODEL` yang sudah ada; model Whisper (`whisper-large-v3-turbo`), masa simpan audio (30 hari), dan batas ukuran (5 MB, potongan live 1 MB) adalah konstanta di kode. Endpoint yang memanggil Groq (buat, mulai, caption, finalisasi, proses ulang) membalas `503` bila kunci kosong; membaca hasil tetap jalan.
 - **Skor dihitung di kode** (`rubric.py`) dari level 0–3 per dimensi (ketepatan 35%, konsistensi 25%, kedalaman 25%, keakraban dengan isi jawaban 15%; rubrik v2 menganggap menjelaskan ulang isi jawaban tertulis sebagai bukti paham dan menyesuaikan harapan kedalaman dengan soalnya); LLM hanya memberi level dan kutipan. Penilai berjalan dua kali dengan urutan rubrik dibalik (selisih besar diberi flag `judge_disagreement`), kutipan yang bukan potongan transkrip dibuang (`evidence_unverified`), dan bukti kurang (< 15 kata atau tanpa ucapan) memberi skor **kosong**, bukan angka rendah. **Ambang band 70/40 belum dikalibrasi**; UI dosen selalu memberi label itu. Ukuran: ±2.000 token per jalan, dari jatah 8.000 token/menit Groq yang dipakai bersama analisis submission; 429 dihormati (tunggu sesuai permintaan, maks 10 dtk).
 - **Whisper mengarang kalimat pada audio hening** ("Terima kasih.") dengan `no_speech_prob = 0`, jadi angka kepercayaan saja tidak cukup. `filter_segments()` juga membuang segmen yang berakhir melewati durasi audio dan frasa penutup yang dikenal; potongan senyap tidak dikirim klien.
-- **Persetujuan** diperiksa di basis data pada `start`, `live`, dan `finalize`: butir `rekaman_suara_cekpaham` dan `analisis_luar_negeri` harus berlaku bersamaan (`PATCH /api/me/consent` menerima `voice_cekpaham`).
+- **Persetujuan** diperiksa di basis data pada `start`, `live`, dan `finalize`: butir `rekaman_suara_cekpaham` dan `analisis_luar_negeri` harus berlaku bersamaan; keduanya sudah termasuk persetujuan mahasiswa (satu centang saat daftar), jadi pemeriksaan ini hanya menolak bila persetujuan tidak berlaku.
 - **Sesi**: satu attempt aktif per Cek Paham; tenggat dari server (`deadline_at`), `finalize` diterima sampai tenggat + 10 detik, idempoten, dan sesi yang ditinggalkan menjadi `interrupted`. Dosen memutuskan laporan: `dismissed`, atau `grant_retry` (sesi lama `voided`, jendela dijamin sisa ≥ 24 jam).
 - **Retensi**: `python manage.py purge_cekpaham_audio` menghapus audio > 30 hari (transkrip dan hasil tetap). Backend tidak punya penjadwal, jadi pasang di crontab VPS di samping backup, mis. `17 3 * * * cd /opt/thinkpath/backend && docker compose exec -T api python manage.py purge_cekpaham_audio`.
 - **Caddy**: jalur `/api/student/cekpaham/*/finalize` diberi batas body 6 MB (`deploy/Caddyfile`); jalankan `make deploy` (`caddy reload`) setelah `git pull`.
@@ -373,7 +373,7 @@ browser ── rekaman utuh ───────────────► fin
 
 ### Persetujuan data pribadi
 
-Versi kebijakan yang berlaku ada di `apps/accounts/privacy.py` (`PRIVACY_POLICY_VERSION`) dan wajib sama dengan `frontend/lib/privacy.ts`; tes memeriksa keduanya. Frontend dan backend di-deploy terpisah, jadi setelah versi dinaikkan ada jeda sampai keduanya selesai deploy. Selama jeda itu, dan di tab yang dibuka sebelum deploy, layar persetujuan mengirim versi lama dan ditolak `400` dengan pesan untuk memuat ulang halaman. Muat ulang setelah kedua deploy berstatus Ready. Butir persetujuan dipisah per tujuan (Pasal 22 ayat (4) UU PDP): mahasiswa wajib `data_perkuliahan`, `analisis_proses`, `usia_atau_izin_wali`, dan boleh `analisis_luar_negeri` serta `rekaman_suara_cekpaham` (Cek Paham); dosen wajib `data_perkuliahan` dan `tanggung_jawab_dosen`.
+Versi kebijakan yang berlaku ada di `apps/accounts/privacy.py` (`PRIVACY_POLICY_VERSION`) dan wajib sama dengan `frontend/lib/privacy.ts`; tes memeriksa keduanya. Frontend dan backend di-deploy terpisah, jadi setelah versi dinaikkan ada jeda sampai keduanya selesai deploy. Selama jeda itu, dan di tab yang dibuka sebelum deploy, form daftar dan layar persetujuan mengirim versi lama dan ditolak `400` dengan pesan untuk memuat ulang halaman. Muat ulang setelah kedua deploy berstatus Ready. Pengguna menyetujui satu kali dengan satu centang di form daftar (`accept_policy`), dan server mencatat butir per tujuan (Pasal 22 ayat (4) UU PDP): mahasiswa `data_perkuliahan`, `analisis_proses`, `usia_atau_izin_wali`, `analisis_luar_negeri`, `rekaman_suara_cekpaham`; dosen `data_perkuliahan` dan `tanggung_jawab_dosen`. Tiap catatan `ConsentRecord` memuat versi, butir, waktu, dan `source` (`register`, `reaccept`, `withdraw`, `seed`); tidak menyimpan IP. Akun lama atau versi baru menyetujui ulang lewat `POST /api/me/consent`. `seed_demo_data` mencatat persetujuan untuk semua akun demo.
 
 Token memuat klaim `consent` berisi versi yang disetujui, dibaca layout frontend untuk gerbang tampilan. Pemrosesan baru tidak memercayai klaim itu: pengumpulan jawaban dan Analisis Ulang memeriksa `ConsentRecord` terbaru di basis data dan menolak dengan `403` bila persetujuan tidak berlaku, sehingga penarikan berlaku seketika meski token lama masih beredar. Tanpa butir `analisis_luar_negeri`, `run_analysis(allow_external=False)` melewati Groq, detektor, dan cache detektor (Pasal 56 ayat (4)). Pemetaan pasal lengkapnya ada di `diagram/07-privasi-dan-persetujuan.md`.
 

@@ -10,7 +10,8 @@ from uuid import UUID
 from django.db import IntegrityError, transaction
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 
-from apps.accounts.models import Profile, normalize_email
+from apps.accounts.models import ConsentAction, Profile, normalize_email
+from apps.accounts.privacy import SOURCE_REGISTER, items_for, record_consent
 
 
 def register_profile(
@@ -19,7 +20,11 @@ def register_profile(
     display_name: str,
     role: str,
     education_level: str = "",
+    *,
+    consent: bool = False,
 ) -> Profile:
+    """Buat akun. `consent=True` mencatat persetujuan di transaksi yang sama,
+    sehingga tidak ada akun yang tercipta tanpa buktinya (atau sebaliknya)."""
     profile = Profile(
         email=email,
         display_name=display_name,
@@ -32,6 +37,13 @@ def register_profile(
     try:
         with transaction.atomic():
             profile.save()
+            if consent:
+                record_consent(
+                    profile.id,
+                    ConsentAction.GIVEN,
+                    items_for(role),
+                    source=SOURCE_REGISTER,
+                )
     except IntegrityError as exc:
         raise ValidationError({"email": ["Email sudah terdaftar."]}) from exc
     return profile
