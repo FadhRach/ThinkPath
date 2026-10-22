@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, ShieldCheck } from "lucide-react";
+import { CircleCheck, ExternalLink, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -15,47 +15,47 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { formatClockHHMM, formatDate } from "@/lib/formatting";
-import { setExternalAnalysis, setVoiceRecording, withdrawConsent } from "@/lib/mutations";
-import { PRIVACY_CONTACT_EMAIL } from "@/lib/privacy";
+import { withdrawConsent } from "@/lib/mutations";
+import { CONSENT_ITEMS, PRIVACY_CONTACT_EMAIL } from "@/lib/privacy";
 import type { ConsentActionKind, ConsentStatus, Role } from "@/lib/types";
 import { useAction } from "@/lib/use-action";
 
 const ACTION_LABEL: Record<ConsentActionKind, string> = {
   given: "Persetujuan diberikan",
-  updated: "Pilihan opsional diubah",
+  updated: "Pilihan diperbarui",
   withdrawn: "Persetujuan ditarik",
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  register: "saat mendaftar",
+  reaccept: "persetujuan ulang",
+  withdraw: "dari Pengaturan",
+  seed: "akun demo",
 };
 
 function when(iso: string): string {
   return `${formatDate(iso)} pukul ${formatClockHHMM(iso)}`;
 }
 
+/** Nomor bukti: delapan karakter pertama id catatan, cukup untuk dirujuk dalam permohonan. */
+function proofNumber(id: string): string {
+  return id.slice(0, 8).toUpperCase();
+}
+
 /**
- * Bagian Privasi di Pengaturan: keadaan persetujuan, pilihan opsional,
- * rekam jejaknya (Pasal 32 UU PDP), dan penarikan persetujuan (Pasal 9).
+ * Kebijakan dan persetujuan di Pengaturan: bukti persetujuan yang berlaku
+ * (versi, waktu, tujuan, nomor), rekam jejaknya (Pasal 24 dan 32 UU PDP), tautan
+ * ke kebijakan lengkap, dan penarikan persetujuan (Pasal 9). Persetujuannya
+ * sendiri diberikan satu kali di form daftar.
  */
-export function PrivacyPanel({ role, consent }: { role: Role; consent: ConsentStatus }) {
-  const [status, setStatus] = useState(consent);
+export function ConsentProof({ role, consent }: { role: Role; consent: ConsentStatus }) {
   const [open, setOpen] = useState(false);
-  const toggle = useAction("Pilihan gagal disimpan. Coba lagi.");
   const withdraw = useAction("Persetujuan gagal ditarik. Coba lagi.");
   const isStudent = role === "student";
-
-  async function handleExternal(allowed: boolean) {
-    await toggle.run(
-      () => setExternalAnalysis(allowed),
-      (next) => setStatus(next),
-    );
-  }
-
-  async function handleVoice(allowed: boolean) {
-    await toggle.run(
-      () => setVoiceRecording(allowed),
-      (next) => setStatus(next),
-    );
-  }
+  const proof = consent.history.find(
+    (entry) => entry.action === "given" && entry.policy_version === consent.current_version,
+  );
 
   async function handleWithdraw() {
     await withdraw.run(
@@ -75,10 +75,10 @@ export function PrivacyPanel({ role, consent }: { role: Role; consent: ConsentSt
           <ShieldCheck className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <h2 className="font-bold text-foreground">Privasi dan persetujuan</h2>
+          <h2 className="font-bold text-foreground">Kebijakan dan persetujuan</h2>
           <p className="text-body-sm text-muted-foreground">
-            {status.given_at
-              ? `Disetujui ${when(status.given_at)} untuk Kebijakan Privasi versi ${status.current_version}.`
+            {consent.given_at
+              ? `Disetujui ${when(consent.given_at)} untuk Kebijakan Privasi versi ${consent.current_version}.`
               : "Belum ada persetujuan yang berlaku."}
           </p>
           <Link
@@ -92,60 +92,38 @@ export function PrivacyPanel({ role, consent }: { role: Role; consent: ConsentSt
         </div>
       </div>
 
-      {isStudent ? (
-        <div className="space-y-2 rounded-xl border border-border p-4">
-          <div className="flex items-start justify-between gap-4">
-            <label htmlFor="external-ai" className="font-semibold text-foreground">
-              Analisis tambahan oleh penyedia di luar negeri
-            </label>
-            <Switch
-              id="external-ai"
-              checked={status.external_ai}
-              onCheckedChange={handleExternal}
-              disabled={toggle.pending}
-            />
-          </div>
-          <p className="text-body-sm text-muted-foreground">
-            {status.external_ai
-              ? "Aktif: teks jawabanmu yang berikutnya boleh dianalisis Groq (Amerika Serikat) dan Winston AI (Kanada), tanpa nama atau email."
-              : "Nonaktif: jawabanmu yang berikutnya hanya dianalisis heuristik di server ThinkPath. Hasilnya bisa kurang akurat, dan dosen melihat bahwa skornya berasal dari heuristik."}
-          </p>
-          {toggle.error ? <p className="text-body-sm text-danger">{toggle.error}</p> : null}
-        </div>
-      ) : null}
-
-      {isStudent ? (
-        <div className="space-y-2 rounded-xl border border-border p-4">
-          <div className="flex items-start justify-between gap-4">
-            <label htmlFor="voice-cekpaham" className="font-semibold text-foreground">
-              Rekaman suara untuk Cek Paham
-            </label>
-            <Switch
-              id="voice-cekpaham"
-              checked={status.voice_cekpaham}
-              onCheckedChange={handleVoice}
-              disabled={toggle.pending}
-            />
-          </div>
-          <p className="text-body-sm text-muted-foreground">
-            {status.voice_cekpaham
-              ? "Aktif: suaramu direkam saat menjawab Cek Paham, disimpan di server ThinkPath di Jakarta (dihapus otomatis setelah 30 hari), dan dikirim ke Groq (Amerika Serikat) untuk diubah menjadi teks. Cek Paham juga memerlukan analisis di luar negeri di atas."
-              : "Nonaktif: kamu belum bisa mengerjakan Cek Paham. Dosen tetap dapat mengajakmu berdiskusi langsung."}
-          </p>
+      {proof ? (
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <p className="text-body-sm font-semibold text-foreground">Bukti persetujuan yang berlaku</p>
+          <dl className="space-y-1.5 text-body-sm">
+            <ProofRow label="Nomor bukti" value={proofNumber(proof.id)} mono />
+            <ProofRow label="Versi kebijakan" value={proof.policy_version} />
+            <ProofRow label="Waktu" value={when(proof.created_at)} />
+            {proof.source ? (
+              <ProofRow label="Diberikan" value={SOURCE_LABEL[proof.source] ?? proof.source} />
+            ) : null}
+          </dl>
+          <ul className="space-y-1">
+            {CONSENT_ITEMS[role]
+              .filter((item) => proof.items.includes(item.key))
+              .map((item) => (
+                <li key={item.key} className="flex gap-2 text-body-sm text-foreground">
+                  <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  {item.title}
+                </li>
+              ))}
+          </ul>
         </div>
       ) : null}
 
       <div className="space-y-2">
         <p className="text-body-sm font-semibold text-foreground">Riwayat persetujuan</p>
         <ol className="space-y-2 border-l-2 border-border pl-4">
-          {status.history.map((entry) => (
-            <li key={`${entry.action}-${entry.created_at}`} className="text-body-sm">
+          {consent.history.map((entry) => (
+            <li key={entry.id} className="text-body-sm">
               <p className="font-medium text-foreground">{ACTION_LABEL[entry.action]}</p>
               <p className="text-caption text-muted-foreground">
-                {when(entry.created_at)} · versi {entry.policy_version}
-                {entry.items.includes("analisis_luar_negeri")
-                  ? " · termasuk analisis di luar negeri"
-                  : ""}
+                {when(entry.created_at)} · versi {entry.policy_version} · no. {proofNumber(entry.id)}
               </p>
             </li>
           ))}
@@ -184,7 +162,7 @@ export function PrivacyPanel({ role, consent }: { role: Role; consent: ConsentSt
             <DialogTitle>Tarik persetujuan?</DialogTitle>
             <DialogDescription>
               {isStudent
-                ? "Pemrosesan baru berhenti seketika: kamu tidak bisa mengumpulkan jawaban dan dosen tidak bisa menganalisis ulang jawabanmu sampai kamu menyetujui kembali. Data yang sudah ada tidak otomatis terhapus; untuk menghapusnya, ajukan permohonan penghapusan."
+                ? "Pemrosesan baru berhenti seketika: kamu tidak bisa memakai ThinkPath, mengumpulkan jawaban, atau mengerjakan Cek Paham sampai kamu menyetujui kembali. Data yang sudah ada tidak otomatis terhapus; untuk menghapusnya, ajukan permohonan penghapusan."
                 : "Anda tidak dapat memakai ThinkPath sampai menyetujui kembali. Data yang sudah ada tidak otomatis terhapus; untuk menghapusnya, ajukan permohonan penghapusan."}
             </DialogDescription>
           </DialogHeader>
@@ -200,5 +178,14 @@ export function PrivacyPanel({ role, consent }: { role: Role; consent: ConsentSt
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+function ProofRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className={mono ? "font-mono text-foreground" : "text-right text-foreground"}>{value}</dd>
+    </div>
   );
 }

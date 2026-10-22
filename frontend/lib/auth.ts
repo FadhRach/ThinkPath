@@ -1,6 +1,7 @@
 import { apiFetchBrowser } from "./api-browser";
 import { ApiError } from "./api-shared";
 import { clearAuthTokenCookie, setAuthTokenCookie } from "./auth-token";
+import { PRIVACY_POLICY_VERSION } from "./privacy";
 import type { AuthResponse, Role } from "./types";
 
 const ROLE_NAME: Record<Role, string> = { teacher: "dosen", student: "mahasiswa" };
@@ -41,10 +42,11 @@ export async function login(
   return result;
 }
 
+/** Mendaftar sekaligus menyetujui Kebijakan Privasi; server mencatat buktinya di transaksi yang sama. */
 export async function register(input: RegisterInput): Promise<AuthResponse> {
   const result = await apiFetchBrowser<AuthResponse>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, accept_policy: true, policy_version: PRIVACY_POLICY_VERSION }),
   });
   setAuthTokenCookie(result.token);
   return result;

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { Brandmark } from "@/components/common/Brandmark";
 import { ConsentScreen } from "@/components/privacy/ConsentScreen";
+import { PolicyArticle } from "@/components/privacy/PolicyArticle";
 import { readAuthClaims } from "@/lib/auth-claims";
 import { getConsent } from "@/lib/data";
 import { PRIVACY_POLICY_VERSION } from "@/lib/privacy";
@@ -42,7 +43,12 @@ export default async function ConsentPage() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
-        <ConsentScreen role={claims.role} previous={status.status} home={home} />
+        <ConsentScreen
+          role={claims.role}
+          previous={status.status}
+          home={home}
+          policy={<PolicyArticle />}
+        />
       </main>
     </div>
   );

@@ -4,6 +4,7 @@ import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { useState } from "react";
 
 import { RoleSelector } from "@/components/auth/RoleSelector";
+import { PolicyConsent } from "@/components/privacy/PolicyConsent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,8 @@ type Mode = "login" | "register";
 
 interface Props {
   mode: Mode;
+  /** Isi kebijakan untuk jendela baca; wajib pada mode daftar. */
+  policy?: React.ReactNode;
 }
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -22,18 +25,21 @@ const ROLE_LABEL: Record<Role, string> = {
   teacher: "Dosen",
 };
 
-export function EmailPasswordForm({ mode }: Props) {
+export function EmailPasswordForm({ mode, policy }: Props) {
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<Role>("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const { pending, error, setError, run, router } = useAction(
     "Gagal memproses. Periksa isian lalu coba lagi.",
   );
 
   function handleRoleChange(next: Role) {
     setRole(next);
+    // Daftar tujuan yang disetujui berbeda per peran, jadi persetujuan diulang.
+    setAgreed(false);
     // Pesan "akun ini terdaftar sebagai ..." sudah tidak relevan begitu
     // pengguna mengganti pilihannya.
     setError(null);
@@ -133,9 +139,19 @@ export function EmailPasswordForm({ mode }: Props) {
         </div>
       </div>
 
+      {mode === "register" ? (
+        <PolicyConsent role={role} checked={agreed} onChange={setAgreed} policy={policy} />
+      ) : null}
+
       {error ? <p className="text-body-sm text-danger">{error}</p> : null}
 
-      <Button type="submit" suppressHydrationWarning disabled={pending} className="w-full" size="lg">
+      <Button
+        type="submit"
+        suppressHydrationWarning
+        disabled={pending || (mode === "register" && !agreed)}
+        className="w-full"
+        size="lg"
+      >
         {pending ? "Memproses..." : submitLabel}
       </Button>
     </form>
