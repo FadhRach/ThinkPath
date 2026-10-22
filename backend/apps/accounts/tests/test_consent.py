@@ -4,12 +4,12 @@ Yang dijaga, masing-masing dengan pasal UU No. 27 Tahun 2022 yang mendasarinya:
 
 1. Persetujuan terekam dan buktinya bisa ditunjukkan (Pasal 22 ayat (1), 24):
    setiap peristiwa menjadi baris baru, tidak ada yang ditimpa.
-2. Butir untuk tujuan berbeda dapat dibedakan (Pasal 22 ayat (4)): butir wajib
-   harus dicentang semua, butir yang tidak dikenal ditolak.
+2. Tujuan berbeda dapat dibedakan (Pasal 22 ayat (4)): satu centang, tetapi
+   tiap tujuan tercatat sebagai butir sendiri, ditentukan server dari peran.
 3. Penarikan menghentikan pemrosesan baru (Pasal 9, 40), termasuk dari token
    lama yang masih memuat klaim persetujuan.
-4. Teks jawaban hanya dikirim ke penyedia di luar negeri bila mahasiswa
-   mengizinkan (Pasal 56 ayat (4)).
+4. Teks jawaban hanya dikirim ke penyedia di luar negeri bila catatan
+   persetujuan memuat butirnya (Pasal 56 ayat (4)).
 5. Perubahan kebijakan meminta persetujuan ulang (Pasal 21 ayat (2)).
 """
 from __future__ import annotations
@@ -36,8 +36,8 @@ ANSWER = (
     "Ketimpangan antarwilayah muncul karena investasi menumpuk di kota besar. "
     "Akibatnya daerah tertinggal kekurangan lapangan kerja dan layanan dasar."
 )
-STUDENT_REQUIRED = list(privacy.REQUIRED_ITEMS[Role.STUDENT])
-TEACHER_REQUIRED = list(privacy.REQUIRED_ITEMS[Role.TEACHER])
+STUDENT_ITEMS = sorted(privacy.REQUIRED_ITEMS[Role.STUDENT])
+TEACHER_ITEMS = sorted(privacy.REQUIRED_ITEMS[Role.TEACHER])
 
 
 def claims(token: str) -> dict:
@@ -79,10 +79,10 @@ class ConsentTestBase(TestCase):
         )
         return client
 
-    def give(self, profile: Profile, items: list[str], version: str | None = None):
+    def give(self, profile: Profile, version: str | None = None, **extra):
         return self.client_for(profile).post(
             "/api/me/consent",
-            {"policy_version": version or privacy.PRIVACY_POLICY_VERSION, "items": items},
+            {"policy_version": version or privacy.PRIVACY_POLICY_VERSION, **extra},
             format="json",
         )
 
@@ -106,65 +106,36 @@ class GivingConsentTest(ConsentTestBase):
         self.assertFalse(Submission.objects.exists())
 
     def test_consent_returns_a_fresh_token_and_unlocks_submission(self):
-        response = self.give(self.mhs, STUDENT_REQUIRED)
+        response = self.give(self.mhs)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(claims(response.data["token"])["consent"], privacy.PRIVACY_POLICY_VERSION)
         self.assertEqual(response.data["consent"]["status"], "given")
-        self.assertFalse(response.data["consent"]["external_ai"])
 
         record = ConsentRecord.objects.get(profile=self.mhs)
         self.assertEqual(record.action, ConsentAction.GIVEN)
-        self.assertEqual(record.items, sorted(STUDENT_REQUIRED))
+        self.assertEqual(record.items, STUDENT_ITEMS)
+        self.assertEqual(record.source, privacy.SOURCE_REACCEPT)
         self.assertEqual(self.submit().status_code, 201)
 
-    def test_every_required_item_must_be_agreed_separately(self):
-        for items in (STUDENT_REQUIRED[:-1], [], [*STUDENT_REQUIRED, "jual_data"]):
-            response = self.give(self.mhs, items)
-            self.assertEqual(response.status_code, 400, items)
-        self.assertFalse(ConsentRecord.objects.exists())
+    def test_items_come_from_the_role_not_from_the_client(self):
+        self.give(self.mhs, items=["jual_data"])
+        self.give(self.dosen, items=[privacy.ITEM_VOICE_CEKPAHAM])
+        self.assertEqual(ConsentRecord.objects.get(profile=self.mhs).items, STUDENT_ITEMS)
+        self.assertEqual(ConsentRecord.objects.get(profile=self.dosen).items, TEACHER_ITEMS)
+
+    def test_student_consent_covers_voice_and_external_analysis(self):
+        self.assertTrue({privacy.ITEM_VOICE_CEKPAHAM, privacy.ITEM_EXTERNAL_AI} <= set(STUDENT_ITEMS))
+        self.assertTrue(set(TEACHER_ITEMS).isdisjoint({privacy.ITEM_VOICE_CEKPAHAM, privacy.ITEM_EXTERNAL_AI}))
 
     def test_consent_for_an_old_policy_version_is_refused(self):
-        response = self.give(self.mhs, STUDENT_REQUIRED, version="2020-01-01")
+        response = self.give(self.mhs, version="2020-01-01")
         self.assertEqual(response.status_code, 400)
         self.assertFalse(ConsentRecord.objects.exists())
-
-    def test_teacher_agrees_to_duties_and_has_no_external_option(self):
-        self.assertEqual(self.give(self.dosen, [privacy.ITEM_COURSE_DATA]).status_code, 400)
-        self.assertEqual(
-            self.give(
-                self.dosen, [*TEACHER_REQUIRED, privacy.ITEM_EXTERNAL_AI]
-            ).status_code,
-            400,
-        )
-        self.assertEqual(self.give(self.dosen, TEACHER_REQUIRED).status_code, 201)
-        response = self.client_for(self.dosen).patch(
-            "/api/me/consent", {"external_ai": True}, format="json"
-        )
-        self.assertEqual(response.status_code, 400)
 
 
 class ChangingConsentTest(ConsentTestBase):
-    def test_optional_choice_is_recorded_as_new_rows_only_when_it_changes(self):
-        self.give(self.mhs, STUDENT_REQUIRED)
-        client = self.client_for(self.mhs)
-        on = client.patch("/api/me/consent", {"external_ai": True}, format="json")
-        self.assertTrue(on.data["consent"]["external_ai"])
-        client.patch("/api/me/consent", {"external_ai": True}, format="json")
-        off = client.patch("/api/me/consent", {"external_ai": False}, format="json")
-        self.assertFalse(off.data["consent"]["external_ai"])
-
-        actions = [row["action"] for row in off.data["consent"]["history"]]
-        self.assertEqual(actions, ["updated", "updated", "given"])
-        self.assertEqual(ConsentRecord.objects.filter(profile=self.mhs).count(), 3)
-
-    def test_optional_choice_needs_a_current_consent(self):
-        response = self.client_for(self.mhs).patch(
-            "/api/me/consent", {"external_ai": True}, format="json"
-        )
-        self.assertEqual(response.status_code, 400)
-
     def test_withdrawal_stops_new_processing_even_from_an_old_token(self):
-        old_token = self.give(self.mhs, STUDENT_REQUIRED).data["token"]
+        old_token = self.give(self.mhs).data["token"]
         self.assertEqual(self.submit(old_token).status_code, 201)
         submission = Submission.objects.get()
 
@@ -183,30 +154,35 @@ class ChangingConsentTest(ConsentTestBase):
         self.assertTrue(Submission.objects.filter(pk=submission.pk).exists())
 
     def test_history_is_append_only_and_private(self):
-        self.give(self.mhs, STUDENT_REQUIRED)
+        self.give(self.mhs)
         self.client_for(self.mhs).post("/api/me/consent/withdraw")
-        self.give(self.mhs, STUDENT_REQUIRED)
+        self.give(self.mhs)
 
         status = self.client_for(self.mhs).get("/api/me/consent").data
         self.assertEqual(
             [row["action"] for row in status["history"]], ["given", "withdrawn", "given"]
         )
+        self.assertEqual(
+            [row["source"] for row in status["history"]],
+            [privacy.SOURCE_REACCEPT, privacy.SOURCE_WITHDRAW, privacy.SOURCE_REACCEPT],
+        )
+        self.assertEqual(len({row["id"] for row in status["history"]}), 3)
         self.assertEqual(status["status"], "given")
         self.assertEqual(self.client_for(self.dosen).get("/api/me/consent").data["history"], [])
 
     def test_policy_update_asks_for_consent_again(self):
-        self.give(self.mhs, STUDENT_REQUIRED)
+        self.give(self.mhs)
         with patch.object(privacy, "PRIVACY_POLICY_VERSION", "2099-01-01"):
             status = self.client_for(self.mhs).get("/api/me/consent").data
             self.assertEqual(status["status"], "outdated")
             self.assertIsNone(claims(create_access_token(self.mhs))["consent"])
             self.assertEqual(self.submit().status_code, 403)
-            self.assertEqual(self.give(self.mhs, STUDENT_REQUIRED).status_code, 201)
+            self.assertEqual(self.give(self.mhs).status_code, 201)
             self.assertEqual(self.submit().status_code, 201)
 
 
 class ExternalAnalysisTest(ConsentTestBase):
-    """Groq dan Winston hanya dipanggil bila mahasiswa mengizinkan."""
+    """Groq dan Winston hanya dipanggil bila catatan persetujuan memuat butirnya."""
 
     def setUp(self):
         super().setUp()
@@ -222,8 +198,11 @@ class ExternalAnalysisTest(ConsentTestBase):
         self.addCleanup(groq.stop)
         self.addCleanup(detector.stop)
 
-    def test_without_permission_nothing_leaves_the_server(self):
-        self.give(self.mhs, STUDENT_REQUIRED)
+    def test_record_without_the_external_item_keeps_everything_on_the_server(self):
+        # Pengaman: tidak ada jalur UI yang membuat catatan seperti ini lagi,
+        # tetapi pipeline tetap tidak boleh mengirim keluar tanpa butirnya.
+        items = [item for item in STUDENT_ITEMS if item != privacy.ITEM_EXTERNAL_AI]
+        privacy.record_consent(self.mhs.id, ConsentAction.GIVEN, items)
         self.assertEqual(self.submit().status_code, 201)
         self.groq.assert_not_called()
         self.detector.assert_not_called()
@@ -231,23 +210,11 @@ class ExternalAnalysisTest(ConsentTestBase):
             Submission.objects.get().analysis.analysis_source, AnalysisSource.HEURISTIC
         )
 
-    def test_with_permission_the_external_chain_is_tried(self):
-        self.give(self.mhs, [*STUDENT_REQUIRED, privacy.ITEM_EXTERNAL_AI])
+    def test_normal_consent_lets_the_external_chain_be_tried(self):
+        self.give(self.mhs)
         self.assertEqual(self.submit().status_code, 201)
         self.groq.assert_called_once()
         self.detector.assert_called_once()
-
-    def test_turning_permission_off_applies_to_the_next_revision(self):
-        self.give(self.mhs, [*STUDENT_REQUIRED, privacy.ITEM_EXTERNAL_AI])
-        self.submit()
-        self.client_for(self.mhs).patch(
-            "/api/me/consent", {"external_ai": False}, format="json"
-        )
-        self.groq.reset_mock()
-        self.detector.reset_mock()
-        self.assertEqual(self.submit().status_code, 201)
-        self.groq.assert_not_called()
-        self.detector.assert_not_called()
 
 
 class PolicyVersionSyncTest(TestCase):
@@ -265,40 +232,14 @@ class PolicyVersionSyncTest(TestCase):
         self.assertEqual(match.group(1), privacy.PRIVACY_POLICY_VERSION)
 
 
-class VoiceConsentTest(ConsentTestBase):
-    """Rekaman suara Cek Paham: butir opsional terpisah dari analisis di luar negeri (Pasal 22 ayat (4))."""
-
-    def patch_consent(self, body):
-        return self.client_for(self.mhs).patch("/api/me/consent", body, format="json")
-
-    def test_voice_is_optional_and_can_be_given_at_the_consent_screen(self):
-        self.assertEqual(self.give(self.mhs, STUDENT_REQUIRED).status_code, 201)
-        self.assertFalse(self.patch_consent({"external_ai": False}).data["consent"]["voice_cekpaham"])
-        ConsentRecord.objects.all().delete()
-        response = self.give(self.mhs, [*STUDENT_REQUIRED, privacy.ITEM_VOICE_CEKPAHAM])
-        self.assertTrue(response.data["consent"]["voice_cekpaham"])
-
-    def test_voice_and_external_analysis_change_independently(self):
-        self.give(self.mhs, STUDENT_REQUIRED)
-        on = self.patch_consent({"voice_cekpaham": True}).data["consent"]
-        self.assertEqual((on["voice_cekpaham"], on["external_ai"]), (True, False))
-        both = self.patch_consent({"external_ai": True}).data["consent"]
-        self.assertEqual((both["voice_cekpaham"], both["external_ai"]), (True, True))
-        off = self.patch_consent({"voice_cekpaham": False}).data["consent"]
-        self.assertEqual((off["voice_cekpaham"], off["external_ai"]), (False, True))
-
-    def test_unchanged_choice_adds_no_row_and_an_empty_patch_is_refused(self):
-        self.give(self.mhs, STUDENT_REQUIRED)
-        self.patch_consent({"voice_cekpaham": True})
-        rows = ConsentRecord.objects.filter(profile=self.mhs).count()
-        self.patch_consent({"voice_cekpaham": True})
-        self.assertEqual(ConsentRecord.objects.filter(profile=self.mhs).count(), rows)
-        self.assertEqual(self.patch_consent({}).status_code, 400)
-
-    def test_teacher_cannot_give_voice_consent(self):
-        self.assertEqual(self.give(self.dosen, [*TEACHER_REQUIRED, privacy.ITEM_VOICE_CEKPAHAM]).status_code, 400)
-
-    def test_withdrawal_removes_voice_consent_too(self):
-        self.give(self.mhs, [*STUDENT_REQUIRED, privacy.ITEM_VOICE_CEKPAHAM])
-        self.client_for(self.mhs).post("/api/me/consent/withdraw")
-        self.assertFalse(privacy.consent_status(self.mhs.id)["voice_cekpaham"])
+class ConsentItemSyncTest(TestCase):
+    def test_frontend_lists_the_same_consent_items(self):
+        # Ringkasan di form daftar dibuat dari CONSENT_ITEMS; kuncinya harus
+        # sama dengan butir yang dicatat backend, supaya tak ada tujuan yang
+        # dicatat tanpa pernah ditampilkan (atau sebaliknya).
+        path = Path(settings.BASE_DIR).parent / "frontend" / "lib" / "privacy.ts"
+        if not path.exists():
+            self.skipTest("frontend tidak ada di checkout ini")
+        shown = set(re.findall(r'key:\s*"([^"]+)"', path.read_text(encoding="utf-8")))
+        recorded = {item for items in privacy.REQUIRED_ITEMS.values() for item in items}
+        self.assertEqual(shown, recorded)

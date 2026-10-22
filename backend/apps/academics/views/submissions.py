@@ -62,7 +62,7 @@ class SubmissionListView(APIView):
         allow_external = require_student_consent(
             student.id,
             "Setujui Kebijakan Privasi versi terbaru sebelum mengumpulkan jawaban. "
-            "Buka menu Pengaturan atau muat ulang halaman.",
+            "Muat ulang halaman untuk menyetujuinya.",
         )
         serializer = SubmissionCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

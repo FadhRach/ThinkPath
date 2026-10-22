@@ -54,9 +54,10 @@ erDiagram
     consent_records {
         uuid id PK
         uuid profile_id FK
-        varchar action "given | updated | withdrawn"
+        varchar action "given | updated (riwayat lama) | withdrawn"
         varchar policy_version
-        jsonb items
+        jsonb items "butir per tujuan yang disetujui"
+        varchar source "register | reaccept | withdraw | seed"
         timestamptz created_at
     }
     classes {

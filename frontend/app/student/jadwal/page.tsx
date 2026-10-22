@@ -106,7 +106,7 @@ export default async function StudentSchedulePage({
         <Callout variant="info" title="Tentang Cek Paham">
           Cek Paham adalah satu pertanyaan singkat tentang jawabanmu sendiri, dijawab
           dengan suara. Tidak perlu persiapan khusus selain memahami kembali jawabanmu.
-          Izin rekaman suara bisa diatur di Pengaturan, bagian Privasi.
+          Suaramu hanya direkam selama sesi yang kamu mulai; rinciannya ada di Kebijakan Privasi.
         </Callout>
       ) : null}
 

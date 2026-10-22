@@ -14,11 +14,11 @@ from apps.accounts.privacy import ITEM_EXTERNAL_AI, ITEM_VOICE_CEKPAHAM, current
 
 NEEDS_POLICY = (
     "Setujui Kebijakan Privasi versi terbaru sebelum mengerjakan Cek Paham. "
-    "Buka menu Pengaturan atau muat ulang halaman."
+    "Muat ulang halaman untuk menyetujuinya."
 )
 NEEDS_VOICE = (
-    "Cek Paham merekam suaramu dan mengirimnya ke penyedia transkripsi di luar negeri. "
-    "Izinkan rekaman suara dan analisis di luar negeri di Pengaturan > Privasi untuk melanjutkan."
+    "Cek Paham merekam suaramu dan mengirimnya ke penyedia transkripsi di luar negeri, "
+    "tetapi persetujuanmu belum mencakupnya. Setujui Kebijakan Privasi versi terbaru untuk melanjutkan."
 )
 
 

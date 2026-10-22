@@ -32,7 +32,7 @@ class AuthenticatedUser:
     role: Optional[str] = None
     # Klaim "consent" sengaja tidak dibawa ke sini. Server tidak boleh
     # memakainya untuk memutuskan apa pun: setelah persetujuan ditarik, token
-    # lama di perangkat lain masih memuatnya. Lihat core.privacy.
+    # lama di perangkat lain masih memuatnya. Lihat apps.accounts.privacy.
 
     @property
     def is_authenticated(self) -> bool:

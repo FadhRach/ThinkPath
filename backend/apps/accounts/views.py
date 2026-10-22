@@ -1,21 +1,20 @@
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.authentication import create_access_token
-from apps.accounts.models import ConsentAction, Role
+from apps.accounts.models import ConsentAction
 from apps.accounts.privacy import (
-    ITEM_EXTERNAL_AI,
-    ITEM_VOICE_CEKPAHAM,
+    SOURCE_REACCEPT,
+    SOURCE_WITHDRAW,
     consent_status,
     current_consent,
+    items_for,
     record_consent,
 )
 from apps.accounts.serializers import (
     ConsentGiveSerializer,
-    ConsentUpdateSerializer,
     LoginSerializer,
     ProfilePatchSerializer,
     ProfileSerializer,
@@ -30,8 +29,6 @@ from apps.accounts.services import (
 
 ROLE_NAME = {"teacher": "dosen", "student": "mahasiswa"}
 ROLE_OPTION = {"teacher": "Dosen", "student": "Mahasiswa"}
-# Nama field PATCH /me/consent -> butir persetujuan opsional mahasiswa.
-OPTIONAL_CHOICES = {"external_ai": ITEM_EXTERNAL_AI, "voice_cekpaham": ITEM_VOICE_CEKPAHAM}
 
 
 def role_mismatch_message(account_role: str) -> str:
@@ -58,7 +55,16 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        profile = register_profile(**serializer.validated_data)
+        data = serializer.validated_data
+        # Persetujuan dicatat bersama akun; token dibuat sesudahnya sehingga
+        # sudah memuat klaim persetujuan dan pengguna langsung masuk aplikasi.
+        profile = register_profile(
+            email=data["email"],
+            password=data["password"],
+            display_name=data["display_name"],
+            role=data["role"],
+            consent=True,
+        )
         return Response(_auth_response(profile), status=status.HTTP_201_CREATED)
 
 
@@ -109,9 +115,9 @@ class ConsentView(APIView):
     """Persetujuan pemrosesan data pribadi milik pemanggil.
 
     GET: keadaan yang berlaku beserta riwayatnya.
-    POST: memberi persetujuan untuk versi kebijakan yang berlaku. Token baru
-    dikembalikan karena klaim persetujuan di token lama sudah usang.
-    PATCH: mengubah pilihan opsional (mahasiswa: analisis di luar negeri, rekaman suara Cek Paham).
+    POST: menyetujui ulang versi kebijakan yang berlaku (akun lama, versi baru,
+    atau setelah ditarik). Pendaftaran baru mencatat persetujuan sendiri di
+    RegisterView. Token baru dikembalikan karena klaim di token lama usang.
     """
 
     def get(self, request):
@@ -120,34 +126,18 @@ class ConsentView(APIView):
 
     def post(self, request):
         profile = get_request_profile(request)
-        serializer = ConsentGiveSerializer(
-            data=request.data, context={"role": profile.role}
-        )
+        serializer = ConsentGiveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        record_consent(profile.id, ConsentAction.GIVEN, serializer.validated_data["items"])
+        record_consent(
+            profile.id,
+            ConsentAction.GIVEN,
+            items_for(profile.role),
+            source=SOURCE_REACCEPT,
+        )
         return Response(
             {"token": create_access_token(profile), "consent": consent_status(profile.id)},
             status=status.HTTP_201_CREATED,
         )
-
-    def patch(self, request):
-        profile = get_request_profile(request)
-        if profile.role != Role.STUDENT:
-            raise ValidationError("Tidak ada pilihan opsional untuk peran ini.")
-        current = current_consent(profile.id)
-        if current is None:
-            raise ValidationError("Setujui Kebijakan Privasi versi terbaru lebih dulu.")
-        serializer = ConsentUpdateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        items = set(current.items)
-        for field, item in OPTIONAL_CHOICES.items():
-            if field in serializer.validated_data:
-                items.discard(item)
-                if serializer.validated_data[field]:
-                    items.add(item)
-        if items != set(current.items):
-            record_consent(profile.id, ConsentAction.UPDATED, items)
-        return Response({"consent": consent_status(profile.id)})
 
 
 class ConsentWithdrawView(APIView):
@@ -161,7 +151,9 @@ class ConsentWithdrawView(APIView):
     def post(self, request):
         profile = get_request_profile(request)
         if current_consent(profile.id) is not None:
-            record_consent(profile.id, ConsentAction.WITHDRAWN, [])
+            record_consent(
+                profile.id, ConsentAction.WITHDRAWN, [], source=SOURCE_WITHDRAW
+            )
         return Response(
             {"token": create_access_token(profile), "consent": consent_status(profile.id)}
         )

@@ -37,7 +37,7 @@ class DocumentImportView(APIView):
         allow_external = require_student_consent(
             student.id,
             "Setujui Kebijakan Privasi versi terbaru sebelum mengunggah dokumen. "
-            "Buka menu Pengaturan atau muat ulang halaman.",
+            "Muat ulang halaman untuk menyetujuinya.",
         )
         upload = request.FILES.get("file")
         if upload is None:

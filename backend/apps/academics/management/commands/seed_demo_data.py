@@ -30,7 +30,8 @@ from apps.academics.models import (
 )
 from apps.analysis.choices import AiBand, AnalysisSource
 from apps.analysis.models import AnalysisResult
-from apps.accounts.models import EducationLevel, Profile, Role
+from apps.accounts.models import ConsentAction, EducationLevel, Profile, Role
+from apps.accounts.privacy import SOURCE_SEED, current_consent, items_for, record_consent
 from apps.cekpaham.models import CekPaham, RequestStatus
 from apps.cekpaham.seed import seed_cekpaham_demo
 from apps.notifications import events as notify_events
@@ -47,6 +48,14 @@ def _stable_uuid(label: str) -> uuid.UUID:
     return uuid.uuid5(SEED_NAMESPACE, label)
 
 
+def _ensure_consent(profile: Profile) -> None:
+    """Akun demo sudah menyetujui kebijakan agar login langsung masuk aplikasi."""
+    if current_consent(profile.id) is None:
+        record_consent(
+            profile.id, ConsentAction.GIVEN, items_for(profile.role), source=SOURCE_SEED
+        )
+
+
 def _ensure_teacher() -> Profile:
     teacher, _ = Profile.objects.update_or_create(
         id=_stable_uuid("teacher:demo"),
@@ -58,6 +67,7 @@ def _ensure_teacher() -> Profile:
             "education_level": "",
         },
     )
+    _ensure_consent(teacher)
     return teacher
 
 
@@ -74,6 +84,7 @@ def _ensure_students(count: int) -> list[Profile]:
                 "role": Role.STUDENT,
             },
         )
+        _ensure_consent(student)
         students.append(student)
     return students
 

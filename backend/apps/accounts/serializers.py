@@ -18,11 +18,38 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "email", "role", "created_at"]
 
 
+def validate_policy_version(value: str) -> str:
+    """Versi dikirim frontend dan wajib sama dengan versi backend, supaya yang
+    tercatat benar-benar versi kebijakan yang dibaca pengguna. Selisih versi
+    hanya terjadi sesaat ketika frontend dan backend belum sama-sama diperbarui.
+    """
+    if value != privacy.PRIVACY_POLICY_VERSION:
+        raise serializers.ValidationError(
+            "Kebijakan Privasi baru saja diperbarui. Muat ulang halaman, baca "
+            "versi terbarunya, lalu setujui kembali."
+        )
+    return value
+
+
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(min_length=6, max_length=128)
     display_name = serializers.CharField(max_length=120)
     role = serializers.ChoiceField(choices=Role.choices)
+    # Satu centang di form daftar. Kedua field ini hanya untuk pemeriksaan dan
+    # dibuang sebelum akun dibuat; yang tersimpan adalah baris persetujuan.
+    accept_policy = serializers.BooleanField()
+    policy_version = serializers.CharField(max_length=20)
+
+    def validate_accept_policy(self, value: bool) -> bool:
+        if not value:
+            raise serializers.ValidationError(
+                "Setujui Kebijakan Privasi untuk membuat akun."
+            )
+        return value
+
+    def validate_policy_version(self, value: str) -> str:
+        return validate_policy_version(value)
 
     def validate_email(self, value: str) -> str:
         value = normalize_email(value)
@@ -43,50 +70,15 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ConsentGiveSerializer(serializers.Serializer):
-    """Persetujuan yang diberikan dari layar persetujuan.
+    """Persetujuan ulang dari layar persetujuan (versi baru atau setelah ditarik).
 
-    Versi dikirim frontend dan wajib sama dengan versi backend, supaya yang
-    tercatat benar-benar versi kebijakan yang dibaca pengguna. Selisih versi
-    hanya terjadi sesaat ketika frontend dan backend belum sama-sama diperbarui.
+    Butir yang disetujui ditentukan server dari peran, bukan dikirim klien.
     """
 
     policy_version = serializers.CharField(max_length=20)
-    items = serializers.ListField(
-        child=serializers.CharField(max_length=40), max_length=10
-    )
 
-    def validate(self, attrs: dict) -> dict:
-        if attrs["policy_version"] != privacy.PRIVACY_POLICY_VERSION:
-            raise serializers.ValidationError(
-                "Kebijakan Privasi baru saja diperbarui. Muat ulang halaman, baca "
-                "versi terbarunya, lalu setujui kembali."
-            )
-        role = self.context["role"]
-        items = set(attrs["items"])
-        required = set(privacy.REQUIRED_ITEMS[role])
-        unknown = items - required - set(privacy.OPTIONAL_ITEMS[role])
-        if unknown:
-            raise serializers.ValidationError(
-                f"Butir persetujuan tidak dikenal: {', '.join(sorted(unknown))}."
-            )
-        if not required <= items:
-            raise serializers.ValidationError(
-                "Semua butir wajib perlu disetujui untuk memakai ThinkPath."
-            )
-        attrs["items"] = sorted(items)
-        return attrs
-
-
-class ConsentUpdateSerializer(serializers.Serializer):
-    """Mengubah pilihan opsional tanpa menarik persetujuan wajib."""
-
-    external_ai = serializers.BooleanField(required=False)
-    voice_cekpaham = serializers.BooleanField(required=False)
-
-    def validate(self, attrs: dict) -> dict:
-        if not attrs:
-            raise serializers.ValidationError("Tidak ada pilihan yang diubah.")
-        return attrs
+    def validate_policy_version(self, value: str) -> str:
+        return validate_policy_version(value)
 
 
 class ProfilePatchSerializer(serializers.Serializer):

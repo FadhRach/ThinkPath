@@ -77,8 +77,8 @@ export default async function CekPahamResultPage({ params }: { params: Promise<{
           <p className="font-semibold text-foreground">Belum dikerjakan</p>
           <p className="text-body-sm text-muted-foreground">
             {detail.student_consent_ready
-              ? "Mahasiswa sudah memberi izin rekaman suara dan dapat mengerjakannya."
-              : "Mahasiswa belum mengaktifkan izin rekaman suara di Pengaturan, sehingga belum bisa mengerjakan. Minta mereka mengaktifkannya, atau batalkan Cek Paham ini bila tidak diperlukan."}
+              ? "Mahasiswa dapat mengerjakannya."
+              : "Persetujuan Kebijakan Privasi mahasiswa sedang tidak berlaku (belum menyetujui versi terbaru atau menariknya), sehingga belum bisa mengerjakan. Minta mereka masuk dan menyetujuinya, atau batalkan Cek Paham ini bila tidak diperlukan."}
           </p>
         </Card>
       ) : (

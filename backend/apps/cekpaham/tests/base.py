@@ -73,11 +73,11 @@ class CekPahamAPITestCase(TestCase):
 
     @staticmethod
     def grant_consent(profile, voice=True, external=True):
-        items = list(REQUIRED_ITEMS[Role.STUDENT])
-        if voice:
-            items.append(ITEM_VOICE_CEKPAHAM)
-        if external:
-            items.append(ITEM_EXTERNAL_AI)
+        items = [
+            item
+            for item in REQUIRED_ITEMS[Role.STUDENT]
+            if (voice or item != ITEM_VOICE_CEKPAHAM) and (external or item != ITEM_EXTERNAL_AI)
+        ]
         record_consent(profile.id, ConsentAction.GIVEN, items)
 
     def setUp(self):

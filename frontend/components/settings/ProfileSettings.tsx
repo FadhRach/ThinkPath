@@ -1,7 +1,7 @@
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
-import { PrivacyPanel } from "@/components/settings/PrivacyPanel";
+import { ConsentProof } from "@/components/settings/ConsentProof";
 import { ProfileForm } from "@/components/settings/ProfileForm";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/formatting";
@@ -31,8 +31,8 @@ export function ProfileSettings({
         title="Pengaturan"
         subtitle={
           profile.role === "teacher"
-            ? "Ubah nama tampil dan jenjang pendidikan Anda, serta kelola persetujuan data."
-            : "Ubah nama tampil dan jenjang pendidikanmu, serta kelola persetujuan datamu."
+            ? "Ubah nama tampil dan jenjang pendidikan Anda, serta lihat bukti persetujuan data."
+            : "Ubah nama tampil dan jenjang pendidikanmu, serta lihat bukti persetujuan datamu."
         }
       />
 
@@ -41,7 +41,7 @@ export function ProfileSettings({
           <Card className="space-y-4 p-5 shadow-soft">
             <ProfileForm profile={profile} />
           </Card>
-          <PrivacyPanel role={profile.role} consent={consent} />
+          <ConsentProof role={profile.role} consent={consent} />
         </div>
 
         <div className="space-y-6">

@@ -233,11 +233,17 @@ class UploadTest(DocumentTestCase):
         self.assertIn("Halaman 2 gagal dibaca", response.data["warnings"][0])
 
     def test_images_are_not_sent_abroad_without_consent(self):
+        # Catatan tanpa butir luar negeri (pengaman; UI tidak lagi membuatnya).
+        record_consent(
+            self.student.id,
+            ConsentAction.GIVEN,
+            [item for item in REQUIRED_ITEMS[Role.STUDENT] if item != ITEM_EXTERNAL_AI],
+        )
         with patch.object(documents.groq_vision, "transcribe") as transcribe:
             response = self.upload(make_png())
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Pengaturan", str(response.data))
+        self.assertIn("Kebijakan Privasi", str(response.data))
         transcribe.assert_not_called()
 
     def test_file_type_comes_from_content_not_name(self):

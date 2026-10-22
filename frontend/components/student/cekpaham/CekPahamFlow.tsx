@@ -145,14 +145,15 @@ export function CekPahamFlow({ initial }: { initial: StudentCekPaham }) {
 
   switch (step) {
     case "intro":
-      // Izin suara diberikan sekali di Pengaturan, bukan setiap kali memakai fitur ini.
+      // Izin suara sudah termasuk persetujuan Kebijakan Privasi; di sini hanya
+      // tersisa kasus persetujuannya tidak berlaku (versi baru atau ditarik).
       if (!initial.consent.ready) {
         return (
-          <Callout variant="info" title="Izin rekaman suara belum aktif">
-            Cek Paham dijawab dengan suara. Aktifkan &ldquo;rekaman suara&rdquo; dan &ldquo;analisis di luar
-            negeri&rdquo; satu kali di{" "}
-            <Link href={initial.consent.policy_current ? "/student/pengaturan" : "/persetujuan"} className="font-semibold underline">
-              {initial.consent.policy_current ? "Pengaturan > Privasi" : "halaman persetujuan"}
+          <Callout variant="info" title="Setujui Kebijakan Privasi dulu">
+            Cek Paham dijawab dengan suara, jadi persetujuan Kebijakan Privasi versi terbaru harus
+            berlaku lebih dulu.{" "}
+            <Link href="/persetujuan" className="font-semibold underline">
+              Buka halaman persetujuan
             </Link>
             , lalu kembali ke halaman ini.
           </Callout>

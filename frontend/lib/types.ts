@@ -187,9 +187,12 @@ export type ConsentState = "given" | "withdrawn" | "outdated" | "none";
 export type ConsentActionKind = "given" | "updated" | "withdrawn";
 
 export interface ConsentHistoryEntry {
+  id: string;
   action: ConsentActionKind;
   policy_version: string;
   items: string[];
+  /** Asal catatan: register, reaccept, withdraw, seed; kosong pada data lama. */
+  source: string;
   created_at: string;
 }
 
@@ -198,10 +201,6 @@ export interface ConsentStatus {
   current_version: string;
   status: ConsentState;
   items: string[];
-  /** Mahasiswa mengizinkan jawabannya dianalisis penyedia di luar negeri. */
-  external_ai: boolean;
-  /** Mahasiswa mengizinkan suaranya direkam untuk Cek Paham. */
-  voice_cekpaham: boolean;
   given_at: string | null;
   history: ConsentHistoryEntry[];
 }

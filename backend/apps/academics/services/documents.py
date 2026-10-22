@@ -203,7 +203,7 @@ def _extract_pages(data: bytes, kind: str, *, allow_external: bool) -> Extractio
         if not allow_external:
             raise ValidationError(
                 "Dokumen ini berisi gambar yang dibaca layanan analisis di luar negeri (Groq). "
-                "Aktifkan izinnya di Pengaturan, atau ketik jawabanmu."
+                "Persetujuanmu belum mencakup analisis itu: setujui Kebijakan Privasi versi terbaru, atau ketik jawabanmu."
             )
         if not groq.is_configured():
             raise ValidationError("Pembacaan gambar belum tersedia di server ini. Ketik jawabanmu.")

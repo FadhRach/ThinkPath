@@ -2,8 +2,8 @@ from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.accounts.models import Profile, Role
-from apps.accounts.privacy import PRIVACY_POLICY_VERSION, REQUIRED_ITEMS
+from apps.accounts.models import ConsentAction, ConsentRecord, Profile, Role
+from apps.accounts.privacy import PRIVACY_POLICY_VERSION, REQUIRED_ITEMS, SOURCE_REGISTER
 
 
 class RegistrationFlowTest(TestCase):
@@ -11,15 +11,42 @@ class RegistrationFlowTest(TestCase):
         cache.clear()
         self.client = APIClient()
 
-    def register(self, role, email="new@campus.test"):
+    def register(self, role, email="new@campus.test", **overrides):
         return self.client.post("/api/auth/register", {
             "email": email,
             "password": "registration123",
             "display_name": "New Account",
             "role": role,
+            "accept_policy": True,
+            "policy_version": PRIVACY_POLICY_VERSION,
+            **overrides,
         }, format="json")
 
-    def test_new_accounts_can_consent_and_load_empty_dashboards(self):
+    def test_registering_records_consent_in_one_step(self):
+        for role in (Role.STUDENT, Role.TEACHER):
+            with self.subTest(role=role):
+                response = self.register(role, email=f"{role}@campus.test")
+                self.assertEqual(response.status_code, 201)
+                record = ConsentRecord.objects.get(profile_id=response.data["profile"]["id"])
+                self.assertEqual(record.action, ConsentAction.GIVEN)
+                self.assertEqual(record.policy_version, PRIVACY_POLICY_VERSION)
+                self.assertEqual(record.items, sorted(REQUIRED_ITEMS[role]))
+                self.assertEqual(record.source, SOURCE_REGISTER)
+                self.assertIsNotNone(record.created_at)
+
+    def test_registration_without_the_checkbox_creates_nothing(self):
+        for overrides in ({"accept_policy": False}, {"accept_policy": None}, {"policy_version": "2020-01-01"}):
+            with self.subTest(overrides=overrides):
+                self.assertEqual(self.register(Role.STUDENT, **overrides).status_code, 400)
+        missing = self.client.post("/api/auth/register", {
+            "email": "x@campus.test", "password": "registration123",
+            "display_name": "X", "role": Role.STUDENT,
+        }, format="json")
+        self.assertEqual(missing.status_code, 400)
+        self.assertFalse(Profile.objects.exists())
+        self.assertFalse(ConsentRecord.objects.exists())
+
+    def test_new_accounts_load_empty_dashboards_straight_after_registering(self):
         for role in (Role.STUDENT, Role.TEACHER):
             with self.subTest(role=role):
                 self.client.credentials()
@@ -30,12 +57,6 @@ class RegistrationFlowTest(TestCase):
                 self.assertNotIn("password", response.data["profile"])
                 self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['token']}")
                 self.assertEqual(self.client.get("/api/me").status_code, 200)
-                consent = self.client.post("/api/me/consent", {
-                    "policy_version": PRIVACY_POLICY_VERSION,
-                    "items": list(REQUIRED_ITEMS[role]),
-                }, format="json")
-                self.assertEqual(consent.status_code, 201)
-                self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {consent.data['token']}")
                 paths = ("/api/student/classes", "/api/student/progress", "/api/student/materials", "/api/student/schedule") if role == Role.STUDENT else (
                     "/api/classes", "/api/assignments", "/api/submissions", "/api/overview", "/api/reports/overview", "/api/cekpaham",
                 )

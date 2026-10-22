@@ -4,6 +4,7 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from apps.accounts.models import Profile
+from apps.accounts.privacy import current_consent
 from apps.cekpaham import judge
 from apps.cekpaham.models import AttemptStatus, CekPaham, CekPahamAttempt, CekPahamReport
 from apps.cekpaham.services.gate import consent_state
@@ -25,9 +26,12 @@ class SeedDemoTest(TestCase):
         call_command("seed_demo_data", stdout=StringIO())
         self.assertEqual((CekPaham.objects.count(), CekPahamAttempt.objects.count(), CekPahamReport.objects.count()), (3, 2, 1))
 
-    def test_only_the_demo_student_has_voice_consent_ready(self):
-        ready = {p.email for p in Profile.objects.filter(role="student") if consent_state(p.id)["ready"]}
-        self.assertEqual(ready, {"mhs07@thinkpath.local"})
+    def test_every_demo_account_has_consent_so_login_goes_straight_in(self):
+        students = Profile.objects.filter(role="student")
+        self.assertEqual(students.count(), 8)
+        for profile in Profile.objects.all():
+            self.assertIsNotNone(current_consent(profile.id), profile.email)
+        self.assertTrue(all(consent_state(p.id)["ready"] for p in students))
 
     def test_demo_evidence_quotes_really_appear_in_the_transcript(self):
         for attempt in CekPahamAttempt.objects.all():
