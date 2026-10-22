@@ -27,7 +27,7 @@ Password untuk semua akun: `thinkpath123`
 
 Cara mengerjakan di data demo direkam seperti di produksi, yaitu cuplikan jumlah kata tiap 30 detik, bukan angka karangan: empat mahasiswa menulis bertahap, dua sebagian besar mengetik dengan satu kutipan pendek, dan dua memunculkan seluruh jawaban sekaligus lalu mengumpulkan. Sebaran band yang dihasilkan: 32 rendah, 16 sedang, 16 tinggi. Lonceng notifikasi kedua peran juga sudah terisi.
 
-Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Saat pertama masuk, setiap akun diminta membaca dan menyetujui [Kebijakan Privasi](https://thinkpath.vercel.app/kebijakan-privasi) lebih dulu.
+Untuk peninjauan cepat, login sebagai dosen dan buka halaman Overview. Akun baru menyetujui [Kebijakan Privasi](https://thinkpath.vercel.app/kebijakan-privasi) dengan satu centang di form daftar; akun demo sudah tercatat menyetujui, jadi langsung bisa dipakai.
 
 ## Tech Stack
 
@@ -115,11 +115,11 @@ Kedua peran punya lonceng notifikasi: mahasiswa diberi tahu soal tugas dan mater
 
 ### Privasi dan persetujuan
 
-Sebelum memakai ThinkPath, setiap pengguna membaca ringkasan pemrosesan data dan menyetujui butir-butirnya satu per satu, sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi:
+Pengguna menyetujui [Kebijakan Privasi](https://thinkpath.vercel.app/kebijakan-privasi) satu kali, dengan satu centang di form daftar, sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi. Tiap tujuan tetap ditulis terpisah di atas centang dan dicatat sebagai butir sendiri:
 
-- **Mahasiswa** menyetujui tiga butir wajib: data perkuliahan, perekaman proses menulis beserta analisis otomatis, dan pernyataan usia atau izin wali. Butir keempat opsional, yaitu mengizinkan teks jawaban dianalisis Groq (Amerika Serikat) dan Winston AI (Kanada). Tanpa izin itu, jawaban hanya dianalisis heuristik di server ThinkPath.
-- **Dosen** menyetujui data akun dan menyatakan tanggung jawabnya: menjaga kerahasiaan data mahasiswa dan tidak menjatuhkan sanksi hanya berdasarkan skor.
-- Setiap keputusan dicatat sebagai bukti per versi kebijakan dan tidak pernah ditimpa. Pengguna bisa melihat riwayatnya, mengubah pilihan opsional, dan menarik persetujuan di Pengaturan. Penarikan menghentikan pengumpulan jawaban dan analisis ulang seketika, termasuk dari token lama di perangkat lain.
+- **Mahasiswa**: data perkuliahan; perekaman proses menulis beserta analisis otomatis; analisis oleh penyedia di luar negeri (Groq di Amerika Serikat, Winston AI di Kanada); rekaman suara untuk Cek Paham; dan pernyataan usia atau izin wali.
+- **Dosen**: data akun dan kelas, serta tanggung jawab menjaga kerahasiaan data mahasiswa dan tidak menjatuhkan sanksi hanya berdasarkan skor.
+- Setiap keputusan dicatat sebagai bukti per versi kebijakan dan tidak pernah ditimpa. Pengguna bisa melihat buktinya (versi, waktu, tujuan, nomor bukti) dan riwayatnya, serta menarik persetujuan, di Pengaturan. Penarikan menghentikan pengumpulan jawaban dan analisis ulang seketika, termasuk dari token lama di perangkat lain.
 
 Isi [Kebijakan Privasi](https://thinkpath.vercel.app/kebijakan-privasi) disusun dari kode yang berlaku dan dari teks resmi undang-undang. Pemetaan tiap pasal ke kode yang melaksanakannya, beserta penilaian dampak awal, ada di [diagram/07-privasi-dan-persetujuan.md](./diagram/07-privasi-dan-persetujuan.md).
 
@@ -160,7 +160,7 @@ Beberapa masukan sengaja diam ketika datanya tidak layak dibaca. Keragaman kosak
 - Materi kelas tersusun per topik atau pertemuan, dengan pencarian lintas kelas
 - Jadwal mahasiswa berbentuk kalender bulan dan pekan: tenggat tugas dan batas Cek Paham
 - Notifikasi di dalam aplikasi untuk dosen dan mahasiswa
-- Kebijakan Privasi dan persetujuan berbasis UU PDP, dengan bukti persetujuan per versi, izin analisis di luar negeri yang bisa dicabut, dan penarikan persetujuan
+- Kebijakan Privasi dan persetujuan berbasis UU PDP, dengan bukti persetujuan per versi, satu centang persetujuan di form daftar (tujuan tetap dicatat per butir), dan penarikan persetujuan
 - Ritme kalimat sebagai bukti gaya menulis
 - Cek Paham, tes lisan singkat: mahasiswa menjawab satu soal dosen hanya dengan suara, lalu dosen menerima audio, transkrip, dan saran skor berikut kutipan buktinya. Nilai tetap dosen
 - Profil kognitif, tren level penalaran lintas tugas
