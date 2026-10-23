@@ -31,6 +31,16 @@ function processBandFor(durationSeconds: number | null): AiBand {
  * dan satu lagi di dalam skor AI. Sekarang keduanya berasal dari satu sumber.
  */
 function processBandFromDetail(detail: SubmissionDetail): AiBand {
+  // Pola pengerjaan hasil backend (bukti tersendiri, tidak masuk skor AI).
+  switch (detail.analysis?.process_band) {
+    case "attention":
+      return "high";
+    case "partial":
+      return "mid";
+    case "normal":
+    case "unrecorded":
+      return "low";
+  }
   const signal = detail.analysis?.signal_breakdown?.find(
     (item) => item.key === "process_forensics",
   );

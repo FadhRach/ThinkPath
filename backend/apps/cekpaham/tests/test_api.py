@@ -331,6 +331,13 @@ class FinalizeTest(CekPahamAPITestCase):
         self.assertEqual(cleaned, {"visibility_changes": 3, "silent_seconds": 0, "ended_reason": "r" * 40})
         self.assertEqual(clean_events("bukan dict"), {})
 
+    def test_non_finite_client_events_do_not_crash(self):
+        """json.loads menerima NaN/Infinity; int() atasnya dulu menjadi HTTP 500."""
+        from apps.cekpaham.services.attempts import clean_events
+
+        raw = json.loads('{"blur_count": NaN, "mic_errors": Infinity, "silent_seconds": -Infinity, "visibility_changes": 2}')
+        self.assertEqual(clean_events(raw), {"visibility_changes": 2})
+
     def test_stt_failure_keeps_the_audio_and_marks_the_attempt(self):
         cekpaham = self.make_request()
         self.start(cekpaham)

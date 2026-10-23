@@ -281,7 +281,8 @@ class UploadTest(DocumentTestCase):
             email="lain@test.local", display_name="Lain", role=Role.STUDENT
         )
         record_consent(outsider.id, ConsentAction.GIVEN, REQUIRED_ITEMS[Role.STUDENT])
-        self.assertEqual(self.upload(make_docx(ANSWER), student=outsider).status_code, 403)
+        # 404, bukan 403: id tugas kelas lain tidak boleh terbedakan dari id yang tidak ada.
+        self.assertEqual(self.upload(make_docx(ANSWER), student=outsider).status_code, 404)
         self.assertEqual(self.upload(make_docx(ANSWER), student=self.teacher).status_code, 403)
 
     def test_uploads_are_rate_limited_per_student(self):

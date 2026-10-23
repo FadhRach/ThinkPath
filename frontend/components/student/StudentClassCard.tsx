@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { teacherLabel } from "@/components/student/ArchivedClassNotice";
 import { Card } from "@/components/ui/card";
 import { academicLabel, distinctSubject } from "@/lib/academic";
 import { formatDate } from "@/lib/formatting";
@@ -17,7 +18,7 @@ export function StudentClassCard({ studentClass }: { studentClass: StudentClassW
       <Link href={`/student/kelas/${studentClass.id}`} className="block h-full p-5 underline-offset-4 hover:bg-accent/40">
         <h3 className="text-lg font-semibold leading-snug">{studentClass.name}</h3>
         {subject ? <p className="mt-1 text-sm text-muted-foreground">{subject}</p> : null}
-        <p className="mt-3 text-sm text-muted-foreground">{studentClass.teacher_name}</p>
+        <p className="mt-3 text-sm text-muted-foreground">{teacherLabel(studentClass.teacher_name)}{studentClass.is_archived ? " · Arsip" : ""}</p>
         <p className="mt-1 text-xs text-muted-foreground">{academicLabel(studentClass)}</p>
         <div className="mt-5 border-t border-border pt-4">
           {nextTask ? (

@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from apps.analysis.engines.heuristic import analyze_text
 from apps.academics.services.join_codes import generate_unique_join_code
-from apps.analysis.engines.process_signals import ProcessContext, ProgressSample
+from apps.analysis.engines.process_signals import ProcessContext, ProgressSample, assess_process
 from apps.academics.models import (
     Assignment,
     Class,
@@ -390,17 +390,17 @@ def _seed_submissions_for_assignment(
         # Tidak ada angka yang ditulis tangan. Seluruh baris demo dihitung
         # pipeline yang sama dengan jalur produksi, termasuk sinyal forensik
         # proses dari cuplikan di atas.
-        analysis = analyze_text(
-            submission.text_answer,
-            assignment.expected_bloom_level,
-            ProcessContext(
-                duration_seconds=duration_seconds,
-                revision_count=revision_count,
-                word_count=len(submission.text_answer.split()),
-                char_count=len(submission.text_answer),
-                progress=tuple(samples),
-            ),
+        process = ProcessContext(
+            duration_seconds=duration_seconds,
+            revision_count=revision_count,
+            word_count=len(submission.text_answer.split()),
+            char_count=len(submission.text_answer),
+            progress=tuple(samples),
         )
+        analysis = analyze_text(submission.text_answer, assignment.expected_bloom_level, process)
+        assessment = assess_process(process)
+        analysis["process_band"] = assessment.band
+        analysis["process_evidence"] = assessment.evidence
         analysis["analysis_source"] = AnalysisSource.SEED
         AnalysisResult.objects.update_or_create(
             submission=submission,

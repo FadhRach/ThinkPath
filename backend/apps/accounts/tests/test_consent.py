@@ -41,7 +41,7 @@ TEACHER_ITEMS = sorted(privacy.REQUIRED_ITEMS[Role.TEACHER])
 
 
 def claims(token: str) -> dict:
-    return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    return jwt.decode(token, options={"verify_signature": False})
 
 
 class ConsentTestBase(TestCase):

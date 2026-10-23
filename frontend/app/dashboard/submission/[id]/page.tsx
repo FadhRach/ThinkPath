@@ -2,11 +2,13 @@ import { FileUp } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AiScoreRing } from "@/components/common/AiScoreRing";
+import { AnalysisPoller } from "@/components/common/AnalysisPoller";
 import { BackLink } from "@/components/common/BackLink";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { BloomStepper } from "@/components/common/BloomStepper";
 import { Callout } from "@/components/common/Callout";
 import { SectionCard } from "@/components/common/SectionCard";
+import { AnalysisHistory } from "@/components/submission/AnalysisHistory";
 import {
   AnalysisSourceBadge,
   AnalysisSourceNote,
@@ -71,6 +73,7 @@ export default async function SubmissionDetailPage({
     { label: "Kognitif", band: bands.cognitiveBand, detail: buildCognitiveSentence(detail) },
   ];
   const analysis = detail.analysis;
+  const analysing = detail.analysis_state === "pending" || detail.analysis_state === "running";
   const isFlagged = analysis?.ai_band === "high";
   const status = submissionStatusMeta(detail.status);
   const breakdown = analysis?.signal_breakdown ?? [];
@@ -88,6 +91,21 @@ export default async function SubmissionDetailPage({
         href={backHref}
         label={detail.assignment.class_id ? "Kembali ke kelas" : "Kembali ke daftar tugas"}
       />
+
+      {analysing ? (
+        <>
+          <AnalysisPoller />
+          <Callout variant="info" title="Analisis sedang berjalan">
+            Jawaban sudah tersimpan. Skor dan level Bloom muncul di halaman ini dalam beberapa
+            detik, tanpa perlu dimuat ulang.
+          </Callout>
+        </>
+      ) : null}
+      {detail.analysis_state === "failed" ? (
+        <Callout variant="warning" title="Analisis gagal">
+          Jawaban tersimpan, tetapi analisisnya tidak selesai. Tekan Analisis Ulang di bagian bukti.
+        </Callout>
+      ) : null}
 
       <Card className="campus-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -144,6 +162,12 @@ export default async function SubmissionDetailPage({
         </div>
       </Card>
 
+      {/* Bukti inti di atas esai: dosen melihat gambaran proses, teks, dan kognitif
+          sebelum membaca jawaban. Rincian lengkap ada di bagian lipat bawah. */}
+      <SectionCard eyebrow="Ringkasan Bukti">
+        <EvidenceStrip rows={evidenceRows} />
+      </SectionCard>
+
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(19rem,1fr)]">
         <SectionCard eyebrow="Jawaban mahasiswa">
           {detail.text_answer ? <SentenceRhythm text={detail.text_answer} /> : <p className="text-sm text-muted-foreground">Belum ada teks jawaban.</p>}
@@ -152,7 +176,7 @@ export default async function SubmissionDetailPage({
       </div>
       <RequestCekPahamPanel submissionId={detail.id} items={cekpahamItems} />
       <details className="group rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <summary className="cursor-pointer text-sm font-bold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Lihat analisis dan bukti pengerjaan <span className="ml-2 text-xs font-normal text-muted-foreground">Bloom, sinyal teks, dan linimasa</span></summary>
+        <summary className="cursor-pointer text-sm font-bold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Rincian analisis dan bukti pengerjaan <span className="ml-2 text-xs font-normal text-muted-foreground">Bloom, asal skor, linimasa, dan riwayat</span></summary>
       <div className="mt-5 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           {analysis?.summary ? (
@@ -214,10 +238,6 @@ export default async function SubmissionDetailPage({
             </Card>
           ) : null}
 
-          <SectionCard eyebrow="Ringkasan Bukti">
-            <EvidenceStrip rows={evidenceRows} />
-          </SectionCard>
-
           {/* Tanpa rincian skor, daftar sinyal adalah satu-satunya penjelasan
               teks dan selalu ditampilkan. Dengan rincian, hanya temuan yang
               belum muncul di sana yang tersisa. */}
@@ -238,7 +258,11 @@ export default async function SubmissionDetailPage({
             />
           </SectionCard>
 
-          <ReanalyzeButton submissionId={detail.id} />
+          <SectionCard eyebrow="Riwayat Analisis">
+            <AnalysisHistory runs={detail.analysis_history} />
+          </SectionCard>
+
+          <ReanalyzeButton submissionId={detail.id} busy={analysing} />
         </aside>
       </div>
       </details>
@@ -252,6 +276,16 @@ function countWords(text: string): number {
 }
 
 function buildProcessSentence(detail: SubmissionDetail): string {
+  const evidence = detail.analysis?.process_evidence;
+  if (evidence) {
+    // Kalimat dari backend sudah memuat revisi; ditambah penjelasan netral
+    // bila pola tiba-sekaligus, supaya tidak terbaca sebagai tuduhan.
+    const note =
+      detail.analysis?.process_band === "attention"
+        ? " Ini bisa terjadi bila jawaban ditulis di aplikasi lain lalu ditempel."
+        : "";
+    return `${evidence}.${note}`;
+  }
   // Revisi di sini berarti Simpan Revisi setelah dikumpulkan, bukan suntingan
   // saat menulis, jadi kalimatnya tidak boleh terbaca "tidak pernah menyunting".
   const revisionPart =

@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 const FEATURES = [
   {
     icon: ScanSearch,
-    title: "Deteksi penggunaan AI",
-    body: "Enam sinyal membaca pola teks sekaligus proses menulisnya, bukan sekadar hasil akhir.",
+    title: "Indikasi AI dan pola pengerjaan",
+    body: "Skor indikasi AI dari teksnya, ditampilkan terpisah dari pola pengerjaan: kapan mulai menulis, berapa lama, dan bagaimana tulisannya tumbuh.",
   },
   {
     icon: TrendingUp,
@@ -45,7 +45,7 @@ export default function HomePage() {
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-body-lg text-muted-foreground">
           ThinkPath merekam proses berpikir mahasiswa dan menyajikannya sebagai bukti
-          yang dapat ditinjau: analisis Taksonomi Bloom dan deteksi penggunaan AI
+          yang dapat ditinjau: analisis Taksonomi Bloom, indikasi penggunaan AI, dan pola pengerjaan
           dalam satu platform untuk dosen dan mahasiswa.
         </p>
         <div className="mt-8 flex justify-center gap-3">

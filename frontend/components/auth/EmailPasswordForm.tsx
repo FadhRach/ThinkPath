@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { RoleSelector } from "@/components/auth/RoleSelector";
@@ -58,6 +59,7 @@ export function EmailPasswordForm({ mode, policy }: Props) {
               password,
               display_name: displayName.trim(),
               role,
+              agreed,
             }),
       (result) => router.replace(homePathForRole(result.profile.role)),
     );
@@ -111,9 +113,14 @@ export function EmailPasswordForm({ mode, policy }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        {/* Tautan "Lupa kata sandi?" dihapus: alur reset belum ada, dan teks
-            berwarna tautan yang tidak bisa diklik hanya membingungkan. */}
-        <Label htmlFor="password">Kata sandi</Label>
+        <div className="flex items-baseline justify-between">
+          <Label htmlFor="password">Kata sandi</Label>
+          {mode === "login" ? (
+            <Link href="/lupa-sandi" className="text-body-sm font-semibold text-primary">
+              Lupa kata sandi?
+            </Link>
+          ) : null}
+        </div>
         <div className="relative">
           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -121,7 +128,7 @@ export function EmailPasswordForm({ mode, policy }: Props) {
             suppressHydrationWarning
             type={showPassword ? "text" : "password"}
             required
-            minLength={6}
+            minLength={mode === "register" ? 10 : undefined}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}

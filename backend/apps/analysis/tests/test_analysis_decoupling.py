@@ -29,7 +29,7 @@ from apps.analysis.engines.ai_score import (
 from apps.analysis.engines.heuristic import analyze_text
 from apps.analysis.engines.bloom import estimate_bloom_level
 from apps.analysis.choices import AiBand, AnalysisSource, Confidence
-from apps.analysis.engines.process_signals import ProcessContext
+from apps.analysis.engines.process_signals import ProcessBand, ProcessContext, assess_process
 from apps.analysis.engines.text_features import extract_features
 
 # Keempat contoh ditulis dalam register akademik mahasiswa, bukan register anak
@@ -436,12 +436,19 @@ class ProcessSignalTest(SimpleTestCase):
         process = next(s for s in result.breakdown if s.key == "process_forensics")
         self.assertAlmostEqual(process.weight, PROCESS_WEIGHT, places=6)
 
-    def test_rushed_process_scores_higher_than_patient_process(self):
-        """Teks identik, hanya cara pengerjaannya berbeda."""
+    def test_process_does_not_move_the_ai_score(self):
+        """Teks identik, cara pengerjaan berbeda: skor AI sama, pola pengerjaan beda.
+
+        Skor AI diukur pada teks saja (ambang 42 berlaku untuk bobot itu), dan
+        mahasiswa yang menempel dari Word tidak boleh naik pita karenanya.
+        """
         features = extract_features(DEEP_HUMAN)
+        none = score_ai_probability(features).score
         patient = score_ai_probability(features, PATIENT_PROCESS).score
         rushed = score_ai_probability(features, RUSHED_PROCESS).score
-        self.assertLess(patient, rushed)
+        self.assertEqual({none, patient, rushed}, {none})
+        self.assertEqual(assess_process(PATIENT_PROCESS).band, ProcessBand.NORMAL)
+        self.assertEqual(assess_process(RUSHED_PROCESS).band, ProcessBand.ATTENTION)
 
     def test_process_does_not_touch_bloom_level(self):
         """Kecepatan mengetik tidak mengubah level kognitif sebuah jawaban."""

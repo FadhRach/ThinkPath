@@ -17,12 +17,14 @@ from apps.academics.serializers import (
     JoinClassSerializer,
 )
 from apps.academics.services.join_codes import generate_unique_join_code
+from apps.academics.services.submissions import reject_if_archived
 from apps.accounts.models import Role
 from apps.accounts.permissions import IsStudent, IsTeacher
 from apps.accounts.services import get_request_profile
 from apps.notifications import events as notify_events
 from apps.notifications.services import safe
 from common.http import request_user_id
+from common.throttling import PerUserScopedThrottle
 
 
 class ClassListCreateView(APIView):
@@ -55,6 +57,8 @@ class JoinClassView(APIView):
     """POST gabung kelas via join code (mahasiswa). Idempotent."""
 
     permission_classes = [IsStudent]
+    throttle_classes = [PerUserScopedThrottle]
+    throttle_scope = "class_join"
 
     def post(self, request):
         serializer = JoinClassSerializer(data=request.data)
@@ -64,6 +68,7 @@ class JoinClassView(APIView):
         ).first()
         if target_class is None:
             raise NotFound("Kode kelas tidak ditemukan.")
+        reject_if_archived(target_class)
 
         student = get_request_profile(request)
         _, created = ClassMembership.objects.get_or_create(

@@ -6,8 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchApi } from "@/lib/api-shared";
-import { readAuthTokenFromBrowser } from "@/lib/auth-token";
+import { directFetch } from "@/lib/upload-ticket";
 import { cancelCekPaham, reprocessCekPaham, resolveCekPahamReport } from "@/lib/mutations";
 import { useAction } from "@/lib/use-action";
 
@@ -62,11 +61,7 @@ export function CekPahamAudio({ id, attemptNumber }: { id: string; attemptNumber
     setPending(true);
     setError(null);
     try {
-      const response = await fetchApi(
-        `/api/cekpaham/${id}/attempts/${attemptNumber}/audio`,
-        {},
-        readAuthTokenFromBrowser(),
-      );
+      const response = await directFetch(`/api/cekpaham/${id}/attempts/${attemptNumber}/audio`);
       if (!response.ok) throw new Error(String(response.status));
       setSrc(URL.createObjectURL(await response.blob()));
     } catch {

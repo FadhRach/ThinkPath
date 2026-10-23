@@ -36,6 +36,7 @@ export default async function ConsentPage() {
           <Link
             href="/kebijakan-privasi"
             target="_blank"
+            rel="noopener noreferrer"
             className="text-body-sm font-semibold text-primary hover:underline"
           >
             Kebijakan Privasi

@@ -10,20 +10,19 @@ import { DocumentUploadField } from "@/components/student/DocumentUploadField";
 import { OriginalDocumentButton } from "@/components/submission/OriginalDocumentButton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  saveDraft,
   submitAnswer,
   type DocumentImportResult,
   type DocumentReadMethod,
-  type ProgressSample,
 } from "@/lib/mutations";
 import { useAction } from "@/lib/use-action";
 
 const MIN_LENGTH = 50;
 
-// Jarak antar cuplikan jumlah kata. Cukup rapat untuk memisahkan mengetik dari
-// menempel, cukup jarang agar satu pengerjaan dua jam tetap di bawah batas
-// yang diterima backend.
-const SAMPLE_INTERVAL_MS = 30_000;
-const MAX_SAMPLES = 240;
+// Jeda dari perubahan pertama sampai draf dikirim. Satu pewaktu yang tidak
+// diulang tiap ketikan: orang yang mengetik tanpa henti tetap tersimpan
+// berkala. Waktu mulai dan kurva kata dicatat SERVER dari simpanan ini.
+const AUTOSAVE_DELAY_MS = 3_000;
 
 type Mode = "create" | "revise";
 
@@ -32,6 +31,8 @@ interface Props {
   backHref: string;
   mode?: Mode;
   initialText?: string;
+  /** Dokumen unggahan yang menjadi sumber draf tersimpan. */
+  initialDocumentId?: string | null;
   /** Dosen mengizinkan jawaban diisi dari berkas. */
   allowUpload?: boolean;
 }
@@ -62,7 +63,7 @@ const COPY: Record<
     loading: "Mengumpulkan...",
     done: "Jawabanmu berhasil dikumpulkan. Terima kasih.",
     recording:
-      "Selama kamu mengerjakan, ThinkPath mencatat jumlah kata setiap 30 detik, bukan isi tulisanmu. Dosen melihat catatan ini sebagai gambaran proses menulismu. Menempel kutipan dari sumber yang kamu rujuk itu wajar.",
+      "Tulisanmu tersimpan otomatis. Sejak kamu mulai mengetik, ThinkPath mencatat jumlah kata dari waktu ke waktu, bukan isi tulisanmu, dan dosen melihatnya sebagai gambaran proses menulismu. Menempel kutipan dari sumber yang kamu rujuk itu wajar.",
   },
   revise: {
     submit: "Simpan Revisi",
@@ -73,47 +74,80 @@ const COPY: Record<
   },
 };
 
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+const SAVE_LABEL: Record<SaveState, string> = {
+  idle: "",
+  saving: "Menyimpan...",
+  saved: "Tersimpan otomatis",
+  error: "Belum tersimpan, akan dicoba lagi",
+};
+
 export function SubmitAnswerForm({
   assignmentId,
   backHref,
   mode = "create",
   initialText = "",
+  initialDocumentId = null,
   allowUpload = false,
 }: Props) {
-  // Waktu mulai direkam sekali saat form dirender, dikirim sebagai started_at.
-  const startedAtRef = useRef(new Date().toISOString());
-  // Jejak pertumbuhan kata. Disimpan di ref, bukan state, karena tidak pernah
-  // dirender dan tidak boleh memicu render ulang tiap tiga puluh detik.
-  const progressRef = useRef<ProgressSample[]>([]);
   const [text, setText] = useState(initialText);
   const [submitted, setSubmitted] = useState(false);
-  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
   const [importNote, setImportNote] = useState<ImportNote | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>(initialText ? "saved" : "idle");
   const { pending, error, run } = useAction("Gagal menyimpan jawaban. Coba lagi.");
   const copy = COPY[mode];
+  const autosave = mode === "create";
 
-  // Teks terbaru disimpan di ref supaya pewaktu di bawah tidak perlu dipasang
-  // ulang setiap ketikan, yang akan mengacak jarak antar cuplikan.
-  const textRef = useRef(text);
-  textRef.current = text;
+  // Nilai terbaru disimpan di ref supaya pewaktu tidak perlu dipasang ulang
+  // setiap ketikan.
+  const latest = useRef({ text, documentId });
+  latest.current = { text, documentId };
+  const savedText = useRef(initialText);
+  const timer = useRef<number | null>(null);
+  const finished = useRef(false);
+
+  async function flush() {
+    timer.current = null;
+    const { text: current, documentId: doc } = latest.current;
+    if (finished.current || current === savedText.current) return;
+    setSaveState("saving");
+    try {
+      await saveDraft(assignmentId, { text_answer: current, document_id: doc });
+      savedText.current = current;
+      setSaveState(latest.current.text === current ? "saved" : "saving");
+    } catch {
+      setSaveState("error");
+      schedule();
+    }
+  }
+
+  function schedule() {
+    if (!autosave || timer.current !== null || finished.current) return;
+    timer.current = window.setTimeout(flush, AUTOSAVE_DELAY_MS);
+  }
 
   useEffect(() => {
-    // Cuplikan dasar diambil segera, bukan menunggu selang pertama. Tanpa ini,
-    // menempel dalam tiga puluh detik pertama membuat pengamatan perdana sudah
-    // memuat teks penuh, dan jejaknya terbaca datar sejak awal.
-    progressRef.current.push({
-      at: new Date().toISOString(),
-      word_count: countWords(textRef.current),
-    });
-    const timer = setInterval(() => {
-      if (progressRef.current.length >= MAX_SAMPLES) return;
-      progressRef.current.push({
-        at: new Date().toISOString(),
-        word_count: countWords(textRef.current),
-      });
-    }, SAMPLE_INTERVAL_MS);
-    return () => clearInterval(timer);
+    if (!autosave) return;
+    // Tab ditutup atau disembunyikan: simpan yang tersisa.
+    const onHide = () => {
+      if (document.visibilityState === "hidden") void flush();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    };
+    // flush membaca nilai lewat ref; pewaktu tidak boleh dipasang ulang.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function handleChange(value: string) {
+    setText(value);
+    // Teks kosong tidak memulai apa pun di server, jadi tidak perlu dikirim.
+    if (value.trim() || savedText.current) schedule();
+  }
 
   function handleImported(result: DocumentImportResult, filename: string) {
     if (
@@ -125,33 +159,24 @@ export function SubmitAnswerForm({
     setText(result.text);
     setDocumentId(result.document_id);
     setImportNote({ filename, method: result.method, warnings: result.warnings });
+    schedule();
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Waktu mulai dan kurva kata sengaja tidak dikirim: server memakai catatan
+    // dari draf. Mengirimnya hanya mengundang pemalsuan.
     const { ok } = await run(() =>
       submitAnswer(assignmentId, {
         text_answer: text.trim(),
-        started_at: startedAtRef.current,
         document_id: documentId ?? undefined,
-        // Hanya dikirim saat mengarang dari nol. Pada mode revisi kotak sudah
-        // terisi jawaban sebelumnya, sehingga cuplikan dasar mencatat ratusan
-        // kata sejak detik nol dan backend akan membacanya sebagai lonjakan.
-        // Backend memang mengabaikan progress pada jalur revisi, tetapi lebih
-        // jujur tidak mengirim data yang tidak bisa ditafsirkan.
-        //
-        // Cuplikan terakhir diambil saat menekan tombol, supaya penambahan
-        // setelah cuplikan berkala terakhir tidak hilang dari jejak.
-        progress:
-          mode === "create"
-            ? [
-                ...progressRef.current,
-                { at: new Date().toISOString(), word_count: countWords(text) },
-              ].slice(0, MAX_SAMPLES)
-            : undefined,
       }),
     );
-    if (ok) setSubmitted(true);
+    if (ok) {
+      finished.current = true;
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      setSubmitted(true);
+    }
   }
 
   if (submitted) {
@@ -182,11 +207,18 @@ export function SubmitAnswerForm({
           required
           placeholder="Tulis jawabanmu di sini..."
           value={text}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => handleChange(event.target.value)}
           className="rounded-none border-0 bg-transparent px-5 py-4 text-body-lg focus-visible:ring-0 md:text-body-lg"
         />
         <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-3 text-body-sm text-muted-foreground">
-          <span>Minimal {MIN_LENGTH} karakter</span>
+          <span>
+            Minimal {MIN_LENGTH} karakter
+            {autosave && SAVE_LABEL[saveState] ? (
+              <span role="status" className={saveState === "error" ? "ml-3 text-danger" : "ml-3"}>
+                {SAVE_LABEL[saveState]}
+              </span>
+            ) : null}
+          </span>
           <span>{countWords(text)} kata &middot; {text.trim().length} karakter</span>
         </div>
       </Card>

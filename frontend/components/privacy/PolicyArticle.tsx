@@ -378,7 +378,7 @@ export function PolicyArticle({ className }: { className?: string }) {
           number={number("analisis-otomatis")}
           title="Analisis otomatis dan pemrofilan"
         >
-          <p>Setiap jawaban yang dikumpulkan dianalisis otomatis menjadi dua hasil yang terpisah:</p>
+          <p>Setiap jawaban yang dikumpulkan dianalisis otomatis menjadi tiga hasil yang terpisah:</p>
           <Bullets
             items={[
               <>
@@ -387,11 +387,17 @@ export function PolicyArticle({ className }: { className?: string }) {
                 melihat level dan perkembangannya sendiri di halaman Progres.
               </>,
               <>
-                <b>Indikasi penggunaan AI (0-100)</b>, yaitu gabungan lima sinyal gaya teks
-                dan satu sinyal proses, yakni bentuk kurva pertumbuhan kata. Jawaban yang
-                diimpor dari dokumen tidak punya jejak mengetik, sehingga sinyal proses
-                dilewati dan dosen melihat tandanya. Skor teks berasal dari detektor Winston AI atau model Groq; bila layanan itu tidak
-                tersedia, dari heuristik di server ThinkPath.
+                <b>Indikasi penggunaan AI (0-100)</b>, yang dihitung dari teks jawaban saja.
+                Skor ini berasal dari detektor Winston AI atau model Groq; bila layanan itu
+                tidak tersedia, dari heuristik di server ThinkPath.
+              </>,
+              <>
+                <b>Pola pengerjaan</b>, yang ditampilkan terpisah dari skor dan tidak
+                mengubahnya: kapan Anda mulai mengetik, berapa lama, dan bentuk kurva
+                pertumbuhan kata yang dicatat server dari draf yang tersimpan otomatis
+                selama Anda menulis. Pencatatan baru dimulai saat Anda mengetik, bukan saat
+                halaman dibuka. Jawaban yang diimpor dari dokumen tidak punya jejak
+                mengetik, sehingga dosen melihat tandanya.
               </>,
             ]}
           />
@@ -537,6 +543,12 @@ export function PolicyArticle({ className }: { className?: string }) {
                 "Jakarta, Indonesia. Basis data tidak dapat diakses langsung dari internet; hanya server API di mesin yang sama yang terhubung ke sana.",
               ],
               [
+                "Penyedia email (SMTP)",
+                "Mengirim email tautan atur ulang kata sandi atas permintaan Anda.",
+                "Alamat email Anda dan tautan sekali pakai yang berlaku 30 menit. Tidak berisi data akademik.",
+                "Penyedia dan lokasinya ditetapkan pengelola saat layanan email diaktifkan, dan dicantumkan di baris ini pada versi kebijakan berikutnya bila berubah.",
+              ],
+              [
                 "Groq, Inc.",
                 "Analisis teks (taksiran level Bloom dan indikasi AI), pembacaan teks dari gambar halaman dokumen, serta pengenalan suara dan penilaian jawaban Cek Paham.",
                 "Teks jawaban dan jenjang studi, gambar halaman dokumen scan atau foto yang Anda unggah, audio jawaban Cek Paham beserta transkripnya, tanpa nama atau email.",
@@ -583,11 +595,11 @@ export function PolicyArticle({ className }: { className?: string }) {
         <PolicySection id="retensi" number={number("retensi")} title="Penyimpanan dan penghapusan">
           <Bullets
             items={[
-              "Data disimpan selama akun Anda dan kelas terkait masih ada. ThinkPath belum menghapus data secara otomatis menurut jadwal; penghapusan dilakukan atas permintaan.",
-              "Bila Anda meminta penghapusan, tim pengelola menghapus akun beserta jawaban, dokumen unggahan, hasil analisis, notifikasi, dan catatan persetujuan yang terkait, lalu memberitahukannya kepada Anda (Pasal 43 dan 45). Jawaban dan nilai di kelas dosen ikut terhapus; beri tahu dosen Anda bila nilainya masih diperlukan untuk catatan akademik.",
-              "Untuk akun dosen, penghapusan ikut menghapus kelas, tugas, materi, dan seluruh jawaban mahasiswa di dalam kelas itu. Karena menyangkut data orang lain, kami mengonfirmasi dulu kepada dosen sebelum melaksanakannya.",
+              "Data disimpan selama akun Anda masih ada. Berkas unggahan yang tidak pernah dikumpulkan dibuang setelah 24 jam, notifikasi setelah 90 hari, dan riwayat tugas analisis setelah 30 hari.",
+              "Anda dapat menghapus akun sendiri di Pengaturan (kata sandi dan ketikan HAPUS diperlukan). Akun beserta jawaban, dokumen unggahan, rekaman suara, hasil analisis, notifikasi, sesi, dan catatan persetujuan Anda langsung dihapus dari basis data dan dari disk. Yang tersisa hanya catatan anonim bahwa sebuah akun dihapus (peran, versi kebijakan, jumlah data), tanpa identitas (Pasal 43 dan 45). Salinan cadangan memuat data sampai berkas cadangan kedaluwarsa (7 hari). Jawaban dan nilai Anda tidak lagi tersedia bagi dosen setelah akun dihapus.",
+              "Bila akun dosen dihapus, kelasnya tidak ikut dihapus. Kelas, tugas, materi, pengumuman, dan jawaban mahasiswa tetap tersimpan sebagai arsip yang hanya bisa dibaca, dengan keterangan bahwa dosennya telah menghapus akun, karena data itu juga milik mahasiswa. Mahasiswa dapat menghapus jawabannya dengan menghapus akunnya sendiri.",
               "Audio jawaban Cek Paham dihapus otomatis setelah 30 hari oleh tugas terjadwal di server. Transkrip dan hasil penilaiannya tetap tersimpan selama akun dan kelas terkait ada, atau sampai Anda meminta penghapusan.",
-              "Menarik persetujuan tidak otomatis menghapus data yang sudah ada. Pemrosesan baru berhenti seketika, sedangkan data lama tetap tersimpan sampai Anda meminta penghapusan.",
+              "Menarik persetujuan tidak otomatis menghapus data yang sudah ada. Pemrosesan baru berhenti seketika, sedangkan data lama tetap tersimpan sampai Anda menghapus akun.",
               "Laporan di dasbor Winston AI dapat kami hapus atas permintaan Anda; cadangannya terhapus dalam 90 hari sesuai kebijakan Winston AI. Log Groq terhapus sendiri paling lama 30 hari.",
               "Sidik jari SHA-256 di cache detektor tidak terhubung ke akun, sehingga tidak ikut terhapus. Teks jawaban tidak dapat dipulihkan dari sidik jari itu.",
             ]}
@@ -715,8 +727,9 @@ export function PolicyArticle({ className }: { className?: string }) {
           <p>
             ThinkPath hanya memakai satu cookie, <code className="rounded bg-muted px-1.5 py-0.5 text-body-sm">thinkpath_token</code>,
             yang berisi token login: id akun, email, peran, versi kebijakan yang Anda
-            setujui, serta waktu terbit dan kedaluwarsanya. Cookie ini berlaku 7 hari dan
-            dihapus saat Anda keluar.
+            setujui, id sesi, serta waktu terbit dan kedaluwarsanya. Cookie ini HttpOnly
+            (tidak dapat dibaca skrip di halaman), berlaku 7 hari, dan saat Anda keluar
+            sesinya dicabut di server sehingga token itu tidak berlaku lagi.
           </p>
           <p>
             Tidak ada cookie iklan, pelacak, atau analitik, dan ThinkPath tidak menyimpan
@@ -746,6 +759,10 @@ export function PolicyArticle({ className }: { className?: string }) {
             rows={[
               [
                 PRIVACY_POLICY_VERSION,
+                "Penghapusan akun mandiri di Pengaturan (baris basis data dan berkas di disk); kelas dosen yang menghapus akun menjadi arsip, bukan ikut terhapus. Atur ulang kata sandi lewat email, sehingga penyedia email ditambahkan ke daftar penyedia. Skor indikasi AI kini dihitung dari teks saja, dan pola pengerjaan (waktu mulai, durasi, kurva kata) ditampilkan terpisah serta dicatat server dari draf yang tersimpan otomatis. Keterangan cookie disesuaikan: HttpOnly dan sesi yang bisa dicabut.",
+              ],
+              [
+                "2026-10-22",
                 "Satu persetujuan saat mendaftar. Mahasiswa dan dosen menyetujui seluruh kebijakan dengan satu centang di form pendaftaran; tiap tujuan tetap dicatat sebagai butir tersendiri, dan buktinya (versi, waktu, tujuan, nomor bukti) dapat dilihat di Pengaturan. Rekaman suara untuk Cek Paham dan analisis oleh penyedia di luar negeri menjadi bagian dari persetujuan itu, bukan lagi pilihan terpisah. Ditambahkan penjelasan Cek Paham (tes lisan). Sesi diskusi jawaban (verifikasi verbal) dihapus dari aplikasi.",
               ],
               [

@@ -115,6 +115,9 @@ export function PolicyConsent({ role, checked, onChange, policy }: Props) {
           <div
             ref={measure}
             onScroll={(event) => measure(event.currentTarget)}
+            tabIndex={0}
+            role="region"
+            aria-label="Isi Kebijakan Privasi"
             className="min-h-0 flex-1 space-y-8 overflow-y-auto px-5 py-5"
           >
             <section className="rounded-2xl border border-brand-mint bg-secondary/40 p-4">

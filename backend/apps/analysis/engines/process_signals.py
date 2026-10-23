@@ -28,6 +28,13 @@ dibaca adalah bentuk kurva pertumbuhan kata: seluruh jawaban yang muncul dalam
 satu lonjakan lalu datar tetap terlihat, tetapi sumbangannya sebanding dengan
 porsinya, sehingga satu kutipan pendek di tengah esai hanya bergeser sedikit.
 
+Sinyal ini TIDAK menjumlah ke skor AI (lihat PROCESS_WEIGHT di ai_score.py).
+Ia dilaporkan terpisah sebagai "pola pengerjaan" (assess_process). Alasannya
+terukur: ambang skor AI diukur pada teks saja; tidak ada data berlabel untuk
+bobot proses; dan mahasiswa yang menulis di Word lalu menempel menghasilkan
+lonjakan yang sama dengan penyalin tanpa menjadi penyalin. Dosen yang membaca
+dua bukti terpisah bisa menimbang konteksnya sendiri.
+
 Jam dinding juga tidak dirakit di modul ini. Backend berjalan pada TIME_ZONE UTC
 sedangkan frontend merender waktu ke zona lokal pembaca, sehingga jam yang
 ditanam di string dari sini akan berbeda dengan jam di layar. Modul ini hanya
@@ -43,9 +50,18 @@ PLAUSIBLE_WPM = 25.0
 IMPLAUSIBLE_WPM = 80.0
 
 
-# Lonjakan sebesar ini dalam satu selang cuplikan tidak mungkin diketik.
-# Pada selang 30 detik, 60 kata setara 120 kata per menit berkelanjutan.
+# Lonjakan = sedikitnya BURST_WORDS kata yang tiba dengan laju minimal BURST_WPM
+# antar dua cuplikan. Dua syarat, bukan satu: cuplikan sekarang dicatat server
+# pada jarak tidak tetap, dan 60 kata dalam 5 menit (12 kata/menit) bukan
+# lonjakan sama sekali. 120 kata/menit berkelanjutan lewat dari kecepatan
+# mengetik mengarang mana pun.
 BURST_WORDS = 60
+BURST_WPM = 120.0
+
+# Porsi jawaban akhir yang tiba lewat lonjakan: di bawah NORMAL_SHARE dianggap
+# wajar (kutipan pendek), di atas ATTENTION_SHARE layak dilihat dosen.
+NORMAL_SHARE = 0.35
+ATTENTION_SHARE = 0.6
 
 # Di bawah jumlah cuplikan ini deretnya terlalu pendek untuk dibaca sebagai
 # pola. Mahasiswa yang membuka form lalu langsung mengumpulkan memang tidak
@@ -71,6 +87,10 @@ class ProcessContext:
     char_count: int
     # Kosong berarti tidak terekam, bukan berarti mencurigakan.
     progress: tuple[ProgressSample, ...] = ()
+    # Kata baru (tidak ada di teks sebelumnya) yang masuk lewat revisi. Tanpa
+    # ini, jawaban asli yang diketik lalu diganti seluruhnya saat revisi masih
+    # tampak sebagai kurva yang wajar.
+    inserted_words: int = 0
 
     @property
     def words_per_minute(self) -> float | None:
@@ -88,9 +108,17 @@ def _clamp01(value: float) -> float:
 
 
 def _pace_value(context: ProcessContext) -> tuple[float, str]:
+    if context.duration_seconds == 0 and context.word_count >= BURST_WORDS:
+        # Nol yang TERUKUR (server tidak pernah melihat teks ini ditulis), bukan
+        # durasi yang tidak diketahui: seluruh teks tiba saat dikumpulkan.
+        return 1.0, f"{context.word_count} kata tiba sekaligus saat dikumpulkan, tanpa penulisan di editor ThinkPath"
     wpm = context.words_per_minute
     if wpm is None:
         return 0.5, "Durasi pengerjaan tidak terekam"
+    if context.word_count < BURST_WORDS:
+        # Jawaban pendek diketik dalam hitungan detik tanpa mencurigakan; laju
+        # agregat baru bermakna bila ada cukup kata untuk disebut lonjakan.
+        return 0.0, f"{context.word_count} kata, terlalu pendek untuk menilai laju mengetik"
     if wpm <= PLAUSIBLE_WPM:
         value = 0.0
     else:
@@ -134,13 +162,15 @@ def _growth_value(context: ProcessContext) -> tuple[float, str]:
     # aturan ini menempel sebelum cuplikan perdana menghasilkan garis datar
     # sejak awal yang justru terbaca paling wajar. Jawaban yang benar benar
     # ditulis di sini dimulai dari nol atau mendekatinya.
-    deltas = [samples[0].word_count] + [
-        after.word_count - before.word_count
+    # Pasangan (selisih kata, detik antar cuplikan). Detik minimal 1 agar dua
+    # cuplikan di detik yang sama tidak membagi dengan nol.
+    steps = [(samples[0].word_count, max(samples[0].offset_seconds, 1))] + [
+        (after.word_count - before.word_count, max(after.offset_seconds - before.offset_seconds, 1))
         for before, after in zip(samples, samples[1:])
     ]
-    for delta in deltas:
+    for delta, seconds in steps:
         largest = max(largest, delta)
-        if delta >= BURST_WORDS:
+        if delta >= BURST_WORDS and delta / seconds * 60.0 >= BURST_WPM:
             burst_total += delta
             burst_count += 1
 
@@ -172,6 +202,10 @@ def evaluate_process(context: ProcessContext) -> tuple[float, str]:
     memperpanjang garis datarnya. Karena itu kurva menggantikan laju sepenuhnya
     begitu tersedia.
 
+    Kata yang masuk lewat revisi dihitung sebagai lonjakan tersendiri: menukar
+    seluruh isi jawaban saat "Simpan Revisi" tidak boleh lolos hanya karena
+    kurva pengerjaan aslinya wajar.
+
     Jumlah revisi hanya ditulis sebagai keterangan, dan tindakan menempel tidak
     dibaca sama sekali. Alasan keduanya ada di docstring modul.
     """
@@ -180,5 +214,52 @@ def evaluate_process(context: ProcessContext) -> tuple[float, str]:
     else:
         value, evidence = _pace_value(context)
 
+    if context.inserted_words >= BURST_WORDS:
+        share = _clamp01(context.inserted_words / max(context.word_count, 1))
+        if share > value:
+            value = share
+        evidence += f", {context.inserted_words} kata baru masuk sekaligus lewat revisi"
+
     parts = [evidence, _revision_note(context)]
     return _clamp01(value), ", ".join(part for part in parts if part)
+
+
+class ProcessBand:
+    """Pita pola pengerjaan. Netral: bukan vonis, tidak menyebut AI."""
+
+    NORMAL = "normal"
+    PARTIAL = "partial"
+    ATTENTION = "attention"
+    UNRECORDED = "unrecorded"
+    # Jawaban diimpor dari dokumen: tidak ada jejak mengetik yang bisa dinilai.
+    NOT_APPLICABLE = ""
+
+
+@dataclass(frozen=True)
+class ProcessAssessment:
+    band: str
+    value: float
+    evidence: str
+
+
+def assess_process(context: ProcessContext | None) -> ProcessAssessment:
+    """Pola pengerjaan sebagai bukti tersendiri, terpisah dari skor AI.
+
+    "unrecorded" hanya bila server benar-benar tidak punya dasar menilai
+    (durasi tidak diketahui dan jejak tak cukup). Durasi nol yang terukur
+    dengan teks panjang adalah bukti, bukan ketiadaan bukti.
+    """
+    if context is None:
+        return ProcessAssessment(ProcessBand.NOT_APPLICABLE, 0.0, "")
+    value, evidence = evaluate_process(context)
+    if not context.has_progress and context.duration_seconds is None:
+        return ProcessAssessment(ProcessBand.UNRECORDED, value, evidence)
+    if not context.has_progress and context.words_per_minute is None and value == 0.5:
+        return ProcessAssessment(ProcessBand.UNRECORDED, value, evidence)
+    if value >= ATTENTION_SHARE:
+        band = ProcessBand.ATTENTION
+    elif value >= NORMAL_SHARE:
+        band = ProcessBand.PARTIAL
+    else:
+        band = ProcessBand.NORMAL
+    return ProcessAssessment(band, value, evidence)

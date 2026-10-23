@@ -28,6 +28,11 @@ export interface SourceInfo {
   label: string;
 }
 
+/** Tautan yang aman dijadikan href: hanya http(s). Skema lain (javascript:) dibuang. */
+export function safeHref(url: string): string | null {
+  return /^https?:\/\//i.test(url) ? url : null;
+}
+
 export function describeSource(url: string): SourceInfo {
   if (!url) return { kind: "note", label: "Catatan dosen" };
   let parsed: URL;

@@ -260,6 +260,19 @@ class StudentNotificationTest(Base):
         reminders = self.inbox(self.mhs).filter(kind=NotificationKind.DEADLINE_SOON)
         self.assertEqual([note.link for note in reminders], [f"/student/submit/{soon.id}"])
 
+    def test_reminders_are_written_at_most_once_per_interval(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        client = self.client_for(self.mhs)
+        client.get("/api/notifications")
+        self.make_assignment(title="Tenggat besok", deadline_in=timedelta(hours=10))
+        client.get("/api/notifications")  # dalam 10 menit: tidak menulis lagi
+        self.assertFalse(self.inbox(self.mhs).filter(kind=NotificationKind.DEADLINE_SOON).exists())
+        cache.clear()
+        client.get("/api/notifications")
+        self.assertTrue(self.inbox(self.mhs).filter(kind=NotificationKind.DEADLINE_SOON).exists())
+
     def test_deadline_reminder_survives_two_bells_opening_at_once(self):
         # Dua permintaan lonceng di worker berbeda sama-sama lolos pemeriksaan
         # "sudah ada?". Yang kalah cepat harus berhenti dengan tenang, bukan

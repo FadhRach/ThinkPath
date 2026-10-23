@@ -2,6 +2,8 @@ import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { Callout } from "@/components/common/Callout";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ConsentProof } from "@/components/settings/ConsentProof";
+import { DeleteAccountCard } from "@/components/settings/DeleteAccountCard";
+import { PasswordForm } from "@/components/settings/PasswordForm";
 import { ProfileForm } from "@/components/settings/ProfileForm";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/formatting";
@@ -41,7 +43,11 @@ export function ProfileSettings({
           <Card className="space-y-4 p-5 shadow-soft">
             <ProfileForm profile={profile} />
           </Card>
+          <Card className="p-5 shadow-soft">
+            <PasswordForm />
+          </Card>
           <ConsentProof role={profile.role} consent={consent} />
+          <DeleteAccountCard role={profile.role} />
         </div>
 
         <div className="space-y-6">

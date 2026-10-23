@@ -1,6 +1,5 @@
 import { apiFetchBrowser } from "./api-browser";
 import { ApiError } from "./api-shared";
-import { clearAuthTokenCookie, setAuthTokenCookie } from "./auth-token";
 import { PRIVACY_POLICY_VERSION } from "./privacy";
 import type { AuthResponse, Role } from "./types";
 
@@ -23,8 +22,7 @@ export interface RegisterInput {
  * Login dengan peran yang dipilih di layar.
  *
  * Backend menolak peran yang tidak cocok dengan 403. Pemeriksaan kedua di sini
- * menjaga backend versi lama yang belum memeriksa peran: token tidak disimpan,
- * sehingga tidak ada sesi yang terbentuk untuk peran yang salah.
+ * menjaga backend versi lama yang belum memeriksa peran.
  */
 export async function login(
   email: string,
@@ -38,22 +36,30 @@ export async function login(
   if (result.profile.role !== role) {
     throw new ApiError(403, { detail: roleMismatchMessage(result.profile.role) });
   }
-  setAuthTokenCookie(result.token);
   return result;
 }
 
 /** Mendaftar sekaligus menyetujui Kebijakan Privasi; server mencatat buktinya di transaksi yang sama. */
-export async function register(input: RegisterInput): Promise<AuthResponse> {
-  const result = await apiFetchBrowser<AuthResponse>("/api/auth/register", {
+export async function register(input: RegisterInput & { agreed: boolean }): Promise<AuthResponse> {
+  const { agreed, ...fields } = input;
+  // Persetujuan yang dicatat server harus benar-benar berasal dari centang;
+  // bukan nilai tetap yang lolos bila tombol terbuka karena refaktor.
+  if (!agreed) {
+    throw new ApiError(400, { detail: "Setujui Kebijakan Privasi untuk membuat akun." });
+  }
+  return apiFetchBrowser<AuthResponse>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ ...input, accept_policy: true, policy_version: PRIVACY_POLICY_VERSION }),
+    body: JSON.stringify({ ...fields, accept_policy: true, policy_version: PRIVACY_POLICY_VERSION }),
   });
-  setAuthTokenCookie(result.token);
-  return result;
 }
 
-export function logout(): void {
-  clearAuthTokenCookie();
+/** Mencabut sesi di server lalu menghapus cookie (jembatan /bff yang menghapusnya). */
+export async function logout(): Promise<void> {
+  try {
+    await apiFetchBrowser<void>("/api/auth/logout", { method: "POST" });
+  } catch {
+    // Sesi mungkin sudah berakhir; cookie tetap dihapus oleh jembatan.
+  }
 }
 
 export function homePathForRole(role: Role): string {

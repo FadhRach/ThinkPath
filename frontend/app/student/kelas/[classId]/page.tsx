@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ArchivedClassNotice, teacherLabel } from "@/components/student/ArchivedClassNotice";
 import { AssignmentStatusBadge } from "@/components/student/AssignmentStatusBadge";
 import { AnnouncementList } from "@/components/common/AnnouncementList";
 import { StudentUpdates } from "@/components/student/StudentUpdates";
@@ -22,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { academicLabel, distinctSubject } from "@/lib/academic";
 import { getClassAnnouncements, getStudentClasses, getStudentMaterials } from "@/lib/data";
 import { formatDate, formatRelativeTime } from "@/lib/formatting";
-import { describeSource } from "@/lib/materials";
+import { describeSource, safeHref } from "@/lib/materials";
 import type { StudentClassWithAssignments } from "@/lib/types";
 
 export default async function StudentClassDetailPage({
@@ -58,6 +59,8 @@ export default async function StudentClassDetailPage({
         <span aria-current="page" className="truncate text-foreground">{current.name}</span>
       </nav>
 
+      <ArchivedClassNotice klass={current} />
+
       <section className="rounded-xl border border-border bg-card px-5 py-5 sm:px-7 sm:py-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-3.5 sm:gap-4">
@@ -66,7 +69,7 @@ export default async function StudentClassDetailPage({
 
               <h1 className="mt-1 text-[1.65rem] font-semibold leading-tight tracking-[-0.035em] text-foreground sm:text-[2rem]">{current.name}</h1>
               <p className="mt-1.5 text-sm text-muted-foreground">{classMeta}</p>
-              <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground"><GraduationCap className="h-4 w-4 text-accent-foreground" />{current.teacher_name}</p>
+              <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground"><GraduationCap className="h-4 w-4 text-accent-foreground" />{teacherLabel(current.teacher_name)}</p>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
@@ -91,7 +94,7 @@ export default async function StudentClassDetailPage({
               <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-foreground">Ringkasan kelas</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Pilih tab Materi, Tugas, atau Pengumuman untuk melihat isi kelas.</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <InfoTile icon={GraduationCap} label="Pengajar" value={current.teacher_name} />
+                <InfoTile icon={GraduationCap} label="Pengajar" value={teacherLabel(current.teacher_name)} />
                 <InfoTile icon={LibraryBig} label="Materi tersedia" value={`${ownMaterials.length} materi`} />
                 <InfoTile icon={ClipboardList} label="Tugas aktif" value={`${openCount} tugas`} />
               </div>
@@ -120,7 +123,7 @@ export default async function StudentClassDetailPage({
                         {material.description ? <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{material.description}</p> : null}
                         <p className="mt-2 text-xs text-muted-foreground">{source.label} <span className="mx-1">·</span> {formatDate(material.created_at)}</p>
                       </div>
-                      {material.url ? <a href={material.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 shrink-0 items-center gap-1.5 self-center rounded-lg border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-primary/40 hover:text-primary">Buka<ExternalLink className="h-3.5 w-3.5" /><span className="sr-only"> {material.title}</span></a> : null}
+                      {safeHref(material.url) ? <a href={safeHref(material.url) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 shrink-0 items-center gap-1.5 self-center rounded-lg border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-primary/40 hover:text-primary">Buka<ExternalLink className="h-3.5 w-3.5" /><span className="sr-only"> {material.title}</span></a> : null}
                     </li>
                   );
                 })}

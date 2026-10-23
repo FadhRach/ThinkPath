@@ -14,6 +14,7 @@ from apps.academics.views.documents import (
     DocumentImportView,
     SubmissionDocumentView,
 )
+from apps.academics.views.drafts import DraftView
 from apps.academics.views.insights import (
     ReportOverviewView,
     StudentCognitiveProfileView,
@@ -42,6 +43,7 @@ __all__ = [
     "ClassMaterialListCreateView",
     "ClassRosterView",
     "DocumentFileView",
+    "DraftView",
     "DocumentImportView",
     "JoinClassView",
     "MaterialDetailView",

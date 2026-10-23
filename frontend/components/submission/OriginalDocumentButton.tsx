@@ -4,10 +4,9 @@ import { FileDown } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { fetchApi } from "@/lib/api-shared";
-import { readAuthTokenFromBrowser } from "@/lib/auth-token";
+import { directFetch } from "@/lib/upload-ticket";
 
-/** Buka berkas yang diunggah mahasiswa. Memakai fetch agar token ikut terkirim. */
+/** Buka berkas yang diunggah mahasiswa. Memakai tiket unggah: berkas bisa 10 MB, melewati batas fungsi Vercel. */
 export function OriginalDocumentButton({
   path,
   label = "Lihat berkas asli",
@@ -22,7 +21,7 @@ export function OriginalDocumentButton({
     setPending(true);
     setError(null);
     try {
-      const response = await fetchApi(path, {}, readAuthTokenFromBrowser());
+      const response = await directFetch(path);
       if (!response.ok) throw new Error(String(response.status));
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);

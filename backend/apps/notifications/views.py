@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from django.core.cache import cache
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +11,8 @@ from rest_framework.views import APIView
 from apps.notifications.events import ensure_deadline_reminders
 from apps.notifications.models import Notification
 from apps.notifications.services import mark_read, recent_for, safe
+
+REMINDER_INTERVAL_SECONDS = 600
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -49,7 +52,10 @@ class NotificationListView(APIView):
 
     def get(self, request):
         recipient_id = _recipient(request)
-        if getattr(request.user, "role", None) == "student":
+        # Lonceng memanggil ini tiap menit per tab; penulisan pengingat cukup tiap 10 menit.
+        if getattr(request.user, "role", None) == "student" and cache.add(
+            f"deadline-reminders:{recipient_id}", 1, REMINDER_INTERVAL_SECONDS
+        ):
             safe(lambda: ensure_deadline_reminders(recipient_id))
         items, unread = recent_for(recipient_id)
         return Response(

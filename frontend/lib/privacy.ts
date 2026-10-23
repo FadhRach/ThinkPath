@@ -9,7 +9,7 @@ import type { Role } from "@/lib/types";
  * Pasal 21 ayat (2) UU No. 27 Tahun 2022: perubahan informasi diberitahukan
  * sebelum terjadi.
  */
-export const PRIVACY_POLICY_VERSION = "2026-10-22";
+export const PRIVACY_POLICY_VERSION = "2026-10-23";
 export const PRIVACY_POLICY_EFFECTIVE_LABEL = "22 Oktober 2026";
 
 /**

@@ -142,6 +142,9 @@ class CekPahamCancelView(APIView):
 class CekPahamAudioView(APIView):
     """Audio jawaban untuk dosen pemilik kelas; tidak pernah lewat URL statis."""
 
+    # Berkas besar melewati batas badan fungsi Vercel; lihat UploadTicketView.
+    accepts_upload_ticket = True
+
     permission_classes = [IsTeacher]
 
     def get(self, request, cekpaham_id: str, number: int):
@@ -241,6 +244,9 @@ class StudentCekPahamLiveView(APIView):
 
 class StudentCekPahamFinalizeView(APIView):
     """Audio utuh + konteks dari klien. Membalas status dan transkrip milik mahasiswa saja."""
+
+    # Berkas besar melewati batas badan fungsi Vercel; lihat UploadTicketView.
+    accepts_upload_ticket = True
 
     permission_classes = [IsStudent, GroqConfigured]
     throttle_classes = [PerUserScopedThrottle]

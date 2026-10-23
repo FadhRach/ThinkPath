@@ -50,7 +50,9 @@ MIN_TEXT_CHARS = 20
 # Sisi terpanjang gambar yang dikirim ke model. Foto ponsel 8 MB jadi ~0,5 MB,
 # di bawah batas 4 MB (base64) milik Groq.
 OCR_IMAGE_MAX_SIDE = 1800
-DOCX_MAX_XML_BYTES = 20 * 1024 * 1024
+# Teks 10 MB DOCX dengan puluhan halaman sudah di bawah 4 MB XML. Batas lama 20 MB
+# bisa menghabiskan sebagian besar memori container (320 MB) bersama pohon XML-nya.
+DOCX_MAX_XML_BYTES = 4 * 1024 * 1024
 # Bagian kata jawaban yang harus ada di teks dokumen agar dianggap berasal darinya.
 SOURCE_MATCH_RATIO = 0.5
 
@@ -137,7 +139,12 @@ def _extract_docx(data: bytes) -> Extraction:
             # Batas ukuran terurai: berkas zip kecil bisa mengembang jadi gigabita.
             if archive.getinfo("word/document.xml").file_size > DOCX_MAX_XML_BYTES:
                 raise ValidationError("Dokumen terlalu besar untuk dibaca.")
-            root = ElementTree.fromstring(archive.read("word/document.xml"))
+            xml = archive.read("word/document.xml")
+            # DOCX sah tidak memakai DTD. Menolaknya menutup serangan entitas
+            # bersarang ("billion laughs") tanpa menambah dependensi.
+            if b"<!DOCTYPE" in xml[:2048] or b"<!ENTITY" in xml[:2048]:
+                raise ValidationError(UNREADABLE)
+            root = ElementTree.fromstring(xml)
     except (zipfile.BadZipFile, ElementTree.ParseError) as exc:
         raise ValidationError(UNREADABLE) from exc
 

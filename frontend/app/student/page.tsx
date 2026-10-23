@@ -1,6 +1,7 @@
 import { BookOpen, CheckCircle2, GraduationCap, Star } from "lucide-react";
 import Link from "next/link";
 
+import { teacherLabel } from "@/components/student/ArchivedClassNotice";
 import { StatCard } from "@/components/common/StatCard";
 import { TaskIndicator } from "@/components/common/TaskIndicator";
 import { JoinCodeForm } from "@/components/student/JoinCodeForm";
@@ -85,7 +86,7 @@ export default async function StudentPage() {
                   <div className="flex flex-col justify-between gap-3 border-b border-border px-5 py-5 sm:flex-row sm:items-start sm:px-6">
                     <div className="min-w-0">
                       <h3 className="text-lg font-semibold"><Link href={`/student/kelas/${classroom.id}`} className="hover:underline underline-offset-4">{classroom.name}</Link></h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{classroom.teacher_name}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{teacherLabel(classroom.teacher_name)}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{academicLabel(classroom)}</p>
                     </div>
                     <Link href={`/student/kelas/${classroom.id}?tab=materi`} className="shrink-0 text-sm text-accent-foreground underline-offset-4 hover:underline">Materi kelas <span aria-hidden="true">→</span></Link>

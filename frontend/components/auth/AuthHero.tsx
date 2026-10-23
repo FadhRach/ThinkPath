@@ -1,7 +1,7 @@
 import { Brandmark } from "@/components/common/Brandmark";
 
 const STATS = [
-  { value: "6", label: "Sinyal analisis" },
+  { value: "3", label: "Bukti terpisah" },
   { value: "L1-L6", label: "Level Bloom" },
 ];
 
@@ -21,8 +21,8 @@ export function AuthHero() {
           Pahami cara mahasiswa berpikir, bukan hanya nilainya.
         </h2>
         <p className="max-w-md text-white/80">
-          Analisis kognitif Taksonomi Bloom dan deteksi penggunaan AI dalam satu
-          platform untuk dosen dan mahasiswa.
+          Analisis kognitif Taksonomi Bloom, indikasi penggunaan AI, dan pola pengerjaan
+          dalam satu platform untuk dosen dan mahasiswa.
         </p>
         <div className="flex gap-3">
           {STATS.map((stat) => (

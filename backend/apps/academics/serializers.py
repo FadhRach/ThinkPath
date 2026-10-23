@@ -10,7 +10,7 @@ from apps.academics.models import (
     ReasoningEvent,
     Submission,
 )
-from apps.analysis.models import AnalysisResult
+from apps.analysis.models import AnalysisResult, AnalysisRun
 
 
 # --- Classes ---------------------------------------------------------------
@@ -181,7 +181,10 @@ class JoinClassSerializer(serializers.Serializer):
 class ClassPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Class
-        fields = ["id", "name", "subject", "education_level", "program_studi", "semester"]
+        fields = [
+            "id", "name", "subject", "education_level", "program_studi", "semester",
+            "is_archived", "owner_left_at",
+        ]
 
 
 class StudentAssignmentSerializer(serializers.ModelSerializer):
@@ -237,7 +240,7 @@ class StudentSubmissionStatusListSerializer(StudentSubmissionStatusSerializer):
 
 class AnnouncementSerializer(serializers.ModelSerializer):
     class_id = serializers.UUIDField(source="class_ref_id", read_only=True)
-    author_name = serializers.CharField(source="class_ref.owner.label", read_only=True)
+    author_name = serializers.SerializerMethodField()
     title = serializers.CharField(max_length=160)
     body = serializers.CharField(max_length=4000)
 
@@ -245,6 +248,10 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         model = Announcement
         fields = ["id", "class_id", "author_name", "title", "body", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+    def get_author_name(self, obj: Announcement) -> str:
+        owner = obj.class_ref.owner
+        return owner.label if owner else "Dosen (akun telah dihapus)"
 
 
 class SubmissionGradeSerializer(serializers.Serializer):
@@ -273,6 +280,7 @@ class SubmissionListSerializer(serializers.ModelSerializer):
             "status",
             "grade",
             "is_imported",
+            "analysis_state",
             "analysis",
         ]
 
@@ -284,7 +292,11 @@ class SubmissionListSerializer(serializers.ModelSerializer):
         analysis = getattr(obj, "analysis", None)
         if analysis is None:
             return None
-        return {"ai_band": analysis.ai_band, "bloom_level": analysis.bloom_level}
+        return {
+            "ai_band": analysis.ai_band,
+            "bloom_level": analysis.bloom_level,
+            "process_band": analysis.process_band,
+        }
 
 
 class SubmissionQueueSerializer(SubmissionListSerializer):
@@ -307,14 +319,27 @@ class ProgressSampleSerializer(serializers.Serializer):
     word_count = serializers.IntegerField(min_value=0, max_value=100_000)
 
 
+# ±3.000 kata. Esai kuliah wajar jauh di bawah ini; batas atas mencegah satu
+# permintaan membakar kuota Winston/Groq dan memenuhi memori analisis.
+MAX_ANSWER_CHARS = 20_000
+
+
+class DraftSaveSerializer(serializers.Serializer):
+    # Boleh kosong (mahasiswa menghapus semuanya); kosong tidak memulai pengerjaan.
+    text_answer = serializers.CharField(allow_blank=True, max_length=MAX_ANSWER_CHARS, trim_whitespace=False)
+    document_id = serializers.UUIDField(required=False, allow_null=True)
+
+
 class SubmissionCreateSerializer(serializers.Serializer):
-    text_answer = serializers.CharField(min_length=50)
+    text_answer = serializers.CharField(min_length=50, max_length=MAX_ANSWER_CHARS)
     # Hasil unggahan dokumen (DocumentImportView); server memeriksa bahwa teks
     # memang berasal darinya, jadi klaim ini tidak membuat apa pun dilewati.
     document_id = serializers.UUIDField(required=False)
+    # DITERIMA TETAPI DIABAIKAN: bundel frontend lama masih mengirim keduanya
+    # (frontend dan backend dideploy terpisah). Jejak pengerjaan kini dicatat
+    # server dari draf (lihat services/drafts.py); hapus dua kolom ini bila
+    # semua klien sudah memakai penyimpanan otomatis.
     started_at = serializers.DateTimeField(required=False)
-    # Dibatasi supaya satu permintaan tidak bisa membanjiri basis data. Dengan
-    # cuplikan tiap 30 detik, 240 sampel setara dua jam pengerjaan.
     progress = ProgressSampleSerializer(many=True, required=False, max_length=240)
 
 
@@ -338,6 +363,8 @@ class AnalysisFullSerializer(serializers.ModelSerializer):
             "summary",
             "recommendation",
             "analysis_source",
+            "process_band",
+            "process_evidence",
         ]
 
 
@@ -365,11 +392,20 @@ class AssignmentMiniSerializer(serializers.ModelSerializer):
         ]
 
 
+class AnalysisRunSerializer(serializers.ModelSerializer):
+    """Satu baris riwayat analisis; payload lengkap sengaja tidak dikirim."""
+
+    class Meta:
+        model = AnalysisRun
+        fields = ["id", "trigger", "created_at", "ai_score", "ai_band", "bloom_level", "analysis_source"]
+
+
 class SubmissionDetailSerializer(serializers.ModelSerializer):
     assignment = AssignmentMiniSerializer(read_only=True)
     student = serializers.SerializerMethodField()
     reasoning_events = serializers.SerializerMethodField()
     analysis = serializers.SerializerMethodField()
+    analysis_history = serializers.SerializerMethodField()
 
     class Meta:
         model = Submission
@@ -387,12 +423,18 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "grade",
             "teacher_feedback",
             "reasoning_events",
+            "analysis_state",
             "analysis",
+            "analysis_history",
         ]
 
     def get_student(self, obj: Submission) -> dict:
         profile = obj.student_profile
         return {"id": str(profile.id), "display_name": profile.label}
+
+    def get_analysis_history(self, obj: Submission) -> list:
+        # Urutan terbaru-dulu berasal dari Prefetch di selectors.
+        return AnalysisRunSerializer(obj.analysis_runs.all(), many=True).data
 
     def get_reasoning_events(self, obj: Submission) -> list:
         # Urutan occurred_at berasal dari Prefetch di views. .order_by() di

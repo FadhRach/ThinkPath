@@ -53,9 +53,13 @@ export function ConsentProof({ role, consent }: { role: Role; consent: ConsentSt
   const [open, setOpen] = useState(false);
   const withdraw = useAction("Persetujuan gagal ditarik. Coba lagi.");
   const isStudent = role === "student";
-  const proof = consent.history.find(
-    (entry) => entry.action === "given" && entry.policy_version === consent.current_version,
-  );
+  // Bukti hanya ditampilkan selagi persetujuan berlaku; setelah ditarik, baris lama bukan bukti lagi.
+  const proof =
+    consent.status === "given"
+      ? consent.history.find(
+          (entry) => entry.action === "given" && entry.policy_version === consent.current_version,
+        )
+      : undefined;
 
   async function handleWithdraw() {
     await withdraw.run(
@@ -84,6 +88,7 @@ export function ConsentProof({ role, consent }: { role: Role; consent: ConsentSt
           <Link
             href="/kebijakan-privasi"
             target="_blank"
+            rel="noopener noreferrer"
             className="mt-1 inline-flex items-center gap-1 text-body-sm font-semibold text-primary hover:underline"
           >
             Baca Kebijakan Privasi

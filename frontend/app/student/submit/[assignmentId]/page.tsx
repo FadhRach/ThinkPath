@@ -11,6 +11,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BloomStepper } from "@/components/common/BloomStepper";
+import { ArchivedClassNotice } from "@/components/student/ArchivedClassNotice";
 import { AssignmentStatusBadge } from "@/components/student/AssignmentStatusBadge";
 import { SubmitAnswerForm } from "@/components/student/SubmitAnswerForm";
 import { OriginalDocumentButton } from "@/components/submission/OriginalDocumentButton";
@@ -19,7 +20,7 @@ import { ApiError } from "@/lib/api";
 import { bloomCode, bloomShortLabel } from "@/lib/bloom";
 import { getStudentAssignment } from "@/lib/data";
 import { formatDate, formatRelativeTime } from "@/lib/formatting";
-import type { StudentSubmissionWithText } from "@/lib/types";
+import type { AnswerDraft, StudentSubmissionWithText } from "@/lib/types";
 
 export default async function SubmitAssignmentPage({
   params,
@@ -35,10 +36,11 @@ export default async function SubmitAssignmentPage({
     throw error;
   }
 
-  const { assignment, submission } = detail;
+  const { assignment, submission, draft } = detail;
   const isPastDeadline = assignment.deadline !== null && Date.now() > new Date(assignment.deadline).getTime();
   const isReviewed = submission?.status === "reviewed";
-  const canRevise = submission !== null && !isPastDeadline && !isReviewed;
+  const isArchived = detail.class.is_archived;
+  const canRevise = submission !== null && !isPastDeadline && !isArchived && !isReviewed;
 
   return (
     <div className="mx-auto max-w-4xl space-y-5 sm:space-y-6">
@@ -48,6 +50,8 @@ export default async function SubmitAssignmentPage({
         <Link href={`/student/kelas/${detail.class.id}`} className="max-w-[10rem] truncate hover:text-primary">{detail.class.name}</Link><ChevronRight className="h-3.5 w-3.5" />
         <span aria-current="page" className="truncate text-foreground">Tugas</span>
       </nav>
+
+      <ArchivedClassNotice klass={detail.class} />
 
       <section className="rounded-xl border border-border bg-card px-5 py-5 text-foreground sm:px-7 sm:py-6">
         <Link href={`/student/kelas/${detail.class.id}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />{detail.class.name}</Link>
@@ -71,10 +75,12 @@ export default async function SubmitAssignmentPage({
             submission={submission}
             canRevise={canRevise}
             isPastDeadline={isPastDeadline}
+            isArchived={isArchived}
             isReviewed={Boolean(isReviewed)}
             assignmentId={assignment.id}
             allowUpload={assignment.allow_file_upload}
             classId={detail.class.id}
+            draft={draft}
           />
         </div>
 
@@ -117,19 +123,27 @@ function SubmissionSection({
   submission,
   canRevise,
   isPastDeadline,
+  isArchived,
   isReviewed,
   assignmentId,
   allowUpload,
   classId,
+  draft,
 }: {
+  draft: AnswerDraft | null;
   submission: StudentSubmissionWithText | null;
   canRevise: boolean;
   isPastDeadline: boolean;
+  isArchived: boolean;
   isReviewed: boolean;
   assignmentId: string;
   allowUpload: boolean;
   classId: string;
 }) {
+  if (submission === null && isArchived) {
+    return <StatusNotice tone="coral" title="Kelas sudah diarsipkan" text="Dosen kelas ini telah menghapus akunnya, jadi tugas ini tidak lagi menerima jawaban." />;
+  }
+
   if (submission === null && isPastDeadline) {
     return <StatusNotice tone="coral" title="Tenggat sudah berakhir" text="Tugas ini tidak lagi menerima jawaban karena tenggatnya telah lewat." />;
   }
@@ -138,7 +152,7 @@ function SubmissionSection({
     return (
       <Card className="rounded-xl border-border bg-card p-4 shadow-none sm:p-5">
         <div className="mb-4 flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-accent-foreground"><MessageSquareText className="h-4 w-4" /></span><div><h2 className="font-bold text-foreground">Kumpulkan tugasmu</h2></div></div>
-        <SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} allowUpload={allowUpload} />
+        <SubmitAnswerForm assignmentId={assignmentId} backHref={`/student/kelas/${classId}`} allowUpload={allowUpload} initialText={draft?.text_answer ?? ""} initialDocumentId={draft?.document_id ?? null} />
       </Card>
     );
   }

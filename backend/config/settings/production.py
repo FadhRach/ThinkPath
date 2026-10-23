@@ -7,6 +7,12 @@ from config.settings.base import *  # noqa: F403
 
 if not SECRET_KEY:  # noqa: F405
     raise ImproperlyConfigured("DJANGO_SECRET_KEY wajib diisi di .env produksi.")
+if len(SECRET_KEY) < 32:  # noqa: F405
+    # HS256 dengan kunci pendek mudah ditebak offline dari satu token; PyJWT
+    # juga memperingatkan di bawah 32 byte.
+    raise ImproperlyConfigured(
+        'DJANGO_SECRET_KEY minimal 32 karakter. Buat: python3 -c "import secrets; print(secrets.token_urlsafe(50))"'
+    )
 
 # localhost dipakai healthcheck Docker di dalam container.
 ALLOWED_HOSTS = [os.environ["API_DOMAIN"], "localhost", "127.0.0.1"]

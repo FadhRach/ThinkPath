@@ -10,7 +10,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from django.db.models import Count, Prefetch, Q
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound
 
 from apps.academics.models import (
     Assignment,
@@ -23,6 +23,7 @@ from apps.academics.models import (
     SubmissionStatus,
 )
 from apps.analysis.choices import AiBand
+from apps.analysis.models import AnalysisRun
 from apps.analysis.engines.process_signals import ProgressSample
 from common.http import parse_uuid_or_404, request_user_id
 
@@ -72,7 +73,9 @@ def require_member_assignment(request, assignment_id: str) -> Assignment:
         student_profile_id=request_user_id(request),
     ).exists()
     if not is_member:
-        raise PermissionDenied("Kamu bukan anggota kelas ini.")
+        # 404, bukan 403, seperti objek milik orang lain di tempat lain: id
+        # tugas kelas lain tidak boleh bisa dibedakan dari id yang tidak ada.
+        raise NotFound()
     return assignment
 
 
@@ -88,7 +91,14 @@ def require_owned_submission(request, submission_id: str) -> Submission:
             Prefetch(
                 "reasoning_events",
                 queryset=ReasoningEvent.objects.order_by("occurred_at"),
-            )
+            ),
+            Prefetch(
+                "analysis_runs",
+                queryset=AnalysisRun.objects.order_by("-created_at").only(
+                    "id", "submission_id", "trigger", "created_at", "ai_score",
+                    "ai_band", "bloom_level", "analysis_source",
+                ),
+            ),
         )
         .filter(pk=parse_uuid_or_404(submission_id))
         .first()
@@ -175,3 +185,12 @@ def stored_progress(submission: Submission) -> tuple[ProgressSample, ...]:
                 )
             )
     return tuple(sorted(samples, key=lambda sample: sample.offset_seconds))
+
+
+def stored_inserted_words(submission: Submission) -> int:
+    """Kata baru yang masuk lewat semua revisi sebelumnya (dari payload kejadian)."""
+    return sum(
+        int((event.payload or {}).get("inserted_words") or 0)
+        for event in submission.reasoning_events.all()
+        if event.event_type == EventType.REVISION
+    )

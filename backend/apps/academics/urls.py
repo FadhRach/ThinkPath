@@ -23,6 +23,7 @@ urlpatterns = [
     path("students/<str:student_id>/profile", views.StudentCognitiveProfileView.as_view()),
     path("student/assignments/<str:assignment_id>", views.StudentAssignmentDetailView.as_view()),
     path("assignments/<str:assignment_id>/submissions", views.SubmissionListView.as_view()),
+    path("assignments/<str:assignment_id>/draft", views.DraftView.as_view()),
     path("assignments/<str:assignment_id>/documents", views.DocumentImportView.as_view()),
     path("assignments/<str:assignment_id>/documents/<str:document_id>", views.DocumentFileView.as_view()),
     path("submissions/<str:submission_id>", views.SubmissionDetailView.as_view()),

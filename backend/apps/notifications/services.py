@@ -64,6 +64,7 @@ def notify(
             event_at=event_at,
         )
         for recipient_id in set(recipient_ids)
+        if recipient_id  # kelas arsip tidak punya dosen penerima
     ]
     Notification.objects.bulk_create(rows)
     return len(rows)

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { DeleteMaterialButton } from "@/components/materials/DeleteMaterialButton";
 import { MaterialIcon } from "@/components/materials/MaterialIcon";
 import { formatDate } from "@/lib/formatting";
-import { describeSource, isRecent } from "@/lib/materials";
+import { describeSource, isRecent, safeHref } from "@/lib/materials";
 import type { Material } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +56,7 @@ export function MaterialRow({
   const [expanded, setExpanded] = useState(false);
   const { ref: descriptionRef, clamped } = useIsClamped(material.description);
   const source = describeSource(material.url);
+  const href = safeHref(material.url);
   const location = [material.class_name, material.topic].filter(Boolean).join(" · ");
 
   return (
@@ -69,9 +70,9 @@ export function MaterialRow({
       <MaterialIcon kind={source.kind} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {material.url ? (
+          {href ? (
             <a
-              href={material.url}
+              href={href}
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold text-foreground hover:text-primary hover:underline"
@@ -118,9 +119,9 @@ export function MaterialRow({
         ) : null}
       </div>
       <div className="flex shrink-0 items-start gap-1">
-        {material.url ? (
+        {href ? (
           <a
-            href={material.url}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Buka ${material.title} di tab baru`}

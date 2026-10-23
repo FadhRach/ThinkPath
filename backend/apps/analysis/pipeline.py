@@ -41,13 +41,18 @@ from apps.analysis.engines.heuristic import (
     build_summary,
     overall_confidence,
 )
-from apps.analysis.engines.process_signals import ProcessContext
+from apps.analysis.engines.bloom import estimate_bloom_level
+from apps.analysis.engines.process_signals import ProcessContext, assess_process
 from apps.analysis.engines.text_features import extract_features
+from apps.analysis.injection import injection_markers
 from apps.analysis.providers import groq, winston
 
 logger = logging.getLogger(__name__)
 
 VALID_CONFIDENCE = {Confidence.LOW, Confidence.MEDIUM, Confidence.HIGH}
+
+# Selisih level Bloom penilai LLM terhadap penanda teks yang dianggap janggal.
+BLOOM_DISAGREE_LEVELS = 3
 
 
 def _clamp(value: object, minimum: int, maximum: int) -> int:
@@ -137,6 +142,27 @@ def _parse_llm_result(
     }
 
 
+def _check_bloom_plausibility(result: dict, text: str) -> dict:
+    """Tandai (jangan ganti) level Bloom LLM yang jauh dari penanda teks.
+
+    Bloom hanya punya satu penilai di jalur ini. Selisih besar bisa berarti
+    model yang cerdas menangkap yang tidak tertangkap kata kunci, atau model
+    yang dibelokkan; dosen tidak boleh dibiarkan percaya diam-diam.
+    """
+    heuristic = estimate_bloom_level(extract_features(text)).level
+    if abs(result["bloom_level"] - heuristic) < BLOOM_DISAGREE_LEVELS:
+        return result
+    note = (
+        f"Level Bloom dari model (L{result['bloom_level']}) berselisih jauh dari "
+        f"penanda di teks (L{heuristic}); periksa sendiri sebelum dipakai"
+    )
+    return {
+        **result,
+        "bloom_confidence": Confidence.LOW,
+        "signals": ([note] + result["signals"])[:4],
+    }
+
+
 def _run_base_analysis(
     text: str,
     education_level: str,
@@ -145,13 +171,24 @@ def _run_base_analysis(
     *,
     allow_external: bool = True,
 ) -> dict:
-    """Dua lapis lama, tidak berubah perilakunya: Groq lalu heuristik."""
+    """Dua lapis lama: Groq lalu heuristik, ditambah penjagaan terhadap injeksi."""
     if not allow_external or not groq.is_configured():
         return analyze_text(text, expected_bloom_level, process)
 
+    # Teks yang berisi perintah untuk penilai tidak dititipkan ke LLM sama
+    # sekali. Heuristik tidak bisa diperintah, dan dosen diberi tahu.
+    markers = injection_markers(text)
+    if markers:
+        logger.warning("Teks memuat pola injeksi (%s); Groq dilewati.", ", ".join(markers))
+        result = analyze_text(text, expected_bloom_level, process)
+        note = f"Teks memuat kalimat yang ditujukan kepada penilai otomatis ({markers[0]}); penilai LLM tidak dipakai"
+        return {**result, "signals": [note] + result["signals"][:3]}
+
     try:
         raw = groq.call(text, education_level)
-        return _parse_llm_result(raw, expected_bloom_level, process)
+        return _check_bloom_plausibility(
+            _parse_llm_result(raw, expected_bloom_level, process), text
+        )
     except (
         requests.RequestException,
         json.JSONDecodeError,
@@ -347,4 +384,11 @@ def run_analysis(
             "signal_breakdown": final["signal_breakdown"]
             + _heuristic_context_rows(text),
         }
-    return final
+
+    # Pola pengerjaan dilaporkan sebagai bukti tersendiri, bukan bagian skor AI.
+    assessment = assess_process(process)
+    return {
+        **final,
+        "process_band": assessment.band,
+        "process_evidence": assessment.evidence,
+    }

@@ -4,6 +4,7 @@ import { ArrowRight, LineChart, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { AnalysisPoller } from "@/components/common/AnalysisPoller";
 import { AvatarInitials } from "@/components/common/AvatarInitials";
 import { BloomBadge } from "@/components/common/BloomBadge";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -18,12 +19,18 @@ type Filter = "all" | "needs_review" | "reviewed" | "high_ai";
 type Row = SubmissionRow & Partial<Pick<TeacherSubmissionRow, "class_name" | "assignment_title">>;
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "needs_review", label: "Perlu diperiksa" }, { id: "all", label: "Semua" },
-  { id: "reviewed", label: "Sudah dinilai" }, { id: "high_ai", label: "Indikasi AI tinggi" },
+  { id: "reviewed", label: "Sudah dinilai" }, { id: "high_ai", label: "Perlu diperhatikan" },
 ];
+
+// Bukan daftar tersangka: skor AI tinggi ATAU pola pengerjaan yang perlu dilihat,
+// dua bukti terpisah yang sama-sama layak ditinjau bersama konteks dosen.
+function isWorthAttention(row: Row) {
+  return row.analysis?.ai_band === "high" || row.analysis?.process_band === "attention";
+}
 
 function matches(row: Row, filter: Filter) {
   return filter === "all" || (filter === "needs_review" && row.status === "submitted") ||
-    (filter === "reviewed" && row.status === "reviewed") || (filter === "high_ai" && row.analysis?.ai_band === "high");
+    (filter === "reviewed" && row.status === "reviewed") || (filter === "high_ai" && isWorthAttention(row));
 }
 
 export function SubmissionTable({ submissions, initialFilter = "all" }: { submissions: Row[]; initialFilter?: Filter }) {
@@ -32,8 +39,11 @@ export function SubmissionTable({ submissions, initialFilter = "all" }: { submis
   const visible = submissions.filter((row) => matches(row, filter) &&
     `${row.student.display_name} ${row.class_name || ""} ${row.assignment_title || ""}`.toLowerCase().includes(query.trim().toLowerCase()));
 
+  const analysing = submissions.some((row) => row.analysis_state === "pending" || row.analysis_state === "running");
+
   return (
     <Card className="campus-card overflow-hidden">
+      {analysing ? <AnalysisPoller /> : null}
       <div className="space-y-3 border-b border-border p-4 sm:p-5">
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -62,7 +72,8 @@ export function SubmissionTable({ submissions, initialFilter = "all" }: { submis
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <StatusBadge status={row.status} />
                     {row.grade !== null ? <span className="text-xs font-bold text-accent-foreground">Nilai {row.grade}/100</span> : null}
-                    {row.analysis ? <><BloomBadge level={row.analysis.bloom_level} /><span className={cn("rounded-full px-2 py-1 text-[0.65rem] font-semibold", aiBandBadgeClass(row.analysis.ai_band))}>{aiBandLabel(row.analysis.ai_band)}</span></> : null}
+                    {row.analysis_state === "pending" || row.analysis_state === "running" ? <span role="status" className="rounded-full bg-muted px-2 py-1 text-[0.65rem] font-semibold text-muted-foreground">Sedang dianalisis</span> : row.analysis_state === "failed" ? <span className="rounded-full bg-danger-soft px-2 py-1 text-[0.65rem] font-semibold text-danger">Analisis gagal</span> : null}
+                    {row.analysis && row.analysis_state !== "pending" && row.analysis_state !== "running" ? <><BloomBadge level={row.analysis.bloom_level} /><span className={cn("rounded-full px-2 py-1 text-[0.65rem] font-semibold", aiBandBadgeClass(row.analysis.ai_band))}>{aiBandLabel(row.analysis.ai_band)}</span>{row.analysis.process_band === "attention" ? <span title="Teks tiba sekaligus, bukan bertahap. Bisa juga karena ditulis di aplikasi lain lalu ditempel." className="rounded-full bg-warning-soft px-2 py-1 text-[0.65rem] font-semibold text-warning">Pola pengerjaan perlu dilihat</span> : null}</> : null}
                   </div>
                 </div>
               </div>

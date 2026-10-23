@@ -23,7 +23,7 @@ from apps.accounts.models import ConsentAction, ConsentRecord, Role
 # Tanggal berlaku versi kebijakan. Mengubahnya membuat semua persetujuan lama
 # tidak berlaku, sehingga setiap pengguna diminta membaca dan menyetujui ulang
 # sebelum pemrosesan berlanjut dengan ketentuan baru (Pasal 21 ayat (2)).
-PRIVACY_POLICY_VERSION = "2026-10-22"
+PRIVACY_POLICY_VERSION = "2026-10-23"
 
 # Data akun, kelas, jawaban, nilai, dan umpan balik untuk perkuliahan,
 # termasuk dokumen yang diunggah, penyimpanannya di VPS Jakarta, dan

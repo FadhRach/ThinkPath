@@ -1,9 +1,10 @@
 import { apiFetchBrowser } from "./api-browser";
-import { setAuthTokenCookie } from "./auth-token";
+import { resolveJson } from "./api-shared";
+import { directFetch } from "./upload-ticket";
 import { PRIVACY_POLICY_VERSION } from "./privacy";
 import type {
   Announcement,
-  AnalysisView,
+  AnalysisState,
   AssignmentSummary,
   CekPahamDetail,
   CekPahamFinalizeResult,
@@ -13,6 +14,7 @@ import type {
   CekPahamStart,
   ClassSummary,
   ConsentChangeResponse,
+  DeletionImpact,
   EducationLevel,
   JoinClassResult,
   Material,
@@ -70,16 +72,8 @@ export function createAnnouncement(classId: string, input: { title: string; body
   });
 }
 
-/** Satu cuplikan jumlah kata pada satu titik waktu selama pengerjaan. */
-export interface ProgressSample {
-  at: string;
-  word_count: number;
-}
-
 export interface SubmitAnswerInput {
   text_answer: string;
-  started_at: string;
-  progress?: ProgressSample[];
   /** Hasil uploadDocument; backend memeriksa teks memang berasal dari dokumen itu. */
   document_id?: string;
 }
@@ -96,12 +90,23 @@ export interface DocumentImportResult {
 }
 
 /** Unggah PDF/DOCX/gambar; membalas teks untuk ditinjau, belum mengumpulkan jawaban. */
-export function uploadDocument(assignmentId: string, file: File) {
+export async function uploadDocument(assignmentId: string, file: File) {
   const body = new FormData();
   body.append("file", file);
-  return apiFetchBrowser<DocumentImportResult>(
-    `/api/assignments/${assignmentId}/documents`,
-    { method: "POST", body },
+  // Langsung ke API dengan tiket: 10 MB melewati batas badan fungsi Vercel.
+  return resolveJson<DocumentImportResult>(
+    await directFetch(`/api/assignments/${assignmentId}/documents`, { method: "POST", body }),
+  );
+}
+
+/**
+ * Simpan draf. Server yang mencatat kapan pengerjaan dimulai dan menghitung
+ * kata dari teksnya; klien tidak mengirim waktu maupun jumlah kata.
+ */
+export function saveDraft(assignmentId: string, input: { text_answer: string; document_id?: string | null }) {
+  return apiFetchBrowser<{ started: boolean; saved_at: string | null }>(
+    `/api/assignments/${assignmentId}/draft`,
+    { method: "PUT", body: JSON.stringify(input) },
   );
 }
 
@@ -122,8 +127,9 @@ export function joinClass(joinCode: string) {
   });
 }
 
+/** Hanya mengantrekan; hasilnya dikerjakan worker (balasan 202). */
 export function reanalyzeSubmission(submissionId: string) {
-  return apiFetchBrowser<{ analysis: AnalysisView }>(
+  return apiFetchBrowser<{ analysis_state: AnalysisState }>(
     `/api/submissions/${submissionId}/reanalyze`,
     { method: "POST" },
   );
@@ -183,16 +189,15 @@ export function deleteMaterial(materialId: string) {
 
 /**
  * Menyetujui ulang versi kebijakan yang berlaku (akun lama, versi baru, atau
- * setelah ditarik). Pendaftaran baru menyetujui lewat form daftar. Token baru
- * langsung disimpan karena klaim persetujuan di token lama sudah usang, dan
- * layout membaca klaim itu untuk memutuskan perlu tidaknya layar persetujuan.
+ * setelah ditarik). Pendaftaran baru menyetujui lewat form daftar. Jembatan /bff
+ * memasang token baru ke cookie karena klaim persetujuan di token lama sudah
+ * usang, dan layout membaca klaim itu untuk memutuskan perlu tidaknya layar persetujuan.
  */
 export async function giveConsent() {
   const result = await apiFetchBrowser<ConsentChangeResponse>("/api/me/consent", {
     method: "POST",
     body: JSON.stringify({ policy_version: PRIVACY_POLICY_VERSION }),
   });
-  setAuthTokenCookie(result.token);
   return result.consent;
 }
 
@@ -201,8 +206,42 @@ export async function withdrawConsent() {
   const result = await apiFetchBrowser<ConsentChangeResponse>("/api/me/consent/withdraw", {
     method: "POST",
   });
-  setAuthTokenCookie(result.token);
   return result.consent;
+}
+
+/** Mengganti kata sandi; sesi di perangkat lain dicabut server, sesi ini tetap. */
+export function changePassword(currentPassword: string, newPassword: string) {
+  return apiFetchBrowser<{ detail: string }>("/api/me/password", {
+    method: "POST",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+}
+
+export function fetchDeletionImpact() {
+  return apiFetchBrowser<DeletionImpact>("/api/me/deletion-impact");
+}
+
+/** Menghapus akun beserta datanya; tidak bisa dibatalkan. Jembatan /bff menghapus cookie sesi. */
+export function deleteAccount(password: string, confirm: string) {
+  return apiFetchBrowser<void>("/api/me", {
+    method: "DELETE",
+    body: JSON.stringify({ password, confirm }),
+  });
+}
+
+/** Minta tautan atur ulang sandi. Jawaban sama untuk email terdaftar atau tidak. */
+export function requestPasswordReset(email: string) {
+  return apiFetchBrowser<{ detail: string }>("/api/auth/password-reset", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function confirmPasswordReset(token: string, newPassword: string) {
+  return apiFetchBrowser<{ detail: string }>("/api/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
 }
 
 export function fetchNotifications() {
@@ -283,16 +322,16 @@ export interface FinalizeCekPahamInput {
   interrupted: boolean;
 }
 
-export function finalizeCekPaham(id: string, input: FinalizeCekPahamInput) {
+export async function finalizeCekPaham(id: string, input: FinalizeCekPahamInput) {
   const body = new FormData();
   if (input.audio) body.append("audio", input.audio, "jawaban");
   body.append("live_transcript", input.liveTranscript);
   body.append("client_events", JSON.stringify(input.clientEvents));
   body.append("interrupted", input.interrupted ? "true" : "false");
-  return apiFetchBrowser<CekPahamFinalizeResult>(`/api/student/cekpaham/${id}/finalize`, {
-    method: "POST",
-    body,
-  });
+  // Audio sampai 5 MB: langsung ke API dengan tiket, bukan lewat jembatan.
+  return resolveJson<CekPahamFinalizeResult>(
+    await directFetch(`/api/student/cekpaham/${id}/finalize`, { method: "POST", body }),
+  );
 }
 
 export function reportCekPaham(id: string, input: { reason?: CekPahamReportReason; note: string }) {

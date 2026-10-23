@@ -10,6 +10,10 @@ export type EventType =
   | "submitted"
   | "progress";
 export type AnalysisSource = "llm" | "detector" | "heuristic" | "seed";
+/** Keadaan analisis sebuah pengumpulan; "pending"/"running" berarti worker belum selesai. */
+export type AnalysisState = "pending" | "running" | "done" | "failed";
+/** Pola pengerjaan: bukti tersendiri yang tidak menjumlah ke skor AI. Kosong untuk jawaban diimpor. */
+export type ProcessBand = "normal" | "partial" | "attention" | "unrecorded" | "";
 /** Baris pada halaman Daftar Tugas dosen: sama seperti AssignmentSummary,
  *  ditambah asal kelasnya karena di sana tugas lintas kelas bercampur. */
 export interface TeacherAssignmentRow extends AssignmentSummary {
@@ -121,6 +125,19 @@ export interface AnalysisView {
   summary: string;
   recommendation: string;
   analysis_source: AnalysisSource;
+  process_band: ProcessBand;
+  process_evidence: string;
+}
+
+/** Satu baris riwayat analisis; setiap analisis tersimpan permanen. */
+export interface AnalysisRunView {
+  id: string;
+  trigger: "submit" | "revise" | "reanalyze";
+  created_at: string;
+  ai_score: number;
+  ai_band: AiBand;
+  bloom_level: number;
+  analysis_source: AnalysisSource;
 }
 
 /** Metrik yang sama dipakai tiap pengelompokan di laporan. */
@@ -179,7 +196,6 @@ export interface Profile {
 }
 
 export interface AuthResponse {
-  token: string;
   profile: Profile;
 }
 
@@ -196,6 +212,15 @@ export interface ConsentHistoryEntry {
   created_at: string;
 }
 
+export interface DeletionImpact {
+  role: Role;
+  classes: number;
+  submissions: number;
+  files: number;
+  /** Hanya dosen. */
+  students?: number;
+}
+
 /** Keadaan persetujuan pemrosesan data pribadi beserta rekam jejaknya. */
 export interface ConsentStatus {
   current_version: string;
@@ -206,8 +231,8 @@ export interface ConsentStatus {
 }
 
 /** Balasan saat persetujuan diberikan atau ditarik: token lama sudah usang. */
+// Token tidak ada di sini: jembatan /bff memindahkannya ke cookie HttpOnly.
 export interface ConsentChangeResponse {
-  token: string;
   consent: ConsentStatus;
 }
 
@@ -220,6 +245,9 @@ export interface ClassPublic {
   program_studi: string;
   /** Semester penyelenggaraan kelas, bukan semester mahasiswa. */
   semester: number | null;
+  /** Dosennya sudah menghapus akun: kelas hanya bisa dibaca. */
+  is_archived: boolean;
+  owner_left_at: string | null;
 }
 
 export interface StudentAssignment {
@@ -252,17 +280,25 @@ export interface StudentSubmissionWithText extends StudentSubmissionStatus {
 }
 
 export interface StudentClassWithAssignments extends ClassPublic {
-  teacher_name: string;
+  teacher_name: string | null;
   joined_at: string;
   assignments: Array<
     StudentAssignment & { submission: StudentSubmissionStatus | null }
   >;
 }
 
+/** Draf tersimpan di server; ada hanya setelah mahasiswa mulai menulis. */
+export interface AnswerDraft {
+  text_answer: string;
+  document_id: string | null;
+  saved_at: string;
+}
+
 export interface StudentAssignmentDetail {
   class: ClassPublic;
   assignment: StudentAssignment;
   submission: StudentSubmissionWithText | null;
+  draft: AnswerDraft | null;
 }
 
 export interface JoinClassResult {
@@ -311,7 +347,8 @@ export interface SubmissionRow {
   revision_count: number;
   status: SubmissionStatus;
   grade: number | null;
-  analysis: { ai_band: AiBand; bloom_level: number } | null;
+  analysis_state: AnalysisState;
+  analysis: { ai_band: AiBand; bloom_level: number; process_band: ProcessBand } | null;
 }
 
 export interface TeacherSubmissionRow extends SubmissionRow {
@@ -366,7 +403,10 @@ export interface SubmissionDetail {
   grade: number | null;
   teacher_feedback: string;
   reasoning_events: ReasoningEventView[];
+  analysis_state: AnalysisState;
   analysis: AnalysisView | null;
+  /** Terbaru dulu. */
+  analysis_history: AnalysisRunView[];
 }
 
 /** Materi yang dibagikan dosen ke satu kelas: judul, ringkasan, dan tautan. */

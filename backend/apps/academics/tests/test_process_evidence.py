@@ -200,17 +200,37 @@ class SubmissionProcessApiTest(TestCase):
         return row["evidence"]
 
     def _burst_payload(self) -> dict:
-        """Seluruh jawaban muncul sekaligus di awal, lalu jendela dibiarkan terbuka."""
+        """Tulis draf yang direkam server: seluruh jawaban muncul sekaligus di awal,
+        lalu jendela dibiarkan terbuka. Mengembalikan {} (klien tidak lagi mengirim jejak)."""
         started = timezone.now() - timedelta(minutes=20)
-        offsets = (5, 35, 65, 95, 125)
-        words = (0, 150, 150, 150, 150)
-        return {
+        client = self._client_for(self.student)
+        steps = ((5, "Mulai menulis jawaban ini"), (35, ANSWER), (65, ANSWER + " ."), (95, ANSWER + " . ."), (125, ANSWER + " . . ."))
+        for offset, text in steps:
+            with patch("apps.academics.services.drafts.timezone.now", return_value=started + timedelta(seconds=offset)):
+                response = client.put(
+                    f"/api/assignments/{self.assignment.id}/draft", {"text_answer": text}, format="json"
+                )
+            self.assertEqual(response.status_code, 200, response.content)
+        return {}
+
+    def test_trail_forged_by_the_client_is_ignored(self):
+        """Dulu satu request dengan started_at dua jam lalu dan 240 cuplikan mulus
+        membuat jejak normal. Sekarang server hanya percaya catatannya sendiri."""
+        started = timezone.now() - timedelta(hours=2)
+        forged = {
             "started_at": started.isoformat(),
             "progress": [
-                {"at": (started + timedelta(seconds=o)).isoformat(), "word_count": w}
-                for o, w in zip(offsets, words)
+                {"at": (started + timedelta(seconds=30 * i)).isoformat(), "word_count": min(141, i * 2)}
+                for i in range(240)
             ],
         }
+        response = self._submit(**forged)
+        self.assertEqual(response.status_code, 201)
+        submission = Submission.objects.get(pk=response.data["id"])
+        self.assertLess((timezone.now() - submission.started_at).total_seconds(), 60)
+        self.assertEqual(submission.duration_seconds, 0)
+        self.assertIn("tiba sekaligus", self._process_evidence(submission))
+        self.assertEqual(submission.analysis.process_band, "attention")
 
     def test_pastes_sent_by_an_old_client_are_ignored(self):
         """Frontend dan backend di-deploy terpisah; form lama masih mengirim kolom ini."""
@@ -247,10 +267,12 @@ class SubmissionProcessApiTest(TestCase):
         reanalysed = self._client_for(self.teacher).post(
             f"/api/submissions/{submission.id}/reanalyze", format="json"
         )
-        self.assertEqual(reanalysed.status_code, 200)
+        self.assertEqual(reanalysed.status_code, 202)
+        detail = self._client_for(self.teacher).get(f"/api/submissions/{submission.id}").json()
+        self.assertEqual(detail["analysis_state"], "done")
         after = next(
             item["evidence"]
-            for item in reanalysed.data["analysis"]["signal_breakdown"]
+            for item in detail["analysis"]["signal_breakdown"]
             if item["key"] == "process_forensics"
         )
         self.assertIn("lonjakan", after)
@@ -304,8 +326,8 @@ class SubmissionProcessApiTest(TestCase):
                     reanalysed = self._client_for(self.teacher).post(
                         f"/api/submissions/{submission.id}/reanalyze", format="json"
                     )
-                    self.assertEqual(reanalysed.status_code, 200)
+                    self.assertEqual(reanalysed.status_code, 202)
+                    submission.analysis.refresh_from_db()
                     self.assertEqual(
-                        reanalysed.data["analysis"]["analysis_source"],
-                        AnalysisSource.HEURISTIC,
+                        submission.analysis.analysis_source, AnalysisSource.HEURISTIC
                     )

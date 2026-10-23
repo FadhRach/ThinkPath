@@ -38,8 +38,8 @@ export function ConsentScreen({ role, previous, home, policy }: Props) {
     });
   }
 
-  function handleDecline() {
-    logout();
+  async function handleDecline() {
+    await logout();
     router.replace("/login");
     router.refresh();
   }

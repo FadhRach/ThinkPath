@@ -6,6 +6,7 @@ import uuid
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.analysis.choices import AiBand, AnalysisSource, Confidence
 
@@ -46,6 +47,11 @@ class AnalysisResult(models.Model):
         choices=AnalysisSource.choices,
         default=AnalysisSource.HEURISTIC,
     )
+    # Pola pengerjaan, bukti tersendiri yang TIDAK menjumlah ke ai_score
+    # (lihat PROCESS_WEIGHT di engines/ai_score.py). Kosong untuk jawaban yang
+    # diimpor dari dokumen dan untuk baris lama.
+    process_band = models.CharField(max_length=16, blank=True, default="")
+    process_evidence = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -100,4 +106,96 @@ class DetectorScore(models.Model):
                 condition=Q(ai_probability__gte=0.0, ai_probability__lte=1.0),
                 name="detector_probability_range",
             ),
+        ]
+
+
+class AnalysisTrigger(models.TextChoices):
+    SUBMIT = "submit", "Pengumpulan"
+    REVISE = "revise", "Revisi"
+    REANALYZE = "reanalyze", "Analisis ulang dosen"
+
+
+class AnalysisRun(models.Model):
+    """Satu analisis, disimpan permanen. Tidak pernah diubah atau ditimpa.
+
+    AnalysisResult adalah keadaan terkini dan ditimpa tiap analisis ulang, jadi
+    skor yang pernah dilihat dosen hilang tanpa jejak. Baris di sini menjaga
+    riwayatnya: apa hasilnya, kapan, karena apa, dan atas permintaan siapa.
+    payload memuat dict hasil lengkap; kolom lain hanya untuk disaring cepat.
+    process_context menyimpan masukan proses (durasi, jumlah cuplikan, kata
+    sisipan) supaya bobot sinyal proses kelak bisa dikalibrasi terhadap label
+    dosen tanpa menjalankan ulang apa pun.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        "academics.Submission", on_delete=models.CASCADE, related_name="analysis_runs"
+    )
+    trigger = models.CharField(max_length=16, choices=AnalysisTrigger.choices)
+    requested_by = models.ForeignKey(
+        "accounts.Profile", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    ai_score = models.SmallIntegerField()
+    ai_band = models.CharField(max_length=8, choices=AiBand.choices)
+    bloom_level = models.SmallIntegerField()
+    analysis_source = models.CharField(max_length=16, choices=AnalysisSource.choices)
+    payload = models.JSONField(default=dict)
+    process_context = models.JSONField(default=dict, blank=True)
+    text_sha256 = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "analysis_runs"
+        indexes = [
+            models.Index(fields=["submission", "-created_at"], name="analysis_run_sub_recent_idx"),
+        ]
+
+
+class JobStatus(models.TextChoices):
+    QUEUED = "queued", "Antre"
+    RUNNING = "running", "Berjalan"
+    DONE = "done", "Selesai"
+    FAILED = "failed", "Gagal"
+    # Digantikan job yang lebih baru untuk submission yang sama (mis. direvisi
+    # lagi sebelum sempat dianalisis); hasilnya tidak berguna lagi.
+    SUPERSEDED = "superseded", "Digantikan"
+
+
+class AnalysisJob(models.Model):
+    """Antrean analisis, disimpan di Postgres (tanpa broker).
+
+    VPS 1 GB tidak punya ruang untuk Redis/Celery; satu proses worker kecil
+    yang mengklaim baris dengan SELECT ... FOR UPDATE SKIP LOCKED cukup untuk
+    beban kelas. Pengumpulan jawaban hanya menyimpan baris ini, sehingga
+    request mahasiswa selesai dalam milidetik walau Winston dan Groq lambat.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        "academics.Submission", on_delete=models.CASCADE, related_name="analysis_jobs"
+    )
+    trigger = models.CharField(max_length=16, choices=AnalysisTrigger.choices)
+    requested_by = models.ForeignKey(
+        "accounts.Profile", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    status = models.CharField(max_length=16, choices=JobStatus.choices, default=JobStatus.QUEUED)
+    # revision_count saat job dibuat: hasil job yang teksnya sudah direvisi lagi dibuang.
+    revision_count = models.IntegerField(default=0)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    run_after = models.DateTimeField(default=timezone.now)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=300, blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "analysis_jobs"
+        indexes = [
+            # Hanya baris yang masih perlu dikerjakan; tabel riwayat job tidak memperlambat klaim.
+            models.Index(
+                fields=["run_after"],
+                condition=Q(status__in=["queued", "running"]),
+                name="analysis_job_open_idx",
+            ),
+            models.Index(fields=["submission", "-created_at"], name="analysis_job_sub_idx"),
         ]

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { teacherLabel } from "@/components/student/ArchivedClassNotice";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { MaterialsHome, type ClassFolder } from "@/components/materials/MaterialsHome";
@@ -18,7 +19,7 @@ export default async function StudentMaterialsPage() {
   const folders: ClassFolder[] = classes.map((cls) => ({
     id: cls.id,
     name: cls.name,
-    detail: [distinctSubject(cls.name, cls.subject), cls.teacher_name]
+    detail: [distinctSubject(cls.name, cls.subject), teacherLabel(cls.teacher_name)]
       .filter(Boolean)
       .join(" · "),
     materials: materials.filter((material) => material.class_id === cls.id),

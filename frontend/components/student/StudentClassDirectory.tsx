@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { teacherLabel } from "@/components/student/ArchivedClassNotice";
 import { StudentClassCard } from "@/components/student/StudentClassCard";
 import { Input } from "@/components/ui/input";
 import type { StudentClassWithAssignments } from "@/lib/types";
@@ -17,7 +18,7 @@ export function StudentClassDirectory({
     const normalized = query.trim().toLocaleLowerCase("id");
     if (!normalized) return classes;
     return classes.filter((studentClass) =>
-      [studentClass.name, studentClass.subject, studentClass.teacher_name]
+      [studentClass.name, studentClass.subject, teacherLabel(studentClass.teacher_name)]
         .join(" ")
         .toLocaleLowerCase("id")
         .includes(normalized),

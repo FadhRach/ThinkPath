@@ -28,8 +28,8 @@ export function NavUser({ displayName, email, roleLabel, settingsHref }: Props) 
   const router = useRouter();
   const name = displayName || email;
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     router.replace("/login");
     router.refresh();
   }

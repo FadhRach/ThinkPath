@@ -2,6 +2,7 @@ import { ChevronRight, FolderOpen } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { teacherLabel } from "@/components/student/ArchivedClassNotice";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ClassMaterialBrowser } from "@/components/materials/ClassMaterialBrowser";
 import { academicLabel, distinctSubject } from "@/lib/academic";
@@ -60,7 +61,7 @@ export default async function StudentClassMaterialsPage({
             {[
               distinctSubject(current.name, current.subject),
               academicLabel(current),
-              current.teacher_name,
+              teacherLabel(current.teacher_name),
             ]
               .filter(Boolean)
               .join(" · ")}
