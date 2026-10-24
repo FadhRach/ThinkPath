@@ -41,6 +41,7 @@ class DraftView(APIView):
             student,
             serializer.validated_data["text_answer"],
             document_id=serializer.validated_data.get("document_id"),
+            rich_answer=serializer.validated_data.get("rich_answer"),
         )
         return Response(
             {"started": draft is not None, "saved_at": draft.last_saved_at if draft else None}

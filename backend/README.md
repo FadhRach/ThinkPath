@@ -262,8 +262,10 @@ Diagram relasi, constraint, index, dan alasan normalisasi ada di [diagram/08-erd
 | App | Model → tabel |
 |---|---|
 | `accounts` | `Profile` → `profiles`, `ConsentRecord` → `consent_records` |
-| `academics` | `Class` → `classes`, `ClassMembership` → `class_memberships`, `Assignment` → `assignments`, `Material` → `materials`, `Announcement` → `announcements`, `Submission` → `submissions`, `ReasoningEvent` → `reasoning_events` |
+| `academics` | `Class` → `classes`, `ClassMembership` → `class_memberships`, `Assignment` → `assignments`, `Material` → `materials`, `Submission` → `submissions`, `ReasoningEvent` → `reasoning_events` |
 | `analysis` | `AnalysisResult` → `analysis_results`, `DetectorScore` → `detector_scores` |
+| `forum` | `ForumPost` → `forum_posts` (kind `announcement`/`discussion`), `ForumReply` → `forum_replies` |
+| `todos` | `StudentTodo` → `student_todos` |
 | `notifications` | `Notification` → `notifications` |
 
 Aturan penting dijaga **di basis data**, bukan hanya di serializer: satu submission per mahasiswa per tugas, email unik tanpa peduli huruf besar, rentang nilai/Bloom/semester, dan satu Cek Paham aktif per submission. Jenjang, program studi, dan semester **melekat di kelas**, bukan di profil atau tugas.
@@ -296,7 +298,14 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET | `/api/assignments` | dosen | seluruh tugas lintas kelas |
 | GET/PATCH | `/api/assignments/<id>` | dosen pemilik | detail / edit tugas; target Bloom dikunci setelah ada pengumpulan |
 | GET | `/api/classes/<id>/students` | dosen pemilik | seluruh anggota kelas beserta jumlah pengumpulan dan penilaian |
-| GET/POST | `/api/classes/<id>/announcements` | GET pemilik/anggota, POST dosen pemilik | baca / terbitkan pengumuman dan kirim notifikasi mahasiswa |
+| GET | `/api/classes/<id>/people` | mahasiswa anggota | dosen dan teman sekelas, hanya nama tampil (tanpa email; akun tanpa nama diberi nama umum); non-anggota 404 |
+| GET/POST | `/api/classes/<id>/forum` | GET pemilik/anggota, POST pemilik/anggota (kind `announcement` hanya dosen pemilik) | daftar topik (pengumuman di atas) / buat topik; memicu notifikasi `forum_post_new`; ditolak di kelas arsip |
+| GET | `/api/student/forum/recent?limit=` | mahasiswa | aktivitas forum terbaru lintas kelas (maks 20) |
+| GET/DELETE | `/api/forum/posts/<id>` | pemilik/anggota; hapus oleh penulis atau dosen pemilik | topik beserta balasan / hapus |
+| POST | `/api/forum/posts/<id>/replies` | pemilik/anggota | balas topik; notifikasi `forum_reply_new` |
+| DELETE | `/api/forum/replies/<id>` | penulis atau dosen pemilik | hapus balasan |
+| GET/POST | `/api/student/todos` | mahasiswa | to-do pribadi (maks 100 yang belum selesai) |
+| PATCH/DELETE | `/api/student/todos/<id>` | pemilik item | centang/ubah / hapus; item orang lain 404 |
 | GET | `/api/submissions` | dosen | pengumpulan lintas kelas sendiri; filter `status=all`, `submitted`, atau `reviewed`; `limit` (bawaan 200, maks 500) dan `offset`; total di header `X-Total-Count`; tanpa draf |
 | GET | `/api/overview` | dosen | agregat layar Overview |
 | GET | `/api/reports/overview` | dosen | laporan per kelas, prodi, semester |
@@ -305,7 +314,7 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET | `/api/student/classes` | mahasiswa | kelas diikuti + status tiap tugas |
 | GET | `/api/student/progress` | mahasiswa | perkembangan kognitif sendiri |
 | GET | `/api/student/assignments/<id>` | mahasiswa anggota | detail tugas + submission sendiri |
-| PUT | `/api/assignments/<id>/draft` | mahasiswa anggota | simpan otomatis draf (`text_answer`); **server mencatat waktu mulai dan kurva kata**; baru mulai pada simpan pertama yang berisi teks |
+| PUT | `/api/assignments/<id>/draft` | mahasiswa anggota | simpan otomatis draf (`rich_answer` dokumen editor, atau `text_answer` teks polos); **server mencatat waktu mulai dan kurva kata**; baru mulai pada simpan pertama yang berisi teks |
 | GET/POST | `/api/assignments/<id>/submissions` | GET dosen, POST mahasiswa | daftar / **submit atau revisi** (hanya menyimpan, analisis dikerjakan worker) |
 | POST | `/api/assignments/<id>/documents` | mahasiswa anggota | unggah PDF/DOCX/PNG/JPG (maks 10 MB, multipart `file`); membalas teks hasil baca |
 | GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik |
@@ -334,7 +343,7 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 Bukti proses **dicatat server**, bukan dikirim klien:
 
 1. Mahasiswa mengetik; form menyimpan otomatis lewat `PUT /api/assignments/<id>/draft`. Draf (`submission_drafts`) dibuat pada simpan pertama yang **berisi teks**, dan `started_at` adalah jam server saat itu. Membuka halaman tugas tidak memulai apa pun. Jumlah kata dihitung server dari teks, dan satu cuplikan dicatat paling sering tiap 20 detik (maks 240).
-2. `POST /api/assignments/<id>/submissions` adalah **upsert per mahasiswa**. Body hanya `text_answer` (+ `document_id` bila dari unggahan). `started_at` dan `progress` dari bundel lama **diterima tetapi diabaikan**. Pengumpulan pertama memakai draf (dihapus di transaksi yang sama); tanpa draf, durasi terukur 0 dan teks dianggap tiba sekaligus.
+2. `POST /api/assignments/<id>/submissions` adalah **upsert per mahasiswa**. Body `rich_answer` (dokumen editor TipTap; server membersihkannya lewat daftar putih di `services/rich_text.py` dan **menurunkan sendiri** `text_answer` darinya, sehingga klien tidak bisa mengirim teks polos yang berbeda) atau `text_answer` saja (klien lama), minimal 5 kata (+ `document_id` bila dari unggahan). Gambar disisipkan sebagai data URI kecil (PNG/JPEG/WebP/GIF) di dalam dokumen, maksimal 6 gambar dan 2,5 MB. `started_at` dan `progress` dari bundel lama **diterima tetapi diabaikan**. Pengumpulan pertama memakai draf (dihapus di transaksi yang sama); tanpa draf, durasi terukur 0 dan teks dianggap tiba sekaligus.
 3. Pengumpulan berikutnya, selama tenggat belum lewat dan belum dinilai, memperbarui jawaban yang sama: `revision_count += 1`, `ReasoningEvent(revision)` yang memuat `inserted_words` (kata baru yang tidak ada di teks sebelumnya, supaya mengganti seluruh isi saat revisi tetap terbaca).
 4. Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`. Status "sudah dinilai" diperiksa ulang di dalam transaksi (`SELECT ... FOR UPDATE`).
 5. Klik ganda pada pengumpulan pertama: constraint `submission_unique_per_student` menolak baris kedua, dibalas `400`, bukan `500`.

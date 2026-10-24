@@ -1,10 +1,12 @@
 import { apiFetchBrowser } from "@/lib/api/browser";
 import { resolveJson } from "@/lib/api/request";
 import { directFetch } from "@/lib/api/direct";
-import type { AnalysisState, SubmissionDetail } from "@/lib/types";
+import type { AnalysisState, RichDoc, SubmissionDetail } from "@/lib/types";
 
 export interface SubmitAnswerInput {
-  text_answer: string;
+  /** Dokumen editor. Server menurunkan teks polosnya sendiri, jadi `text_answer` hanya cadangan. */
+  rich_answer?: RichDoc;
+  text_answer?: string;
   /** Hasil uploadDocument; backend memeriksa teks memang berasal dari dokumen itu. */
   document_id?: string;
 }
@@ -36,11 +38,13 @@ export async function uploadDocument(assignmentId: string, file: File) {
  */
 export function saveDraft(
   assignmentId: string,
-  input: { text_answer: string; document_id?: string | null },
+  input: { rich_answer?: RichDoc; text_answer?: string; document_id?: string | null },
+  /** Biarkan permintaan selesai walau halaman ditutup (batas badan 64 KB oleh peramban). */
+  keepalive = false,
 ) {
   return apiFetchBrowser<{ started: boolean; saved_at: string | null }>(
     `/api/assignments/${assignmentId}/draft`,
-    { method: "PUT", body: JSON.stringify(input) },
+    { method: "PUT", body: JSON.stringify(input), keepalive },
   );
 }
 

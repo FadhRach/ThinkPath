@@ -24,6 +24,8 @@ INSTALLED_APPS = [
     "apps.analysis",
     "apps.notifications",
     "apps.cekpaham",
+    "apps.forum",
+    "apps.todos",
 ]
 
 MIDDLEWARE = [
@@ -93,6 +95,9 @@ REST_FRAMEWORK = {
         # (STT + penilai berbayar). Satu sesi sah jauh di bawah batas ini.
         "cekpaham_live": "40/min",
         "cekpaham_finalize": "30/hour",
+        # Menulis topik/balasan forum dan butir to-do; jauh di atas pemakaian sah.
+        "forum_write": "40/hour",
+        "todo_write": "120/hour",
     },
 }
 

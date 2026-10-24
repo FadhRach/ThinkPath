@@ -23,7 +23,7 @@ export function EmptyState({ title, caption, action, variant = "card" }: EmptySt
   }
   return (
     <Card variant="dashed" className="px-8 py-12 text-center">
-      <h2 className="mb-2 font-display text-heading font-medium text-foreground">{title}</h2>
+      <h2 className="mb-2 text-heading font-bold text-foreground">{title}</h2>
       <p className="mx-auto max-w-md text-body text-muted-foreground">{caption}</p>
       {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </Card>

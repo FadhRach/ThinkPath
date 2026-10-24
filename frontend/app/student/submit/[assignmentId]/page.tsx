@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { AssignmentHeader } from "@/features/assignments/components/AssignmentHeader";
-import { InstructionsCard } from "@/features/assignments/components/InstructionsCard";
 import { ArchivedClassNotice } from "@/features/classes/components/ArchivedClassNotice";
-import { StudentSubmissionPanel } from "@/features/submissions/components/StudentSubmissionPanel";
-import { SubmitGuideCard } from "@/features/submissions/components/SubmitGuideCard";
+import { AnswerPanel } from "@/features/submissions/components/AnswerPanel";
+import { SubmissionStatusCard } from "@/features/submissions/components/SubmissionStatusCard";
+import { TeacherFeedbackCard } from "@/features/submissions/components/TeacherFeedbackCard";
 import { ApiError } from "@/lib/api/errors";
-import { getStudentAssignment } from "@/lib/data";
+import { getOwnProgress, getStudentAssignment } from "@/lib/data";
 
 export default async function SubmitAssignmentPage({
   params,
@@ -24,42 +24,48 @@ export default async function SubmitAssignmentPage({
   }
 
   const { assignment, submission, draft } = detail;
+  const isReviewed = submission?.status === "reviewed";
+
+  // Level hasil jawaban hanya dibutuhkan setelah dinilai; kegagalannya tidak boleh merobohkan halaman.
+  const achievedLevel = isReviewed
+    ? ((await getOwnProgress().catch(() => null))?.classes
+        .find((series) => series.class_id === detail.class.id)
+        ?.points.find((point) => point.submission_id === submission.id)?.level ?? null)
+    : null;
+
   const isPastDeadline =
     assignment.deadline !== null && Date.now() > new Date(assignment.deadline).getTime();
-  const isReviewed = submission?.status === "reviewed";
-  const isArchived = detail.class.is_archived;
-  const canRevise = submission !== null && !isPastDeadline && !isArchived && !isReviewed;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 sm:space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <Breadcrumb
         items={[
-          { label: "Beranda", href: "/student" },
-          { label: "Kelas", href: "/student/kelas" },
+          { label: "Tugas", href: "/student/tugas" },
           { label: detail.class.name, href: `/student/kelas/${detail.class.id}` },
-          { label: "Tugas" },
+          { label: assignment.title },
         ]}
       />
       <ArchivedClassNotice klass={detail.class} />
-      <AssignmentHeader detail={detail} />
+      <AssignmentHeader detail={detail} achievedLevel={achievedLevel} />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,.6fr)]">
-        <div className="space-y-4">
-          <InstructionsCard instructions={assignment.instructions} />
-          <StudentSubmissionPanel
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0 space-y-5">
+          {isReviewed && submission ? (
+            <TeacherFeedbackCard feedback={submission.teacher_feedback} grade={submission.grade} />
+          ) : null}
+          <AnswerPanel
+            assignmentId={assignment.id}
+            deadline={assignment.deadline}
             submission={submission}
             draft={draft}
-            canRevise={canRevise}
-            isPastDeadline={isPastDeadline}
-            isArchived={isArchived}
-            isReviewed={Boolean(isReviewed)}
-            assignmentId={assignment.id}
             allowUpload={assignment.allow_file_upload}
-            classId={detail.class.id}
+            isPastDeadline={isPastDeadline}
+            isArchived={detail.class.is_archived}
+            isReviewed={Boolean(isReviewed)}
           />
         </div>
-        <aside className="space-y-4">
-          <SubmitGuideCard targetLevel={assignment.expected_bloom_level} />
+        <aside className="space-y-4 xl:sticky xl:top-24">
+          <SubmissionStatusCard submission={submission} draft={draft} />
         </aside>
       </div>
     </div>

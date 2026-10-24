@@ -8,7 +8,7 @@ transaksi selesai. Berkas yang gagal terhapus tidak tertaut ke baris mana pun,
 dan `manage.py purge_stale_data` menyapunya.
 
 Dosen yang menghapus akun TIDAK menghapus kelasnya. Kelas, tugas, materi,
-pengumuman, dan jawaban mahasiswa tetap tersimpan sebagai arsip (`Class.owner`
+forum (termasuk pengumuman), dan jawaban mahasiswa tetap tersimpan sebagai arsip (`Class.owner`
 menjadi kosong, `owner_left_at` terisi) dan mahasiswa melihat peringatannya.
 Data itu milik mahasiswa juga, dan menghapusnya diam-diam merusak riwayat
 mereka. Hitungannya tersedia lebih dulu lewat `deletion_impact`.
@@ -72,6 +72,17 @@ def deletion_impact(profile: Profile) -> dict:
     }
 
 
+def _purge_forum_content(profile: Profile) -> None:
+    """Tulisan forum mahasiswa adalah data pribadinya dan ikut dihapus.
+
+    Tulisan dosen justru dipertahankan (penulis dikosongkan): itu bagian dari arsip kelas.
+    """
+    from apps.forum.models import ForumPost, ForumReply
+
+    ForumReply.objects.filter(author=profile).delete()
+    ForumPost.objects.filter(author=profile).delete()
+
+
 def delete_account(profile: Profile) -> dict:
     """Hapus akun beserta semua turunannya. Mengembalikan ringkasan yang dihapus."""
     from apps.academics.models import Class
@@ -81,6 +92,8 @@ def delete_account(profile: Profile) -> dict:
     with transaction.atomic():
         # Tandai sebelum owner dikosongkan oleh SET_NULL.
         Class.objects.filter(owner=profile).update(owner_left_at=timezone.now())
+        if profile.role == Role.STUDENT:
+            _purge_forum_content(profile)
         total_rows, _ = profile.delete()
         AccountDeletion.objects.create(
             role=profile.role,

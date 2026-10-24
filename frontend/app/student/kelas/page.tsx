@@ -8,42 +8,9 @@ import { getStudentClasses } from "@/lib/data";
 
 export default async function StudentClassesPage() {
   const classes = await getStudentClasses();
-  const activeAssignments = classes.reduce(
-    (total, studentClass) =>
-      total +
-      studentClass.assignments.filter((assignment) => assignment.submission?.status !== "reviewed")
-        .length,
-    0,
-  );
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <Link href="/student" className="transition hover:text-brand-ink">
-          Beranda
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page" className="text-foreground">
-          Kelas
-        </span>
-      </div>
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="max-w-2xl">
-          <h1 className="mt-1.5 text-title font-semibold text-foreground">Kelas yang kamu ikuti</h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            Materi, tugas, dan kabar dosen tersusun rapi di setiap kelas.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs font-semibold">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-accent-foreground">
-            <BookOpen className="h-3.5 w-3.5" />
-            {classes.length} kelas
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-pink px-3 py-1.5 text-danger">
-            {activeAssignments} tugas aktif
-          </span>
-        </div>
-      </header>
+    <div className="flex flex-col gap-6">
+      <h1 className="sr-only">Kelas</h1>
 
       {classes.length > 0 ? (
         <StudentClassDirectory classes={classes} />
@@ -68,7 +35,6 @@ export default async function StudentClassesPage() {
           <JoinClassPanel />
         </div>
       )}
-      {classes.length > 0 ? <JoinClassPanel /> : null}
     </div>
   );
 }

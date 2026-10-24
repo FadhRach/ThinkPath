@@ -16,10 +16,10 @@ export function TeacherClassHeader({ klass }: { klass: ClassSummary }) {
           <IconTile icon={BookOpen} tone="solid" size="lg" />
           <div className="min-w-0">
             <p className="caption-eyebrow text-brand-ink">Ruang kelas · {academicLabel(klass)}</p>
-            <h1 className="mt-1 break-words font-display text-title font-medium">{klass.name}</h1>
+            <h1 className="mt-1 break-words text-title font-bold">{klass.name}</h1>
             <p className="mt-2 text-xs text-muted-foreground">
               Kode gabung{" "}
-              <span className="ml-1 rounded-md border border-border bg-muted px-2 py-1 font-mono font-bold tracking-wider text-brand-ink">
+              <span className="ml-1 rounded-md border border-border bg-muted px-2 py-1 tabular-nums font-bold tracking-wider text-brand-ink">
                 {klass.join_code}
               </span>
             </p>

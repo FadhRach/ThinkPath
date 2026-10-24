@@ -50,7 +50,7 @@ export function TeacherClassList({
                 <p className="mt-1 text-sm text-muted-foreground">{academicLabel(classroom)}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {classroom.assignment_count} tugas · Kode kelas{" "}
-                  <span className="font-mono text-foreground">{classroom.join_code}</span>
+                  <span className="tabular-nums text-foreground">{classroom.join_code}</span>
                 </p>
               </div>
               <div className="shrink-0 sm:text-right">

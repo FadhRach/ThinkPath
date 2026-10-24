@@ -45,11 +45,8 @@ export interface ClassRosterStudent extends StudentMini {
   reviewed_count: number;
 }
 
-export interface Announcement {
-  id: string;
-  class_id: string;
-  author_name: string;
-  title: string;
-  body: string;
-  created_at: string;
+/** Dosen dan teman sekelas yang dilihat mahasiswa anggota kelas; hanya nama tampil. */
+export interface ClassPeople {
+  teacher: { display_name: string } | null;
+  students: { id: string; display_name: string; is_me: boolean }[];
 }

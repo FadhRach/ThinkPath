@@ -1,6 +1,6 @@
 import type { ClassPublic } from "./classes";
 import type { EducationLevel } from "./common";
-import type { StudentSubmissionWithText } from "./submissions";
+import type { RichDoc, StudentSubmissionWithText } from "./submissions";
 
 /** Baris pada halaman Daftar Tugas dosen: sama seperti AssignmentSummary,
  *  ditambah asal kelasnya karena di sana tugas lintas kelas bercampur. */
@@ -23,6 +23,7 @@ export interface StudentAssignment {
 /** Draf tersimpan di server; ada hanya setelah mahasiswa mulai menulis. */
 export interface AnswerDraft {
   text_answer: string;
+  rich_answer: RichDoc | null;
   document_id: string | null;
   saved_at: string;
 }

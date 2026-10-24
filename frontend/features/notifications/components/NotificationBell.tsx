@@ -7,7 +7,9 @@ import {
   ClipboardList,
   Hourglass,
   Inbox,
+  Megaphone,
   MessageSquareReply,
+  MessagesSquare,
   Mic,
   UserPlus,
 } from "lucide-react";
@@ -32,7 +34,7 @@ import { cn } from "@/lib/utils";
 const POLL_MS = 60_000;
 
 const KIND_ICON: Record<NotificationKind, LucideIcon> = {
-  announcement_new: Bell,
+  announcement_new: Megaphone,
   assignment_new: ClipboardList,
   material_new: BookOpen,
   submission_graded: CheckCircle2,
@@ -40,6 +42,8 @@ const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   cekpaham_new: Mic,
   cekpaham_resolved: MessageSquareReply,
   cekpaham_result: Mic,
+  forum_post_new: MessagesSquare,
+  forum_reply_new: MessageSquareReply,
   submissions_new: Inbox,
   students_joined: UserPlus,
 };

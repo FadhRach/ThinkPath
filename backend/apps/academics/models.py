@@ -206,22 +206,6 @@ class Material(models.Model):
         return self.title
 
 
-class Announcement(models.Model):
-    """Pengumuman dosen untuk anggota satu kelas."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    class_ref = models.ForeignKey(
-        Class, on_delete=models.CASCADE, related_name="announcements", db_column="class_id"
-    )
-    title = models.CharField(max_length=160)
-    body = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "announcements"
-        indexes = [models.Index(fields=["class_ref", "-created_at"], name="announcement_class_recent_idx")]
-
-
 class Submission(models.Model):
     """Jawaban satu mahasiswa untuk satu tugas.
 
@@ -242,6 +226,9 @@ class Submission(models.Model):
         related_name="submissions",
     )
     text_answer = models.TextField(blank=True, default="")
+    # Dokumen editor kaya (TipTap) yang sudah dibersihkan server; `text_answer` selalu
+    # diturunkan darinya. Null untuk jawaban teks polos (lama atau dari klien lama).
+    rich_answer = models.JSONField(null=True, blank=True, default=None)
     # Dokumen unggahan yang menjadi sumber jawaban (documents/<mahasiswa>/<id>.*
     # di MEDIA_ROOT), hanya bila teks jawaban terbukti berasal darinya. Jawaban
     # begini tidak punya jejak mengetik, jadi forensik prosesnya dilewati.
@@ -346,6 +333,7 @@ class SubmissionDraft(models.Model):
         Profile, on_delete=models.CASCADE, related_name="drafts"
     )
     text_answer = models.TextField(blank=True, default="")
+    rich_answer = models.JSONField(null=True, blank=True, default=None)
     # Dokumen unggahan yang menjadi sumber teks draf (opsional).
     document_id = models.UUIDField(null=True, blank=True, default=None)
     started_at = models.DateTimeField()

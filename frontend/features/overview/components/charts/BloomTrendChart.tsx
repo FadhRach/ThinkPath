@@ -33,8 +33,24 @@ interface Props {
 
 const TARGET_COLOR = "hsl(var(--warning))";
 
-function formatLevel(value: number): string {
-  return `L${value}`;
+interface LevelTickProps {
+  x?: number;
+  y?: number;
+  payload?: { value: number };
+}
+
+/** Tick sumbu Y "L1".."L6"; disorot kursor, tooltip bawaan menyebut level berpikirnya. */
+function LevelTick({ x = 0, y = 0, payload }: LevelTickProps) {
+  const level = payload?.value ?? 0;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{`L${level} · ${bloomShortLabel(level)}`}</title>
+      <rect x={-34} y={-10} width={34} height={20} fill="transparent" />
+      <text x={-4} dy={4} textAnchor="end" fill={CHART_COLORS.axis} fontSize={12}>
+        {`L${level}`}
+      </text>
+    </g>
+  );
 }
 
 interface TooltipPayload {
@@ -95,11 +111,10 @@ export function BloomTrendChart({ data, height = 220 }: Props) {
           <YAxis
             domain={[1, 6]}
             ticks={[1, 2, 3, 4, 5, 6]}
-            tickFormatter={formatLevel}
             tickLine={false}
             axisLine={false}
             width={34}
-            tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
+            tick={<LevelTick />}
           />
           <Tooltip content={<BloomTooltip />} cursor={{ stroke: CHART_COLORS.grid }} />
           <Area

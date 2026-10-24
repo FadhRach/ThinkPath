@@ -210,7 +210,9 @@ function ProofRow({
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className={mono ? "font-mono text-foreground" : "text-right text-foreground"}>{value}</dd>
+      <dd className={mono ? "tabular-nums text-foreground" : "text-right text-foreground"}>
+        {value}
+      </dd>
     </div>
   );
 }

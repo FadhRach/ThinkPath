@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from apps.academics.services.rich_text import clean_rich_doc, rich_to_plain
 from apps.academics.models import (
-    Announcement,
     Assignment,
     Class,
     Material,
@@ -217,6 +217,7 @@ class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
             "grade",
             "teacher_feedback",
             "text_answer",
+            "rich_answer",
             "is_imported",
             "revision_count",
         ]
@@ -234,24 +235,8 @@ class StudentSubmissionStatusListSerializer(StudentSubmissionStatusSerializer):
         fields = [
             field
             for field in StudentSubmissionStatusSerializer.Meta.fields
-            if field != "text_answer"
+            if field not in ("text_answer", "rich_answer")
         ]
-
-
-class AnnouncementSerializer(serializers.ModelSerializer):
-    class_id = serializers.UUIDField(source="class_ref_id", read_only=True)
-    author_name = serializers.SerializerMethodField()
-    title = serializers.CharField(max_length=160)
-    body = serializers.CharField(max_length=4000)
-
-    class Meta:
-        model = Announcement
-        fields = ["id", "class_id", "author_name", "title", "body", "created_at"]
-        read_only_fields = ["id", "created_at"]
-
-    def get_author_name(self, obj: Announcement) -> str:
-        owner = obj.class_ref.owner
-        return owner.label if owner else "Dosen (akun telah dihapus)"
 
 
 class SubmissionGradeSerializer(serializers.Serializer):
@@ -324,14 +309,43 @@ class ProgressSampleSerializer(serializers.Serializer):
 MAX_ANSWER_CHARS = 20_000
 
 
+# Jawaban minimal sekian kata sebelum boleh dikumpulkan (draf tidak dibatasi).
+MIN_ANSWER_WORDS = 5
+
+
+def _resolve_answer(attrs: dict) -> dict:
+    """Satukan jawaban kaya dan teks polos: teks polos SELALU diturunkan server dari dokumen.
+
+    Klien yang mengirim `rich_answer` tidak bisa menyelipkan `text_answer` yang berbeda dari yang
+    dilihat dosen; bila hanya `text_answer` yang dikirim (klien lama), jawabannya teks polos.
+    """
+    rich = attrs.get("rich_answer")
+    if rich is not None:
+        cleaned = clean_rich_doc(rich)
+        attrs["rich_answer"] = cleaned
+        attrs["text_answer"] = rich_to_plain(cleaned)
+    elif "text_answer" not in attrs:
+        raise serializers.ValidationError({"text_answer": "Jawaban wajib diisi."})
+    if len(attrs["text_answer"]) > MAX_ANSWER_CHARS:
+        raise serializers.ValidationError({"text_answer": "Jawaban terlalu panjang."})
+    return attrs
+
+
 class DraftSaveSerializer(serializers.Serializer):
     # Boleh kosong (mahasiswa menghapus semuanya); kosong tidak memulai pengerjaan.
-    text_answer = serializers.CharField(allow_blank=True, max_length=MAX_ANSWER_CHARS, trim_whitespace=False)
+    text_answer = serializers.CharField(
+        required=False, allow_blank=True, trim_whitespace=False
+    )
+    rich_answer = serializers.JSONField(required=False, allow_null=True)
     document_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        return _resolve_answer(attrs)
 
 
 class SubmissionCreateSerializer(serializers.Serializer):
-    text_answer = serializers.CharField(min_length=50, max_length=MAX_ANSWER_CHARS)
+    text_answer = serializers.CharField(required=False, trim_whitespace=False)
+    rich_answer = serializers.JSONField(required=False, allow_null=True)
     # Hasil unggahan dokumen (DocumentImportView); server memeriksa bahwa teks
     # memang berasal darinya, jadi klaim ini tidak membuat apa pun dilewati.
     document_id = serializers.UUIDField(required=False)
@@ -341,6 +355,14 @@ class SubmissionCreateSerializer(serializers.Serializer):
     # semua klien sudah memakai penyimpanan otomatis.
     started_at = serializers.DateTimeField(required=False)
     progress = ProgressSampleSerializer(many=True, required=False, max_length=240)
+
+    def validate(self, attrs):
+        attrs = _resolve_answer(attrs)
+        if len(attrs["text_answer"].split()) < MIN_ANSWER_WORDS:
+            raise serializers.ValidationError(
+                {"text_answer": f"Tulis minimal {MIN_ANSWER_WORDS} kata sebelum mengumpulkan."}
+            )
+        return attrs
 
 
 class ReasoningEventSerializer(serializers.ModelSerializer):
@@ -414,6 +436,7 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "assignment",
             "student",
             "text_answer",
+            "rich_answer",
             "is_imported",
             "started_at",
             "submitted_at",

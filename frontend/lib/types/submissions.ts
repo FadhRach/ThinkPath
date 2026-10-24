@@ -23,8 +23,23 @@ export interface StudentSubmissionStatus {
   is_imported: boolean;
 }
 
+/** Dokumen editor kaya (TipTap/ProseMirror JSON) yang sudah dibersihkan server. */
+export interface RichNode {
+  type: string;
+  attrs?: Record<string, unknown>;
+  content?: RichNode[];
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
+  text?: string;
+}
+
+export interface RichDoc extends RichNode {
+  type: "doc";
+}
+
 export interface StudentSubmissionWithText extends StudentSubmissionStatus {
   text_answer: string;
+  /** Null untuk jawaban teks polos (lama). */
+  rich_answer: RichDoc | null;
 }
 
 export interface SubmissionRow {
@@ -67,6 +82,7 @@ export interface SubmissionDetail {
   };
   student: StudentMini;
   text_answer: string;
+  rich_answer: RichDoc | null;
   /** Jawaban berasal dari dokumen unggahan, jadi tanpa jejak mengetik. */
   is_imported: boolean;
   started_at: string;

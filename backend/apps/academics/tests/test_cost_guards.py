@@ -54,7 +54,7 @@ class CostGuardBase(TestCase):
 class CostGuardTest(CostGuardBase):
     def test_answer_over_the_cap_is_refused(self):
         self.assertEqual(self._submit("a " * 10_001).status_code, 400)
-        self.assertEqual(self._submit("a" * 20_000).status_code, 201)
+        self.assertEqual(self._submit(("aaaa " * 4_000).strip()).status_code, 201)
 
     def test_submit_is_throttled_per_student(self):
         codes = [self._submit(f"{ANSWER} versi {i}").status_code for i in range(11)]

@@ -18,6 +18,8 @@ npm run dev                        # http://localhost:3000
 
 Windows PowerShell: `Copy-Item .env.local.example .env.local`, lalu `npm install` dan `npm run dev`.
 
+**Untuk demo atau penjurian, jangan pakai `npm run dev`.** Mode dev mengompilasi tiap rute saat pertama dibuka (2–3 detik) dan jauh lebih lambat. Pakai build produksi: hentikan dev server, lalu `npm run build && npm start`. Diukur lokal: halaman mahasiswa 60–150 ms, pindah menu lewat sidebar 30 ms (rute pertama yang dibuka setelah server menyala sekitar 1–3 detik). Buka tiap halaman utama sekali sebelum demo untuk menghangatkan server.
+
 Login dengan akun demo (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`. Setelah mengubah `NEXT_PUBLIC_BACKEND_URL`, jalankan ulang `npm run dev`.
 
 URL API lokal memakai `127.0.0.1` supaya browser tidak memilih alamat IPv6
@@ -123,14 +125,17 @@ bisa diuji tanpa React.
 | Dosen | `/dashboard/laporan` | Laporan agregat per kelas, prodi, semester |
 | Dosen | `/dashboard/students/[id]` | Profil kognitif seorang mahasiswa |
 | Dosen | `/dashboard/submission/[id]` | Bukti lengkap satu jawaban + linimasa proses |
-| Mahasiswa | `/student` | Beranda: tugas aktif dan nilai |
-| Mahasiswa | `/student/tugas` | Daftar tugas dan tenggat |
-| Mahasiswa | `/student/submit/[id]` | Mengerjakan / merevisi jawaban |
+| Mahasiswa | `/student` | Beranda: peringatan tugas, kartu kelas (progres + rata-rata), to-do pribadi, jadwal terdekat, forum terbaru, nilai terbaru, gabung kelas |
+| Mahasiswa | `/student/tugas` | Tugas semua kelas, dikelompokkan: perlu dikerjakan / menunggu nilai / sudah dinilai; saringan kelas |
+| Mahasiswa | `/student/kelas`, `/student/kelas/[id]` | Daftar kartu kelas; detail dengan tab Ringkasan, Forum, Materi, Tugas, Gradebook (nilai, rata-rata, grafik Bloom kelas itu), Anggota (dosen dan teman sekelas) (`?tab=`; `?post=` membuka topik forum) |
+| Mahasiswa | `/student/forum` | Kartu kelas di atas membuka forum kelasnya; di bawahnya semua topik lintas kelas bisa dicari dan disaring per kelas dan jenis |
+| Mahasiswa | `/student/jadwal` | Kalender tenggat dan sesi Cek Paham |
+| Mahasiswa | `/student/submit/[id]` | Mengerjakan / merevisi jawaban: header (judul, instruksi, tenggat hidup, nilai dan target kognitif vs hasil), masukan dosen di atas, editor kaya (TipTap: format, daftar, tabel, kode, rumus KaTeX, tautan, gambar kecil, Tab menjorok), minimal 5 kata, terkunci otomatis saat tenggat lewat, kartu status perubahan |
 | Mahasiswa | `/student/cekpaham/[id]` | Cek Paham: persetujuan suara, tes mikrofon, menjawab dengan suara, transkrip sendiri, lapor (tanpa skor) |
-| Mahasiswa | `/student/progress` | Perkembangan penalaran dan rekap nilai tugas per kelas, **tanpa kolom indikasi AI** |
+| Mahasiswa | `/student/gradebook` (`?kelas=<id>` memilih kelas awal) | Satu halaman: kartu kelas yang bisa digeser di atas; rapor nilai, umpan balik dosen, dan grafik perkembangan penalaran kelas terpilih tampil di bawahnya, **tanpa kolom indikasi AI** |
 | Keduanya | `/dashboard/pengaturan`, `/student/pengaturan` | Ubah nama tampil dan jenjang |
 
-Rute Materi (`/student/materi`, `/dashboard/classes/[id]?tab=materi`) dan Jadwal (`/student/jadwal`) sudah aktif.
+Materi mahasiswa kini tab di halaman kelas. `/student/progress` dan `/student/materi/[id]` hanya mengalihkan ke Gradebook / tab Materi (tautan lama, termasuk notifikasi lama). Mahasiswa memakai sidebar yang bisa dilipat (`components/layout/StudentShell.tsx`, menu di `nav-config.ts`); dosen memakai `TopNav`. Status lipat sidebar hanya di memori React, karena kebijakan privasi melarang cookie tambahan dan localStorage.
 
 ---
 
@@ -143,7 +148,7 @@ Rute Materi (`/student/materi`, `/dashboard/classes/[id]?tab=materi`) dan Jadwal
 | Komponen | shadcn/ui jalur `shadcn@2` | Tambah komponen: `npx shadcn@2 add <nama>`, **bukan** `@latest` |
 | Ikon | `lucide-react` **0.468.x** | Dipin; 1.x menargetkan React 19 dan merusak build |
 | Chart | Recharts, dimuat malas | Menyeret seluruh keluarga d3, jadi halaman tanpa grafik tidak ikut membayarnya |
-| Font | Plus Jakarta Sans (isi) + Newsreader (judul) via `next/font` | Self-hosted saat build, tanpa request jaringan pemblokir |
+| Font | Hanya Plus Jakarta Sans via `next/font` (tanpa serif atau monospace) | Self-hosted saat build, tanpa request jaringan pemblokir |
 | Tema | Terang di aplikasi; landing terang/gelap lewat `?tema=` | Tema tersimpan butuh cookie/localStorage, bertentangan dengan kebijakan privasi |
 
 Seluruh design token (teal dalam `--primary`, teal terang `--brand-teal`, status, radius) hidup sebagai variabel HSL di `styles/tokens.css`, dipetakan di `tailwind.config.ts`. Ganti tema cukup di dua berkas itu; dokumentasinya ada di [diagram/06-design-system.md](../diagram/06-design-system.md).

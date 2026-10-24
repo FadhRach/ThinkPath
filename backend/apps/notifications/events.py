@@ -15,7 +15,6 @@ from uuid import UUID
 from django.utils import timezone
 
 from apps.academics.models import (
-    Announcement,
     Assignment,
     Class,
     ClassMembership,
@@ -67,19 +66,8 @@ def material_created(material: Material) -> int:
         kind=NotificationKind.MATERIAL_NEW,
         title=f"Materi baru: {material.title}",
         body=" · ".join(part for part in (material.class_ref.name, material.topic) if part),
-        # Langsung ke materinya di halaman kelas, bukan ke daftar semua kelas.
-        link=f"/student/materi/{material.class_ref_id}#materi-{material.id}",
-    )
-
-
-def announcement_created(announcement: Announcement) -> int:
-    target = announcement.class_ref
-    return notify(
-        _member_ids(target.id),
-        kind=NotificationKind.ANNOUNCEMENT_NEW,
-        title=f"Pengumuman: {announcement.title}",
-        body=target.name,
-        link=f"/student/kelas/{target.id}?tab=pengumuman#pengumuman-{announcement.id}",
+        # Langsung ke tab Materi kelasnya, bukan ke daftar semua kelas.
+        link=f"/student/kelas/{material.class_ref_id}?tab=materi#materi-{material.id}",
     )
 
 

@@ -12,6 +12,8 @@ interface ClassDirectoryProps<T extends { id: string }> {
   renderCard: (item: T) => ReactNode;
   placeholder: string;
   emptyCaption: string;
+  /** Elemen di sebelah kanan kolom cari (mis. form gabung kelas). */
+  toolbarEnd?: ReactNode;
 }
 
 /** Daftar kelas dengan pencarian, dipakai halaman dosen dan mahasiswa. */
@@ -21,6 +23,7 @@ export function ClassDirectory<T extends { id: string }>({
   renderCard,
   placeholder,
   emptyCaption,
+  toolbarEnd,
 }: ClassDirectoryProps<T>) {
   const [query, setQuery] = useState("");
   const visible = useMemo(() => {
@@ -32,11 +35,17 @@ export function ClassDirectory<T extends { id: string }>({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          <strong className="text-foreground">{visible.length}</strong> kelas ditampilkan
+      {/* Ponsel: jumlah + gabung kelas satu baris, pencarian di bawahnya. Desktop: jumlah di kiri,
+          pencarian dan gabung kelas di kanan. `order` mengatur urutan tanpa menggandakan elemen. */}
+      <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+        <p
+          className="order-1 w-fit shrink-0 rounded-lg border border-border bg-card px-3.5 py-2 text-sm text-muted-foreground lg:mr-auto"
+          aria-live="polite"
+        >
+          <strong className="text-foreground">{visible.length}</strong> kelas
+          <span className="max-sm:sr-only"> ditampilkan</span>
         </p>
-        <div className="w-full sm:max-w-xs">
+        <div className="order-3 w-full sm:w-72 sm:flex-none lg:order-2 lg:w-72">
           <SearchInput
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -44,6 +53,11 @@ export function ClassDirectory<T extends { id: string }>({
             aria-label="Cari kelas"
           />
         </div>
+        {toolbarEnd ? (
+          <div className="order-2 min-w-0 flex-1 sm:min-w-80 sm:flex-none lg:order-3">
+            {toolbarEnd}
+          </div>
+        ) : null}
       </div>
 
       {visible.length > 0 ? (

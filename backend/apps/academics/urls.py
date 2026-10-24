@@ -9,7 +9,7 @@ urlpatterns = [
     path("classes/<str:class_id>/assignments", views.AssignmentListCreateView.as_view()),
     path("classes/<str:class_id>/materials", views.ClassMaterialListCreateView.as_view()),
     path("classes/<str:class_id>/students", views.ClassRosterView.as_view()),
-    path("classes/<str:class_id>/announcements", views.ClassAnnouncementView.as_view()),
+    path("classes/<str:class_id>/people", views.ClassPeopleView.as_view()),
     path("materials/<str:material_id>", views.MaterialDetailView.as_view()),
     path("assignments", views.TeacherAssignmentListView.as_view()),
     path("assignments/<str:assignment_id>", views.AssignmentDetailView.as_view()),

@@ -120,7 +120,7 @@ class MaterialTest(Base):
             self.assertEqual(note.body, "Ekonomi Pembangunan B · Pertemuan 3")
             # Langsung ke materinya, bukan ke daftar seluruh kelas.
             self.assertEqual(
-                note.link, f"/student/materi/{self.kelas.id}#materi-{response.data['id']}"
+                note.link, f"/student/kelas/{self.kelas.id}?tab=materi#materi-{response.data['id']}"
             )
         self.assertFalse(self.inbox(self.orang_luar).exists())
 

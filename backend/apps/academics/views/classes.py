@@ -7,10 +7,9 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.academics.models import Announcement, Class, ClassMembership, SubmissionStatus
+from apps.academics.models import Class, ClassMembership, SubmissionStatus
 from apps.academics.selectors import require_member_class, require_owned_class
 from apps.academics.serializers import (
-    AnnouncementSerializer,
     ClassCreateSerializer,
     ClassListSerializer,
     ClassPublicSerializer,
@@ -124,27 +123,32 @@ class ClassRosterView(APIView):
         )
 
 
-class ClassAnnouncementView(APIView):
-    """GET pengumuman (dosen pemilik atau anggota); POST terbitkan (dosen pemilik)."""
+class ClassPeopleView(APIView):
+    """GET dosen dan teman sekelas untuk mahasiswa anggota kelas.
+
+    Hanya nama tampil yang dibagikan. Email tidak pernah ikut, dan akun tanpa nama tampil diberi
+    nama umum supaya email tidak jadi cadangan nama seperti di `Profile.label`.
+    """
+
+    permission_classes = [IsStudent]
 
     def get(self, request, class_id: str):
-        if request.user.role == Role.TEACHER:
-            target = require_owned_class(request, class_id)
-        else:
-            target = require_member_class(request, class_id)
-        items = (
-            Announcement.objects.filter(class_ref=target)
-            .select_related("class_ref__owner")
-            .order_by("-created_at")
+        target = require_member_class(request, class_id)
+        me = request_user_id(request)
+        memberships = target.memberships.select_related("student_profile").order_by(
+            "student_profile__display_name", "joined_at"
         )
-        return Response(AnnouncementSerializer(items, many=True).data)
-
-    def post(self, request, class_id: str):
-        if request.user.role != Role.TEACHER:
-            raise PermissionDenied()
-        target = require_owned_class(request, class_id)
-        serializer = AnnouncementSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        item = serializer.save(class_ref=target)
-        safe(lambda: notify_events.announcement_created(item))
-        return Response(AnnouncementSerializer(item).data, status=status.HTTP_201_CREATED)
+        teacher = target.owner
+        return Response(
+            {
+                "teacher": {"display_name": teacher.display_name or "Dosen"} if teacher else None,
+                "students": [
+                    {
+                        "id": str(item.student_profile_id),
+                        "display_name": item.student_profile.display_name or "Mahasiswa",
+                        "is_me": item.student_profile_id == me,
+                    }
+                    for item in memberships
+                ],
+            }
+        )

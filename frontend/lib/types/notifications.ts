@@ -6,6 +6,8 @@ export type NotificationKind =
   | "deadline_soon"
   | "cekpaham_new"
   | "cekpaham_resolved"
+  | "forum_post_new"
+  | "forum_reply_new"
   | "cekpaham_result"
   | "submissions_new"
   | "students_joined";

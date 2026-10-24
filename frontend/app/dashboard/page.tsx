@@ -23,7 +23,7 @@ export default async function TeacherDashboardPage() {
     <div className="space-y-8">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="font-display text-title font-medium sm:text-4xl">
+          <h1 className="text-title font-bold sm:text-4xl">
             Selamat datang, {me.display_name || me.email.split("@")[0]}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">

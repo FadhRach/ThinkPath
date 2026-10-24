@@ -134,19 +134,3 @@ export function matchesQuery(material: Material, query: string): boolean {
   );
   return words.every((word) => haystack.includes(word));
 }
-
-// Warna folder per kelas, dipilih dari id supaya kelas yang sama selalu
-// berwarna sama di daftar kelas dan di halaman kelasnya.
-const CLASS_ACCENTS = [
-  "bg-secondary text-primary",
-  "bg-warning-soft text-warning",
-  "bg-success-soft text-success",
-  "bg-brand-pink text-danger",
-  "bg-accent text-accent-foreground",
-];
-
-export function classAccent(classId: string): string {
-  let hash = 0;
-  for (const char of classId) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return CLASS_ACCENTS[hash % CLASS_ACCENTS.length];
-}

@@ -1,13 +1,13 @@
-import { ClipboardList, LibraryBig, Megaphone, Users } from "lucide-react";
+import { ClipboardList, LibraryBig, MessagesSquare, Users } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { tabLinkClass } from "@/components/ui/tab-styles";
 
-export type ClassSection = "mahasiswa" | "materi" | "pengumuman" | "tugas";
+export type ClassSection = "mahasiswa" | "materi" | "forum" | "tugas";
 const TABS = [
   { id: "mahasiswa", label: "Mahasiswa", icon: Users },
   { id: "materi", label: "Materi", icon: LibraryBig },
-  { id: "pengumuman", label: "Pengumuman", icon: Megaphone },
+  { id: "forum", label: "Forum", icon: MessagesSquare },
   { id: "tugas", label: "Tugas", icon: ClipboardList },
 ] as const;
 

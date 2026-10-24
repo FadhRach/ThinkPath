@@ -42,6 +42,7 @@ def save_draft(
     text: str,
     *,
     document_id: UUID | None = None,
+    rich_answer: dict | None = None,
 ) -> SubmissionDraft | None:
     """Simpan teks dan, bila sudah waktunya, satu cuplikan. None bila belum mulai menulis.
 
@@ -65,14 +66,20 @@ def save_draft(
                         assignment=assignment,
                         student_profile=student,
                         text_answer=text,
+                        rich_answer=rich_answer,
                         document_id=document_id,
                         started_at=now,
                         samples=[{"t": 0, "w": words}],
                     )
-                changed = text != draft.text_answer or document_id != draft.document_id
+                changed = (
+                    text != draft.text_answer
+                    or rich_answer != draft.rich_answer
+                    or document_id != draft.document_id
+                )
                 if not changed:
                     return draft
                 draft.text_answer = text
+                draft.rich_answer = rich_answer
                 draft.document_id = document_id
                 offset = max(0, int((now - draft.started_at).total_seconds()))
                 last = draft.samples[-1]["t"] if draft.samples else None
@@ -81,7 +88,9 @@ def save_draft(
                     and (last is None or offset - last >= SAMPLE_INTERVAL_SECONDS)
                 ):
                     draft.samples = [*draft.samples, {"t": offset, "w": words}]
-                draft.save(update_fields=["text_answer", "document_id", "samples", "last_saved_at"])
+                draft.save(
+                    update_fields=["text_answer", "rich_answer", "document_id", "samples", "last_saved_at"]
+                )
                 return draft
         except IntegrityError:
             # Dua penyimpanan pertama bersamaan: yang kedua kini menemukan barisnya.

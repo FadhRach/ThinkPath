@@ -1,6 +1,7 @@
 "use client";
 
 import { teacherLabel } from "@/features/classes/components/ArchivedClassNotice";
+import { JoinCodeForm } from "@/features/classes/components/JoinCodeForm";
 import { ClassDirectory } from "@/features/classes/components/ClassDirectory";
 import { StudentClassCard } from "@/features/classes/components/StudentClassCard";
 import type { StudentClassWithAssignments } from "@/lib/types";
@@ -13,6 +14,7 @@ export function StudentClassDirectory({ classes }: { classes: StudentClassWithAs
     <ClassDirectory
       items={classes}
       searchText={searchText}
+      toolbarEnd={<JoinCodeForm />}
       renderCard={(item) => <StudentClassCard studentClass={item} />}
       placeholder="Cari nama kelas atau dosen"
       emptyCaption="Coba kata kunci lain, atau gabung kelas menggunakan kode dari dosen di Beranda."

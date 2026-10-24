@@ -29,3 +29,33 @@ export function summarizeStudentClass(current: StudentClassWithAssignments, mate
       .join(" · "),
   };
 }
+
+/** Tugas yang sudah dikumpulkan (menunggu nilai atau sudah dinilai). */
+export function isDoneAssignment(assignment: StudentAssignment): boolean {
+  return !isOpenAssignment(assignment);
+}
+
+/** Angka progres satu kelas untuk kartu dan kepala halaman. */
+export function classProgress(classroom: StudentClassWithAssignments) {
+  const total = classroom.assignments.length;
+  const done = classroom.assignments.filter(isDoneAssignment).length;
+  const grades = classroom.assignments.flatMap((assignment) =>
+    assignment.submission?.status === "reviewed" && typeof assignment.submission.grade === "number"
+      ? [assignment.submission.grade]
+      : [],
+  );
+  const nextOpen = classroom.assignments
+    .filter(isOpenAssignment)
+    .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"))[0];
+  return {
+    total,
+    done,
+    open: total - done,
+    percent: total ? Math.round((done / total) * 100) : 0,
+    graded: grades.length,
+    average: grades.length
+      ? Math.round((grades.reduce((sum, grade) => sum + grade, 0) / grades.length) * 10) / 10
+      : null,
+    nextOpen,
+  };
+}

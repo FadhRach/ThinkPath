@@ -111,6 +111,7 @@ class StudentAssignmentDetailView(APIView):
                 "draft": (
                     {
                         "text_answer": draft.text_answer,
+                        "rich_answer": draft.rich_answer,
                         "document_id": draft.document_id,
                         "saved_at": draft.last_saved_at,
                     }

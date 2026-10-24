@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api/server";
 import type {
-  Announcement,
+  ClassPeople,
   ClassRosterStudent,
   ClassSummary,
   StudentClassWithAssignments,
@@ -14,10 +14,10 @@ export function getClassRoster(classId: string) {
   return apiFetch<ClassRosterStudent[]>(`/api/classes/${classId}/students`);
 }
 
-export function getClassAnnouncements(classId: string) {
-  return apiFetch<Announcement[]>(`/api/classes/${classId}/announcements`);
-}
-
 export function getStudentClasses() {
   return apiFetch<StudentClassWithAssignments[]>("/api/student/classes");
+}
+
+export function getClassPeople(classId: string) {
+  return apiFetch<ClassPeople>(`/api/classes/${classId}/people`);
 }

@@ -83,13 +83,9 @@ export function StatusPage({
     >
       <div className="w-full max-w-md space-y-5 text-center">
         <IconTile icon={preset.icon} tone={preset.tone} size="lg" className="mx-auto rounded-2xl" />
-        <p className="font-display text-6xl font-medium tracking-tight text-brand-ink">
-          {preset.code}
-        </p>
+        <p className="text-6xl font-bold tracking-tight text-brand-ink">{preset.code}</p>
         <div className="space-y-2">
-          <h1 className="font-display text-title font-medium text-foreground">
-            {title ?? preset.title}
-          </h1>
+          <h1 className="text-title font-bold text-foreground">{title ?? preset.title}</h1>
           <p className="text-body text-muted-foreground">{description ?? preset.description}</p>
         </div>
         {actions ? (

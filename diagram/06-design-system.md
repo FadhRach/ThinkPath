@@ -65,8 +65,9 @@ ketertinggalan, karena sendirian ia masih dugaan.
 
 ## 6.2 Skala tipografi
 
-Judul memakai serif **Newsreader** (`font-display`), isi memakai **Plus Jakarta
-Sans**; keduanya dimuat self-hosted lewat `next/font` di `app/layout.tsx`.
+Seluruh antarmuka memakai satu keluarga huruf, **Plus Jakarta Sans**, dimuat
+self-hosted lewat `next/font` di `app/layout.tsx`. Tidak ada serif atau
+monospace; hierarki dibangun dari ukuran dan bobot, bukan dari ganti huruf.
 
 | Kelas | Ukuran | Tinggi baris | Pemakaian |
 |---|---|---|---|
@@ -117,7 +118,7 @@ flowchart TB
     end
 
     subgraph L["components/layout · kerangka"]
-        L1["AppShell · RoleLayout · TopNav · NavUser · Footer · Brandmark"]
+        L1["AppShell · RoleLayout · StudentShell + SidebarNav (mahasiswa) · TopNav (dosen) · NavUser · Footer · Brandmark"]
     end
 
     subgraph D["features/&lt;domain&gt; · komponen, lib, hooks per domain"]
@@ -255,7 +256,7 @@ flowchart LR
 | Rujukan pola | Google Calendar, kalender Google Classroom | "Tugas Kelas" Google Classroom, daftar sesi LMS kampus |
 | Susunan | Kotak tanggal; di ponsel titik penanda + daftar agenda | Folder per kelas, lalu kelompok per topik atau pertemuan |
 | Navigasi | Hari ini, mundur-maju, bulan/pekan, saringan kelas | Indeks topik menempel di samping; di ponsel chip menempel di atas |
-| Alamat | `/student/jadwal?tampilan=minggu&tanggal=…&kelas=…` | `/student/materi/<kelas>#topik-…` atau `#materi-…` |
+| Alamat | `/student/jadwal?tampilan=minggu&tanggal=…&kelas=…` | `/student/kelas/<kelas>?tab=materi#topik-…` atau `#materi-…` |
 | Warna | Status agenda: kuning belum dikerjakan, hijau dinilai, abu terlewat, sesi sebagai kartu teal | Jenis sumber: slide, dokumen, video, bacaan web, catatan dosen |
 
 Tenggat yang terlewat berwarna abu, bukan merah. Pengumpulan sudah ditutup,

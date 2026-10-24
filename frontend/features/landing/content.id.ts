@@ -21,7 +21,7 @@ export const idCopy: Copy = {
     languageLabel: "Bahasa",
   },
   hero: {
-    title: "Nilainya bisa sama. Cara mengerjakannya belum tentu.",
+    title: "Nilainya bisa sama. Cara mengerjakannya belum tentu sama.",
     lead: "ThinkPath merekam proses menulis mahasiswa, memetakan level berpikirnya, lalu menyajikan semuanya sebagai bukti yang bisa ditinjau dosen. Keputusan tetap di tangan dosen.",
     primary: "Coba sekarang",
     secondary: "Lihat cara kerja",

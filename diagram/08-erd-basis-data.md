@@ -32,7 +32,9 @@ erDiagram
     classes ||--o{ class_memberships : "beranggotakan"
     classes ||--o{ assignments : "memuat"
     classes ||--o{ materials : "memuat"
-    classes ||--o{ announcements : "memuat"
+    classes ||--o{ forum_posts : "memuat"
+    forum_posts ||--o{ forum_replies : "dibalas"
+    profiles ||--o{ student_todos : "mencatat"
     assignments ||--o{ submissions : "dijawab lewat"
     profiles ||--o{ submissions : "mahasiswa penjawab"
     submissions ||--o{ reasoning_events : "jejak proses"
@@ -96,18 +98,38 @@ erDiagram
         varchar url "http/https saja"
         timestamptz created_at
     }
-    announcements {
+    forum_posts {
         uuid id PK
         uuid class_id FK
+        uuid author_id FK "SET NULL"
+        varchar kind "announcement | discussion"
         varchar title
         text body
         timestamptz created_at
+        timestamptz last_activity_at
+    }
+    forum_replies {
+        uuid id PK
+        uuid post_id FK
+        uuid author_id FK "SET NULL"
+        text body
+        timestamptz created_at
+    }
+    student_todos {
+        uuid id PK
+        uuid owner_id FK
+        varchar title
+        date due_on
+        boolean done
+        timestamptz created_at
+        timestamptz done_at
     }
     submissions {
         uuid id PK
         uuid assignment_id FK
         uuid student_profile_id FK
-        text text_answer
+        text text_answer "teks polos, selalu diturunkan server dari rich_answer bila ada"
+        jsonb rich_answer "dokumen editor TipTap yang sudah dibersihkan, atau null"
         uuid source_document "dokumen unggahan di MEDIA_ROOT, atau null"
         timestamptz started_at
         timestamptz submitted_at
@@ -213,8 +235,10 @@ sana.
 | App | Tabel | Tanggung jawab |
 |---|---|---|
 | `apps.accounts` | `profiles`, `consent_records` | Identitas, JWT, persetujuan UU PDP |
-| `apps.academics` | `classes`, `class_memberships`, `assignments`, `materials`, `announcements`, `submissions`, `submission_drafts`, `reasoning_events` | Perkuliahan dan pengumpulan |
+| `apps.academics` | `classes`, `class_memberships`, `assignments`, `materials`, `submissions`, `submission_drafts`, `reasoning_events` | Perkuliahan dan pengumpulan |
 | `apps.analysis` | `analysis_results`, `analysis_runs`, `analysis_jobs`, `detector_scores` | Hasil analisis terkini, riwayatnya, antrean worker, dan cache detektor |
+| `apps.forum` | `forum_posts`, `forum_replies` | Pengumuman dan diskusi kelas (menggantikan tabel `announcements`; datanya disalin saat migrasi) |
+| `apps.todos` | `student_todos` | Checklist pribadi mahasiswa |
 | `apps.notifications` | `notifications` | Notifikasi per penerima |
 | `apps.cekpaham` | `cekpaham_requests`, `cekpaham_attempts`, `cekpaham_reports` | Tes lisan singkat dan saran skornya |
 

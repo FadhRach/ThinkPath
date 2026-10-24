@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 
 import { BackLink } from "@/components/shared/BackLink";
+import { CollapsibleSection } from "@/components/shared/CollapsibleSection";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { Alert } from "@/components/ui/alert";
+import { LazyRichContent } from "@/features/editor/components/LazyEditors";
 import { RequestCekPahamPanel } from "@/features/cekpaham/components/RequestCekPahamPanel";
 import { AnalysisDetails } from "@/features/submissions/components/AnalysisDetails";
 import { AnalysisPoller } from "@/features/submissions/components/AnalysisPoller";
@@ -75,7 +77,17 @@ export default async function SubmissionDetailPage({
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(19rem,1fr)]">
         <SectionCard eyebrow="Jawaban mahasiswa">
-          {detail.text_answer ? (
+          {detail.rich_answer ? (
+            // Tulisan sebagaimana dilihat mahasiswa; ritme kalimat dari teks polosnya ada di bawah.
+            <div className="space-y-5">
+              <LazyRichContent doc={detail.rich_answer} />
+              {detail.text_answer ? (
+                <CollapsibleSection title="Ritme kalimat" defaultOpen={false}>
+                  <SentenceRhythm text={detail.text_answer} />
+                </CollapsibleSection>
+              ) : null}
+            </div>
+          ) : detail.text_answer ? (
             <SentenceRhythm text={detail.text_answer} />
           ) : (
             <p className="text-sm text-muted-foreground">Belum ada teks jawaban.</p>

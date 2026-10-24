@@ -24,7 +24,7 @@
   --lp-rose: hsl(var(--destructive));
   --lp-ruled: hsl(var(--ruled));
   --lp-shadow: light-dark(rgb(15 60 58 / 0.1), rgb(0 0 0 / 0.45));
-  --lp-display: var(--font-display), Georgia, "Times New Roman", serif;
+  --lp-display: var(--font-sans), system-ui, sans-serif;
 
   display: flex;
   min-height: 100vh;
@@ -77,12 +77,12 @@
 }
 .lp-display {
   font-family: var(--lp-display);
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 .lp-h2 {
   font-family: var(--lp-display);
-  font-weight: 500;
+  font-weight: 700;
   font-size: clamp(1.9rem, 4vw, 2.5rem);
   line-height: 1.15;
   letter-spacing: -0.015em;
@@ -317,10 +317,10 @@
 }
 .lp-hero h1 {
   font-family: var(--lp-display);
-  font-weight: 500;
-  font-size: clamp(2.5rem, 6vw, 3.6rem);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  font-size: clamp(2.25rem, 4.6vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 .lp-hero .lp-lead {
   max-width: 34rem;
@@ -331,7 +331,7 @@
   gap: 0.75rem;
   margin-top: 2rem;
 }
-.lp-actions .lp-tagline {
+.lp-tagline {
   margin-top: 1.5rem;
   max-width: 30rem;
   font-size: 0.85rem;
@@ -496,7 +496,7 @@
   z-index: 1;
   font-family: var(--lp-display);
   font-size: 1.15rem;
-  font-weight: 500;
+  font-weight: 700;
   background: var(--lp-surface-2);
 }
 .lp-cell--before {
@@ -570,7 +570,7 @@
 .lp-feature h3 {
   font-family: var(--lp-display);
   font-size: 1.3rem;
-  font-weight: 500;
+  font-weight: 700;
 }
 .lp-feature--lg h3 {
   font-size: 1.6rem;
@@ -683,7 +683,7 @@
   margin-top: 1rem;
   font-family: var(--lp-display);
   font-size: 1.25rem;
-  font-weight: 500;
+  font-weight: 700;
 }
 .lp-step p {
   margin-top: 0.5rem;
@@ -746,7 +746,7 @@
 .lp-tech strong {
   font-family: var(--lp-display);
   font-size: 1.35rem;
-  font-weight: 500;
+  font-weight: 700;
 }
 .lp-tech span {
   font-size: 0.8rem;
@@ -793,7 +793,7 @@
   margin-top: 1rem;
   font-family: var(--lp-display);
   font-size: 1.2rem;
-  font-weight: 500;
+  font-weight: 700;
 }
 .lp-principle p {
   margin-top: 0.4rem;
@@ -902,7 +902,7 @@
   margin-top: 1rem;
   font-family: var(--lp-display);
   font-size: 1.5rem;
-  font-weight: 500;
+  font-weight: 700;
 }
 .lp-plan-audience {
   font-size: 0.85rem;
@@ -917,7 +917,7 @@
 .lp-price {
   font-family: var(--lp-display);
   font-size: 2rem;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--lp-ink);
 }
 .lp-plan-body > p:not(.lp-price) {

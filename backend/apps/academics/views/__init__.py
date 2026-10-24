@@ -4,8 +4,8 @@ from apps.academics.views.assignments import (
     TeacherAssignmentListView,
 )
 from apps.academics.views.classes import (
-    ClassAnnouncementView,
     ClassListCreateView,
+    ClassPeopleView,
     ClassRosterView,
     JoinClassView,
 )
@@ -38,9 +38,9 @@ from apps.academics.views.submissions import (
 __all__ = [
     "AssignmentDetailView",
     "AssignmentListCreateView",
-    "ClassAnnouncementView",
     "ClassListCreateView",
     "ClassMaterialListCreateView",
+    "ClassPeopleView",
     "ClassRosterView",
     "DocumentFileView",
     "DraftView",

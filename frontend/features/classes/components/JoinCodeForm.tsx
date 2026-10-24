@@ -30,7 +30,7 @@ export function JoinCodeForm() {
 
   return (
     <div className="space-y-2">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
+      <form onSubmit={handleSubmit} className="flex">
         <label htmlFor="join-class-code" className="sr-only">
           Kode kelas
         </label>
@@ -39,13 +39,13 @@ export function JoinCodeForm() {
           type="text"
           required
           maxLength={8}
-          placeholder="KB-9A2B"
+          placeholder="Kode kelas"
           aria-label="Kode kelas"
           value={code}
           onChange={(event) => setCode(event.target.value)}
-          className="h-10 min-w-0 bg-card uppercase placeholder:normal-case"
+          className="h-10 min-w-0 rounded-r-none bg-card uppercase placeholder:normal-case"
         />
-        <Button type="submit" disabled={pending} className="h-10 w-fit shrink-0">
+        <Button type="submit" disabled={pending} className="h-10 w-fit shrink-0 rounded-l-none">
           {pending ? "Bergabung..." : "Gabung kelas"}
         </Button>
       </form>

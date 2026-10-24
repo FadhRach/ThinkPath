@@ -54,6 +54,18 @@ export function formatRelativeTime(iso: string | null): string {
   return formatter.format(-Math.round(duration), unit);
 }
 
+/** Sisa waktu singkat: "2 hari 3 jam", "5 jam 12 menit", "8 menit", atau "kurang dari semenit". */
+export function formatCountdown(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "kurang dari semenit";
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const rest = minutes % 60;
+  if (days > 0) return hours ? `${days} hari ${hours} jam` : `${days} hari`;
+  if (hours > 0) return rest ? `${hours} jam ${rest} menit` : `${hours} jam`;
+  return `${rest} menit`;
+}
+
 export function formatClockHHMM(iso: string | null): string {
   if (!iso) return "-";
   return new Date(iso).toLocaleTimeString("id-ID", {
@@ -82,23 +94,6 @@ export function dayKey(iso: string): string {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(iso));
-}
-
-/**
- * Judul kelompok hari untuk agenda: "Hari ini", "Besok", atau nama hari dan
- * tanggalnya. Dihitung pada zona tampilan, bukan zona mesin yang merender.
- */
-export function formatDayHeading(iso: string, now: Date = new Date()): string {
-  const key = dayKey(iso);
-  if (key === dayKey(now.toISOString())) return "Hari ini";
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  if (key === dayKey(tomorrow.toISOString())) return "Besok";
-  return new Date(iso).toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: DISPLAY_TIME_ZONE,
-  });
 }
 
 /** Tanggal panjang untuk sapaan, misalnya "Kamis, 13 Agustus 2026". */

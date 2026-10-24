@@ -123,6 +123,7 @@ def _create(
                 assignment=assignment,
                 student_profile=student,
                 text_answer=text_answer,
+                rich_answer=validated.get("rich_answer"),
                 source_document=source_document,
                 started_at=started_at,
                 submitted_at=submitted_at,
@@ -179,12 +180,20 @@ def _revise(
         # wajar lalu diganti seluruhnya lewat "Simpan Revisi" tetap tampak wajar.
         inserted_now = new_words(locked.text_answer, text_answer)
         locked.text_answer = text_answer
+        locked.rich_answer = validated.get("rich_answer")
         locked.source_document = source_document
         locked.revision_count += 1
         locked.submitted_at = revised_at
         locked.status = SubmissionStatus.SUBMITTED
         locked.save(
-            update_fields=["text_answer", "source_document", "revision_count", "submitted_at", "status"]
+            update_fields=[
+                "text_answer",
+                "rich_answer",
+                "source_document",
+                "revision_count",
+                "submitted_at",
+                "status",
+            ]
         )
         ReasoningEvent.objects.create(
             submission=locked,

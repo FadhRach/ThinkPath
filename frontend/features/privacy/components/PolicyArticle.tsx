@@ -105,9 +105,9 @@ export function PolicyArticle({ className }: { className?: string }) {
           Setiap pernyataan tentang cara kerja ThinkPath di sini disusun dari kode sumber versi yang
           berlaku, bukan dari rencana. Pemetaan setiap pasal ke bagian kode yang melaksanakannya
           tercatat di dokumentasi proyek, berkas{" "}
-          <code className="rounded bg-muted px-1.5 py-0.5 text-body-sm">
+          <span className="rounded bg-muted px-1.5 py-0.5 text-body-sm font-semibold">
             diagram/07-privasi-dan-persetujuan.md
-          </code>
+          </span>
           .
         </p>
       </PolicySection>
@@ -711,10 +711,12 @@ export function PolicyArticle({ className }: { className?: string }) {
       >
         <p>
           ThinkPath hanya memakai satu cookie,{" "}
-          <code className="rounded bg-muted px-1.5 py-0.5 text-body-sm">thinkpath_token</code>, yang
-          berisi token login: id akun, email, peran, versi kebijakan yang Anda setujui, id sesi,
-          serta waktu terbit dan kedaluwarsanya. Cookie ini HttpOnly (tidak dapat dibaca skrip di
-          halaman), berlaku 7 hari, dan saat Anda keluar sesinya dicabut di server sehingga token
+          <span className="rounded bg-muted px-1.5 py-0.5 text-body-sm font-semibold">
+            thinkpath_token
+          </span>
+          , yang berisi token login: id akun, email, peran, versi kebijakan yang Anda setujui, id
+          sesi, serta waktu terbit dan kedaluwarsanya. Cookie ini HttpOnly (tidak dapat dibaca skrip
+          di halaman), berlaku 7 hari, dan saat Anda keluar sesinya dicabut di server sehingga token
           itu tidak berlaku lagi.
         </p>
         <p>

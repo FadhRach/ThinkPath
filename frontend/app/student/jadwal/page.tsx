@@ -1,5 +1,4 @@
 import { Alert } from "@/components/ui/alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { AgendaPanel } from "@/features/schedule/components/AgendaPanel";
 import { CalendarLegend } from "@/features/schedule/components/CalendarLegend";
 import { CalendarToolbar } from "@/features/schedule/components/CalendarToolbar";
@@ -59,11 +58,8 @@ export default async function StudentSchedulePage({
       : `${jadwalHref({ view: "bulan", date: key, kelas: selectedClass })}#hari-${key}`;
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Jadwal"
-        subtitle="Tenggat tugas dan batas Cek Paham dari semua kelasmu dalam satu kalender."
-      />
+    <div className="flex flex-col gap-5">
+      <h1 className="sr-only">Jadwal</h1>
 
       <CalendarToolbar
         range={range}

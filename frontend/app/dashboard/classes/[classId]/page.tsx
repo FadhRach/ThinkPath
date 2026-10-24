@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { BackLink } from "@/components/shared/BackLink";
 import { TeacherAssignmentDetail } from "@/features/assignments/components/TeacherAssignmentDetail";
 import { TeacherAssignmentList } from "@/features/assignments/components/TeacherAssignmentList";
-import { AnnouncementForm } from "@/features/classes/components/AnnouncementForm";
-import { AnnouncementList } from "@/features/classes/components/AnnouncementList";
+import { ForumPanel } from "@/features/forum/components/ForumPanel";
 import { ClassRoster } from "@/features/classes/components/ClassRoster";
 import {
   ClassSectionTabs,
@@ -14,32 +13,32 @@ import { TeacherClassHeader } from "@/features/classes/components/TeacherClassHe
 import { TeacherMaterialsSection } from "@/features/materials/components/TeacherMaterialsSection";
 import {
   getAssignments,
-  getClassAnnouncements,
+  getClassForum,
   getClassMaterials,
   getClassRoster,
   getClasses,
   getSubmissions,
 } from "@/lib/data";
 
-const SECTIONS: ClassSection[] = ["mahasiswa", "materi", "pengumuman", "tugas"];
+const SECTIONS: ClassSection[] = ["mahasiswa", "materi", "forum", "tugas"];
 
 export default async function ClassDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ classId: string }>;
-  searchParams: Promise<{ assignment?: string; tab?: string; filter?: string }>;
+  searchParams: Promise<{ assignment?: string; tab?: string; filter?: string; post?: string }>;
 }) {
   const [{ classId }, query] = await Promise.all([params, searchParams]);
   const classes = await getClasses();
   const current = classes.find((item) => item.id === classId);
   if (!current) notFound();
 
-  const [assignments, materials, roster, announcements] = await Promise.all([
+  const [assignments, materials, roster, forumPosts] = await Promise.all([
     getAssignments(classId),
     getClassMaterials(classId),
     getClassRoster(classId),
-    getClassAnnouncements(classId),
+    getClassForum(classId),
   ]);
   // Tab dari URL; tanpa ?tab=, membuka tugas tertentu berarti tab Tugas.
   const section: ClassSection =
@@ -58,7 +57,7 @@ export default async function ClassDetailPage({
         counts={{
           mahasiswa: roster.length,
           materi: materials.length,
-          pengumuman: announcements.length,
+          forum: forumPosts.length,
           tugas: assignments.length,
         }}
       />
@@ -67,14 +66,13 @@ export default async function ClassDetailPage({
       {section === "materi" ? (
         <TeacherMaterialsSection classId={classId} materials={materials} />
       ) : null}
-      {section === "pengumuman" ? (
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)]">
-          <AnnouncementForm classId={classId} />
-          <div>
-            <h2 className="mb-3 text-heading font-semibold">Pengumuman kelas</h2>
-            <AnnouncementList announcements={announcements} />
-          </div>
-        </div>
+      {section === "forum" ? (
+        <ForumPanel
+          classId={classId}
+          posts={forumPosts}
+          viewerRole="teacher"
+          openPostId={query.post}
+        />
       ) : null}
       {section === "tugas" && !selected ? (
         <TeacherAssignmentList

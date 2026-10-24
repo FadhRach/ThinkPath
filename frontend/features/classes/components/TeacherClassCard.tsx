@@ -26,7 +26,7 @@ export function TeacherClassCard({
           <p>{academicLabel(studentClass)}</p>
           <p className="text-xs">
             {studentClass.assignment_count} tugas · Kode kelas{" "}
-            <span className="font-mono text-foreground">{studentClass.join_code}</span>
+            <span className="tabular-nums text-foreground">{studentClass.join_code}</span>
           </p>
         </>
       }

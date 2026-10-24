@@ -8,34 +8,9 @@ import { useState } from "react";
 import { Brandmark } from "@/components/layout/Brandmark";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { isNavActive, NAV_BY_ROLE, type NavItem } from "@/components/layout/nav-config";
 import type { Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-interface NavItem {
-  label: string;
-  href: string;
-  // Halaman yang belum dibangun ditandai agar tidak menyesatkan pengguna.
-  disabled?: boolean;
-}
-
-const NAV_ITEMS: Record<Role, NavItem[]> = {
-  teacher: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Kelas", href: "/dashboard/classes" },
-    { label: "Tugas", href: "/dashboard/tugas" },
-    { label: "Pengumpulan", href: "/dashboard/pengumpulan" },
-    { label: "Cek Paham", href: "/dashboard/cekpaham" },
-    { label: "Laporan", href: "/dashboard/laporan" },
-  ],
-  student: [
-    { label: "Beranda", href: "/student" },
-    { label: "Kelas", href: "/student/kelas" },
-    { label: "Tugas", href: "/student/tugas" },
-    { label: "Materi", href: "/student/materi" },
-    { label: "Jadwal", href: "/student/jadwal" },
-    { label: "Progres", href: "/student/progress" },
-  ],
-};
 
 interface Props {
   role: Role;
@@ -43,18 +18,10 @@ interface Props {
   userMenu: React.ReactNode;
 }
 
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard" || href === "/student") return pathname === href;
-  if (href === "/student/tugas" && pathname.startsWith("/student/submit/")) return true;
-  if (href === "/dashboard/pengumpulan" && pathname.startsWith("/dashboard/submission/"))
-    return true;
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function TopNav({ role, userMenu }: Props) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const items = NAV_ITEMS[role];
+  const items = NAV_BY_ROLE[role];
   const homeHref = role === "teacher" ? "/dashboard" : "/student";
 
   return (
@@ -80,7 +47,7 @@ export function TopNav({ role, userMenu }: Props) {
                 <NavLink
                   key={item.href}
                   item={item}
-                  active={isActive(pathname, item.href)}
+                  active={isNavActive(pathname, item)}
                   block
                   onClick={() => setMenuOpen(false)}
                 />
@@ -101,7 +68,7 @@ export function TopNav({ role, userMenu }: Props) {
           )}
         >
           {items.map((item) => (
-            <NavLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+            <NavLink key={item.href} item={item} active={isNavActive(pathname, item)} />
           ))}
         </nav>
 
@@ -126,18 +93,6 @@ function NavLink({ item, active, block, onClick }: NavLinkProps) {
     "border-b-2 border-transparent px-3 py-2 text-sm font-medium transition-colors",
     block && "w-full",
   );
-
-  if (item.disabled) {
-    return (
-      <span
-        aria-disabled="true"
-        title="Segera hadir"
-        className={cn(base, "cursor-not-allowed text-muted-foreground/50")}
-      >
-        {item.label}
-      </span>
-    );
-  }
 
   return (
     <Link

@@ -75,7 +75,6 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        display: ["var(--font-display)", "Georgia", "serif"],
       },
       fontSize: {
         // Judul halaman fluid (menggantikan text-[1.6rem] sm:text-[2rem] dst.), judul bagian, dan teks mikro badge.

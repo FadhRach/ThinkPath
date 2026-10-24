@@ -1,5 +1,5 @@
 import { apiFetchBrowser } from "@/lib/api/browser";
-import type { Announcement, ClassSummary, EducationLevel, JoinClassResult } from "@/lib/types";
+import type { ClassSummary, EducationLevel, JoinClassResult } from "@/lib/types";
 
 export interface CreateClassInput {
   name: string;
@@ -11,13 +11,6 @@ export interface CreateClassInput {
 
 export function createClass(input: CreateClassInput) {
   return apiFetchBrowser<ClassSummary>("/api/classes", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export function createAnnouncement(classId: string, input: { title: string; body: string }) {
-  return apiFetchBrowser<Announcement>(`/api/classes/${classId}/announcements`, {
     method: "POST",
     body: JSON.stringify(input),
   });

@@ -15,13 +15,13 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.academics.models import (
-    Announcement,
     Assignment,
     Class,
     ClassMembership,
     Material,
     Submission,
 )
+from apps.forum.models import ForumPost
 from apps.accounts.authentication import create_access_token
 from apps.accounts.models import ConsentAction, EducationLevel, Profile, Role
 from apps.accounts.privacy import REQUIRED_ITEMS, record_consent
@@ -69,7 +69,9 @@ class CrossAccountAccessTest(TestCase):
         self.material = Material.objects.create(
             class_ref=self.klass, title="Bab 1", description="Ringkasan"
         )
-        Announcement.objects.create(class_ref=self.klass, title="Info", body="Isi")
+        ForumPost.objects.create(
+            class_ref=self.klass, author=self.teacher_a, kind="announcement", title="Info", body="Isi"
+        )
         response = _client(self.student).post(
             f"/api/assignments/{self.assignment.id}/submissions",
             {"text_answer": ANSWER},
@@ -100,8 +102,12 @@ class CrossAccountAccessTest(TestCase):
             "materi kelas": b.get(f"/api/classes/{k}/materials"),
             "buat materi": b.post(f"/api/classes/{k}/materials", {"title": "x", "description": "y"}, format="json"),
             "roster": b.get(f"/api/classes/{k}/students"),
-            "pengumuman": b.get(f"/api/classes/{k}/announcements"),
-            "buat pengumuman": b.post(f"/api/classes/{k}/announcements", {"title": "x", "body": "y"}, format="json"),
+            "forum kelas": b.get(f"/api/classes/{k}/forum"),
+            "buat pengumuman": b.post(
+                f"/api/classes/{k}/forum",
+                {"kind": "announcement", "title": "xyz", "body": "y"},
+                format="json",
+            ),
             "detail materi": b.get(f"/api/materials/{m}"),
             "ubah materi": b.patch(f"/api/materials/{m}", {"title": "x"}, format="json"),
             "hapus materi": b.delete(f"/api/materials/{m}"),
