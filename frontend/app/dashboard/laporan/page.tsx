@@ -1,13 +1,13 @@
 import { FlaskConical, GraduationCap, LayoutGrid, TrendingDown } from "lucide-react";
 
-import { Callout } from "@/components/common/Callout";
-import { PageHeader } from "@/components/common/PageHeader";
-import { SectionCard } from "@/components/common/SectionCard";
-import { StatCard } from "@/components/common/StatCard";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { DistributionBar } from "@/components/report/DistributionBar";
-import { GroupTable } from "@/components/report/GroupTable";
-import { academicLabel, distinctSubject } from "@/lib/academic";
+import { Alert } from "@/components/ui/alert";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { DistributionBar } from "@/features/reports/components/DistributionBar";
+import { GroupTable } from "@/features/reports/components/GroupTable";
+import { academicLabel, distinctSubject } from "@/features/classes/lib/academic";
 import { getReportOverview } from "@/lib/data";
 
 export default async function LaporanPage() {
@@ -40,15 +40,14 @@ export default async function LaporanPage() {
         subtitle="Ringkasan lintas kelas yang Anda ampu, diurutkan dari yang paling butuh perhatian."
       />
 
-      <Callout variant="info" title="Cara membaca laporan ini">
-        Angka utama di sini adalah <strong>kesenjangan kognitif</strong>, yaitu berapa
-        banyak jawaban yang berada di bawah target Bloom tugasnya. Itu pertanyaan
-        pengajaran: materi mana yang belum tersampaikan. Indikasi AI tetap
-        ditampilkan sebagai konteks, tetapi jangan dipakai membandingkan kelas atau
-        program studi. Bobot dan ambangnya baru diukur pada abstrak akademik publik,
-        belum pada esai mahasiswa berlabel dosen, sehingga selisih antar kelompok
+      <Alert variant="info" title="Cara membaca laporan ini">
+        Angka utama di sini adalah <strong>kesenjangan kognitif</strong>, yaitu berapa banyak
+        jawaban yang berada di bawah target Bloom tugasnya. Itu pertanyaan pengajaran: materi mana
+        yang belum tersampaikan. Indikasi AI tetap ditampilkan sebagai konteks, tetapi jangan
+        dipakai membandingkan kelas atau program studi. Bobot dan ambangnya baru diukur pada abstrak
+        akademik publik, belum pada esai mahasiswa berlabel dosen, sehingga selisih antar kelompok
         belum tentu berarti apa pun.
-      </Callout>
+      </Alert>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
@@ -166,8 +165,7 @@ export default async function LaporanPage() {
             rows={per_semester.map((row) => ({
               ...row,
               key: String(row.semester ?? "tidak-ditentukan"),
-              label:
-                row.semester === null ? "Tidak ditentukan" : `Semester ${row.semester}`,
+              label: row.semester === null ? "Tidak ditentukan" : `Semester ${row.semester}`,
             }))}
           />
         </SectionCard>

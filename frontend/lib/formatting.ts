@@ -17,17 +17,7 @@
  * membaca jam yang sama persis ketika membicarakan satu submission. Kampus di
  * WITA atau WIT dapat menggantinya lewat NEXT_PUBLIC_DISPLAY_TIME_ZONE.
  */
-export const DISPLAY_TIME_ZONE =
-  process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE || "Asia/Jakarta";
-
-export const BLOOM_LABELS: Record<number, string> = {
-  1: "Mengingat",
-  2: "Memahami",
-  3: "Mengaplikasikan",
-  4: "Menganalisis",
-  5: "Mengevaluasi",
-  6: "Mencipta",
-};
+export const DISPLAY_TIME_ZONE = process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE || "Asia/Jakarta";
 
 export function formatDurationSeconds(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return "-";
@@ -147,14 +137,7 @@ function zoneOffsetMs(instant: Date): number {
     if (part.type !== "literal") at[part.type] = Number(part.value);
   }
   // Sebagian mesin menuliskan tengah malam sebagai jam 24.
-  const asIfUtc = Date.UTC(
-    at.year,
-    at.month - 1,
-    at.day,
-    at.hour % 24,
-    at.minute,
-    at.second,
-  );
+  const asIfUtc = Date.UTC(at.year, at.month - 1, at.day, at.hour % 24, at.minute, at.second);
   // Milidetik dibuang dari kedua sisi. Date.UTC selalu menghasilkan milidetik
   // nol, jadi membandingkannya langsung dengan getTime() akan meleset sebesar
   // komponen milidetik masukan.

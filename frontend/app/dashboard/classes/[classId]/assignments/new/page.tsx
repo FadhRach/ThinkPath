@@ -1,12 +1,12 @@
 import { ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { BackLink } from "@/components/common/BackLink";
-import { Callout } from "@/components/common/Callout";
-import { PageHeader } from "@/components/common/PageHeader";
-import { CreateAssignmentForm } from "@/components/dashboard/CreateAssignmentForm";
+import { BackLink } from "@/components/shared/BackLink";
+import { Alert } from "@/components/ui/alert";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { CreateAssignmentForm } from "@/features/assignments/components/CreateAssignmentForm";
 import { Card } from "@/components/ui/card";
-import { distinctSubject } from "@/lib/academic";
+import { distinctSubject } from "@/features/classes/lib/academic";
 import { getClasses } from "@/lib/data";
 
 export default async function NewAssignmentPage({
@@ -25,10 +25,7 @@ export default async function NewAssignmentPage({
 
   return (
     <div className="space-y-6">
-      <BackLink
-        href={`/dashboard/classes/${targetClass.id}?tab=tugas`}
-        label="Kembali ke kelas"
-      />
+      <BackLink href={`/dashboard/classes/${targetClass.id}?tab=tugas`} label="Kembali ke kelas" />
       <PageHeader
         title="Buat tugas baru"
         subtitle={[targetClass.name, distinctSubject(targetClass.name, targetClass.subject)]
@@ -36,14 +33,13 @@ export default async function NewAssignmentPage({
           .join(" · ")}
       />
       <div className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="campus-card p-5 sm:p-7">
+        <Card className="p-5 sm:p-7">
           <CreateAssignmentForm classId={targetClass.id} />
         </Card>
-        <Callout variant="info" title="Tentang target Bloom" icon={ShieldCheck}>
-          Target level Bloom membantu sistem menilai kedalaman berpikir yang
-          diharapkan dari jawaban mahasiswa. Mahasiswa melihat target ini sebelum
-          mengerjakan.
-        </Callout>
+        <Alert variant="info" title="Tentang target Bloom" icon={ShieldCheck}>
+          Target level Bloom membantu sistem menilai kedalaman berpikir yang diharapkan dari jawaban
+          mahasiswa. Mahasiswa melihat target ini sebelum mengerjakan.
+        </Alert>
       </div>
     </div>
   );

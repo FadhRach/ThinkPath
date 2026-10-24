@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 
-import { BackLink } from "@/components/common/BackLink";
-import { Callout } from "@/components/common/Callout";
-import { PageHeader } from "@/components/common/PageHeader";
-import { MaterialForm } from "@/components/dashboard/MaterialForm";
+import { BackLink } from "@/components/shared/BackLink";
+import { Alert } from "@/components/ui/alert";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MaterialForm } from "@/features/materials/components/MaterialForm";
 import { Card } from "@/components/ui/card";
 import { getClassMaterials, getClasses } from "@/lib/data";
-import { groupByTopic } from "@/lib/materials";
+import { groupByTopic } from "@/features/materials/lib/materials";
 
 export default async function EditMaterialPage({
   params,
@@ -30,20 +30,16 @@ export default async function EditMaterialPage({
 
   return (
     <div className="space-y-6">
-      <BackLink
-        href={`/dashboard/classes/${targetClass.id}?tab=materi`}
-        label="Kembali ke kelas"
-      />
+      <BackLink href={`/dashboard/classes/${targetClass.id}?tab=materi`} label="Kembali ke kelas" />
       <PageHeader title="Ubah Materi" subtitle={`${targetClass.name} · ${material.title}`} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="p-6 shadow-soft">
+        <Card variant="raised" className="p-6">
           <MaterialForm classId={targetClass.id} topics={topics} material={material} />
         </Card>
-        <Callout variant="info" title="Tanpa notifikasi ulang">
-          Perubahan langsung terlihat di halaman Materi mahasiswa. Lonceng mereka
-          tidak berbunyi lagi, jadi merapikan topik atau salah ketik tidak
-          mengganggu.
-        </Callout>
+        <Alert variant="info" title="Tanpa notifikasi ulang">
+          Perubahan langsung terlihat di halaman Materi mahasiswa. Lonceng mereka tidak berbunyi
+          lagi, jadi merapikan topik atau salah ketik tidak mengganggu.
+        </Alert>
       </div>
     </div>
   );

@@ -17,8 +17,7 @@ export const PRIVACY_POLICY_EFFECTIVE_LABEL = "22 Oktober 2026";
  * Diisi lewat lingkungan deploy, bukan ditanam di kode, supaya alamat pribadi
  * anggota tim tidak ikut terpublikasi tanpa keputusan tim.
  */
-export const PRIVACY_CONTACT_EMAIL =
-  process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL?.trim() || null;
+export const PRIVACY_CONTACT_EMAIL = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL?.trim() || null;
 
 export type ConsentItemKey =
   | "data_perkuliahan"

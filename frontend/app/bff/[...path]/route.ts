@@ -81,7 +81,8 @@ async function handle(
     );
   }
 
-  const secure = request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
+  const secure =
+    request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
   const upstreamType = upstream.headers.get("content-type") ?? "";
   const raw = await upstream.arrayBuffer();
 

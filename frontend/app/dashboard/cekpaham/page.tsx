@@ -1,14 +1,19 @@
 import { CheckCircle2, Hourglass, MessageSquareWarning } from "lucide-react";
 import Link from "next/link";
 
-import { AttemptStatusBadge, BandBadge, PhaseBadge } from "@/components/cekpaham/CekPahamBadges";
-import { Callout } from "@/components/common/Callout";
-import { DataTable, DataTableRow } from "@/components/common/DataTable";
-import { PageHeader } from "@/components/common/PageHeader";
-import { SectionCard } from "@/components/common/SectionCard";
-import { StatCard } from "@/components/common/StatCard";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { queueStats, UNCALIBRATED_NOTE } from "@/lib/cekpaham";
+import {
+  AttemptStatusBadge,
+  BandBadge,
+  PhaseBadge,
+} from "@/features/cekpaham/components/CekPahamBadges";
+import { Alert } from "@/components/ui/alert";
+import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { queueStats } from "@/features/cekpaham/lib/queue";
+import { UNCALIBRATED_NOTE } from "@/features/cekpaham/lib/labels";
 import { getCekPahamQueue } from "@/lib/data";
 
 export default async function CekPahamListPage() {
@@ -22,11 +27,11 @@ export default async function CekPahamListPage() {
         subtitle="Tes lisan singkat atas jawaban mahasiswa, dijawab dengan suara. Dimintakan dari halaman jawaban."
       />
 
-      <Callout variant="info" title="Kenapa langkah ini ada">
+      <Alert variant="info" title="Kenapa langkah ini ada">
         Skor dan sinyal hanya menghasilkan dugaan. Cek Paham memberi mahasiswa kesempatan
         menjelaskan jawabannya sendiri. {UNCALIBRATED_NOTE} Hasilnya{" "}
         <strong>tidak mengubah skor AI maupun nilai</strong>; keputusan tetap di tangan Anda.
-      </Callout>
+      </Alert>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard icon={Hourglass} label="Menunggu dikerjakan" value={stats.waiting} />
@@ -46,13 +51,16 @@ export default async function CekPahamListPage() {
         />
       ) : (
         <SectionCard eyebrow="Semua Cek Paham">
-          <DataTable minWidthClass="min-w-[44rem]" headers={["Mahasiswa", "Tugas", "Fase", "Hasil", "Laporan"]}>
+          <DataTable
+            minWidthClass="min-w-[44rem]"
+            headers={["Mahasiswa", "Tugas", "Fase", "Hasil", "Laporan"]}
+          >
             {rows.map((row) => (
               <DataTableRow key={row.id}>
                 <td className="py-2.5 pr-4">
                   <Link
                     href={`/dashboard/cekpaham/${row.id}`}
-                    className="font-medium text-foreground hover:text-primary"
+                    className="font-medium text-foreground hover:text-brand-ink"
                   >
                     {row.student_name}
                   </Link>
@@ -74,7 +82,9 @@ export default async function CekPahamListPage() {
                 </td>
                 <td className="py-2.5 text-muted-foreground">
                   {row.attempt && row.attempt.open_reports > 0 ? (
-                    <span className="font-semibold text-warning">{row.attempt.open_reports} menunggu</span>
+                    <span className="font-semibold text-warning">
+                      {row.attempt.open_reports} menunggu
+                    </span>
                   ) : (
                     "-"
                   )}

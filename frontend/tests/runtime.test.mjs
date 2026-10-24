@@ -1,36 +1,44 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import ts from "typescript";
+import { loadTs } from "./helpers/load-ts.mjs";
 import postcss from "postcss";
 import tailwindcss from "tailwindcss";
 
 const require = createRequire(import.meta.url);
-const source = await readFile(new URL("../lib/api-shared.ts", import.meta.url), "utf8");
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-}).outputText;
 process.env.NEXT_PUBLIC_BACKEND_URL ??= "http://backend.test";
-const api = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+const api = await loadTs("lib/api/errors.ts", "lib/api/messages.ts", "lib/api/request.ts");
 
-test("Tailwind config loads and produces the existing animation utilities", async () => {
+test("Tailwind config loads and produces animation utilities and the design tokens", async () => {
   const loadConfig = require("tailwindcss/loadConfig");
   const config = loadConfig(fileURLToPath(new URL("../tailwind.config.ts", import.meta.url)));
-  const result = await postcss([tailwindcss({
-    ...config,
-    content: [{ raw: '<div class="animate-in fade-in rounded-card"></div>' }],
-  })]).process("@tailwind utilities;", { from: undefined });
+  const result = await postcss([
+    tailwindcss({
+      ...config,
+      content: [
+        {
+          raw: '<div class="animate-in fade-in font-display text-micro text-title text-brand-ink"></div>',
+        },
+      ],
+    }),
+  ]).process("@tailwind utilities;", { from: undefined });
   assert.match(result.css, /\.animate-in/);
   assert.match(result.css, /@keyframes enter/);
-  assert.match(result.css, /\.rounded-card/);
+  // Token desain milik ThinkPath: kalau salah satu hilang dari config, halaman diam-diam kehilangan gayanya.
+  for (const utility of ["font-display", "text-micro", "text-title", "text-brand-ink"]) {
+    assert.match(result.css, new RegExp(`\\.${utility}`), utility);
+  }
 });
 
 test("registration displays the duplicate email message from DRF", () => {
-  assert.equal(api.getApiErrorMessage(
-    new api.ApiError(400, { email: ["Email sudah terdaftar."] }), "Gagal memproses.",
-  ), "Email sudah terdaftar.");
+  assert.equal(
+    api.getApiErrorMessage(
+      new api.ApiError(400, { email: ["Email sudah terdaftar."] }),
+      "Gagal memproses.",
+    ),
+    "Email sudah terdaftar.",
+  );
 });
 
 test("login preserves wrong-password and wrong-role messages", () => {
@@ -44,7 +52,8 @@ test("login preserves wrong-password and wrong-role messages", () => {
 
 test("HTML server errors show a service error instead of an input error", async () => {
   const response = new Response("<html>Server Error</html>", {
-    status: 500, headers: { "content-type": "text/html" },
+    status: 500,
+    headers: { "content-type": "text/html" },
   });
   await assert.rejects(api.resolveJson(response), (error) => {
     assert.equal(api.getApiErrorMessage(error, "Periksa isian."), api.SERVER_ERROR_MESSAGE);
@@ -53,20 +62,26 @@ test("HTML server errors show a service error instead of an input error", async 
 });
 
 test("network failures keep the connection message", () => {
-  assert.equal(api.getApiErrorMessage(new api.NetworkError(new TypeError("fetch failed")), "Gagal."),
-    api.NETWORK_ERROR_MESSAGE);
+  assert.equal(
+    api.getApiErrorMessage(new api.NetworkError(new TypeError("fetch failed")), "Gagal."),
+    api.NETWORK_ERROR_MESSAGE,
+  );
 });
 
 test("a bare DRF ValidationError (list body) shows its message", () => {
-  assert.equal(api.getApiErrorMessage(
-    new api.ApiError(400, ["Ukuran berkas maksimal 10 MB."]), "Gagal.",
-  ), "Ukuran berkas maksimal 10 MB.");
+  assert.equal(
+    api.getApiErrorMessage(new api.ApiError(400, ["Ukuran berkas maksimal 10 MB."]), "Gagal."),
+    "Ukuran berkas maksimal 10 MB.",
+  );
 });
 
 test("FormData uploads keep the browser's multipart Content-Type", async () => {
   const sent = [];
   const realFetch = globalThis.fetch;
-  globalThis.fetch = async (_url, init) => { sent.push(new Headers(init.headers)); return new Response("{}"); };
+  globalThis.fetch = async (_url, init) => {
+    sent.push(new Headers(init.headers));
+    return new Response("{}");
+  };
   try {
     await api.fetchApi("/upload", { method: "POST", body: new FormData() }, null);
     await api.fetchApi("/json", { method: "POST", body: "{}" }, null);

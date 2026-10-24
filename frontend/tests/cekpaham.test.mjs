@@ -1,18 +1,28 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
 
-const source = await readFile(new URL("../lib/cekpaham.ts", import.meta.url), "utf8");
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-}).outputText;
-const cp = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+import { loadTs } from "./helpers/load-ts.mjs";
+
+const cp = await loadTs(
+  "features/cekpaham/lib/recording.ts",
+  "features/cekpaham/lib/labels.ts",
+  "features/cekpaham/lib/queue.ts",
+  "lib/text.ts",
+);
 
 test("recording format: webm/opus first, mp4 for Safari, undefined when nothing works", () => {
-  assert.equal(cp.pickRecordingMime(() => true), "audio/webm;codecs=opus");
-  assert.equal(cp.pickRecordingMime((m) => m === "audio/mp4"), "audio/mp4");
-  assert.equal(cp.pickRecordingMime(() => false), undefined);
+  assert.equal(
+    cp.pickRecordingMime(() => true),
+    "audio/webm;codecs=opus",
+  );
+  assert.equal(
+    cp.pickRecordingMime((m) => m === "audio/mp4"),
+    "audio/mp4",
+  );
+  assert.equal(
+    cp.pickRecordingMime(() => false),
+    undefined,
+  );
 });
 
 test("rmsLevel separates dead input, room noise, and speech", () => {

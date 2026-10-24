@@ -1,54 +1,26 @@
-import { FileUp } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { AiScoreRing } from "@/components/common/AiScoreRing";
-import { AnalysisPoller } from "@/components/common/AnalysisPoller";
-import { BackLink } from "@/components/common/BackLink";
-import { AvatarInitials } from "@/components/common/AvatarInitials";
-import { BloomStepper } from "@/components/common/BloomStepper";
-import { Callout } from "@/components/common/Callout";
-import { SectionCard } from "@/components/common/SectionCard";
-import { AnalysisHistory } from "@/components/submission/AnalysisHistory";
-import {
-  AnalysisSourceBadge,
-  AnalysisSourceNote,
-} from "@/components/submission/AnalysisSourceBadge";
-import { RequestCekPahamPanel } from "@/components/cekpaham/RequestCekPahamPanel";
-import { ConfidenceBadge } from "@/components/submission/ConfidenceBadge";
-import { EvidenceStrip } from "@/components/submission/EvidenceStrip";
-import { GradingForm } from "@/components/submission/GradingForm";
-import { OriginalDocumentButton } from "@/components/submission/OriginalDocumentButton";
-import { ProcessTimeline } from "@/components/submission/ProcessTimeline";
-import { ReanalyzeButton } from "@/components/submission/ReanalyzeButton";
-import { RecommendationBlock } from "@/components/submission/RecommendationBlock";
-import { SentenceRhythm } from "@/components/submission/SentenceRhythm";
-import { SignalBreakdown } from "@/components/submission/SignalBreakdown";
-import { SignalList, uniqueSignals } from "@/components/submission/SignalList";
-import { Card } from "@/components/ui/card";
-import { academicLabel } from "@/lib/academic";
-import { ApiError } from "@/lib/api";
-import { bloomCode, bloomLabel } from "@/lib/bloom";
+import { BackLink } from "@/components/shared/BackLink";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { Alert } from "@/components/ui/alert";
+import { RequestCekPahamPanel } from "@/features/cekpaham/components/RequestCekPahamPanel";
+import { AnalysisDetails } from "@/features/submissions/components/AnalysisDetails";
+import { AnalysisPoller } from "@/features/submissions/components/AnalysisPoller";
+import { EvidenceStrip } from "@/features/submissions/components/EvidenceStrip";
+import { GradingForm } from "@/features/submissions/components/GradingForm";
+import { SentenceRhythm } from "@/features/submissions/components/SentenceRhythm";
+import { SubmissionHeader } from "@/features/submissions/components/SubmissionHeader";
+import { buildEvidenceRows } from "@/features/submissions/lib/evidence";
+import { ApiError } from "@/lib/api/errors";
 import { getSubmissionCekPaham, getSubmissionDetail } from "@/lib/data";
-import { bandsForDetail } from "@/lib/evidence";
-import { formatDurationSeconds } from "@/lib/formatting";
 import type { SubmissionDetail } from "@/lib/types";
-import { aiBandBadgeClass, aiBandLabel, submissionStatusMeta } from "@/lib/ui";
-import { cn } from "@/lib/utils";
-
-const BAND_DETAIL_COPY: Record<"low" | "mid" | "high", string> = {
-  low: "Tidak ada pola gaya yang menonjol.",
-  mid: "Beberapa sinyal layak diperhatikan.",
-  high: "Beberapa sinyal kuat perlu ditinjau.",
-};
 
 /**
  * Detail satu submission.
  *
- * Setiap fakta ditulis SEKALI. Versi sebelumnya mengulang jam mulai, revisi,
- * dan tempel di lima tempat (header, Evidence Strip, penanda linimasa, daftar
- * linimasa, Ringkasan Proses), sehingga halaman memanjang tanpa menambah bukti.
- * Jawaban dan penilaian tampil lebih dahulu. Bukti terperinci dapat dibuka
- * sesuai kebutuhan tanpa menghalangi alur membaca dan memberi umpan balik.
+ * Setiap fakta ditulis SEKALI: jawaban dan penilaian tampil lebih dahulu, bukti
+ * terperinci dapat dibuka sesuai kebutuhan tanpa menghalangi alur membaca dan
+ * memberi umpan balik.
  */
 export default async function SubmissionDetailPage({
   params,
@@ -66,21 +38,7 @@ export default async function SubmissionDetailPage({
 
   // Halaman ini tetap harus terbuka bila fitur Cek Paham sedang bermasalah.
   const cekpahamItems = await getSubmissionCekPaham(detail.id).catch(() => []);
-  const bands = bandsForDetail(detail);
-  const evidenceRows = [
-    { label: "Proses", band: bands.processBand, detail: buildProcessSentence(detail) },
-    { label: "Teks", band: bands.textBand, detail: buildTextSentence(detail) },
-    { label: "Kognitif", band: bands.cognitiveBand, detail: buildCognitiveSentence(detail) },
-  ];
-  const analysis = detail.analysis;
   const analysing = detail.analysis_state === "pending" || detail.analysis_state === "running";
-  const isFlagged = analysis?.ai_band === "high";
-  const status = submissionStatusMeta(detail.status);
-  const breakdown = analysis?.signal_breakdown ?? [];
-  const extraSignals = uniqueSignals(
-    analysis?.signals ?? null,
-    breakdown.map((item) => item.evidence),
-  );
   const backHref = detail.assignment.class_id
     ? `/dashboard/classes/${detail.assignment.class_id}?tab=tugas&assignment=${detail.assignment.id}`
     : "/dashboard/tugas";
@@ -95,221 +53,46 @@ export default async function SubmissionDetailPage({
       {analysing ? (
         <>
           <AnalysisPoller />
-          <Callout variant="info" title="Analisis sedang berjalan">
+          <Alert variant="info" title="Analisis sedang berjalan">
             Jawaban sudah tersimpan. Skor dan level Bloom muncul di halaman ini dalam beberapa
             detik, tanpa perlu dimuat ulang.
-          </Callout>
+          </Alert>
         </>
       ) : null}
       {detail.analysis_state === "failed" ? (
-        <Callout variant="warning" title="Analisis gagal">
+        <Alert variant="warning" title="Analisis gagal">
           Jawaban tersimpan, tetapi analisisnya tidak selesai. Tekan Analisis Ulang di bagian bukti.
-        </Callout>
+        </Alert>
       ) : null}
 
-      <Card className="campus-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-1 items-center gap-4">
-          <AvatarInitials name={detail.student.display_name} size="lg" />
-          <div className="min-w-0 space-y-0.5">
-
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-display-2">
-              {detail.student.display_name}
-            </h1>
-            <p className="text-body font-medium text-foreground">{detail.assignment.title}</p>
-            <p className="text-body-sm text-muted-foreground">
-              {academicLabel(detail.assignment)} &middot; Target{" "}
-              {bloomCode(detail.assignment.expected_bloom_level)} &middot;{" "}
-              {countWords(detail.text_answer)} kata
-              {detail.grade !== null ? ` · Nilai ${detail.grade}` : ""}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Indikasi ringkas; rincian tersedia pada bagian analisis. */}
-          {analysis ? (
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-3 py-1 text-body-sm font-semibold lg:hidden",
-                aiBandBadgeClass(analysis.ai_band),
-              )}
-            >
-              {aiBandLabel(analysis.ai_band)} &middot; {analysis.ai_score}
-            </span>
-          ) : null}
-          {isFlagged ? (
-            <span className="hidden items-center rounded-full bg-danger-soft px-3 py-1 text-body-sm font-semibold text-danger lg:inline-flex">
-              {aiBandLabel("high")}
-            </span>
-          ) : null}
-          {detail.is_imported ? (
-            <span
-              title="Jawaban berasal dari dokumen unggahan, jadi forensik proses tidak dinilai."
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-body-sm font-semibold text-foreground"
-            >
-              <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
-              Diimpor dari dokumen
-            </span>
-          ) : null}
-          {detail.is_imported ? <OriginalDocumentButton path={`/api/submissions/${detail.id}/document`} /> : null}
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-3 py-1 text-body-sm font-semibold",
-              status.badgeClass,
-            )}
-          >
-            {status.label}
-          </span>
-        </div>
-      </Card>
+      <SubmissionHeader detail={detail} />
 
       {/* Bukti inti di atas esai: dosen melihat gambaran proses, teks, dan kognitif
           sebelum membaca jawaban. Rincian lengkap ada di bagian lipat bawah. */}
       <SectionCard eyebrow="Ringkasan Bukti">
-        <EvidenceStrip rows={evidenceRows} />
+        <EvidenceStrip rows={buildEvidenceRows(detail)} />
       </SectionCard>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(19rem,1fr)]">
         <SectionCard eyebrow="Jawaban mahasiswa">
-          {detail.text_answer ? <SentenceRhythm text={detail.text_answer} /> : <p className="text-sm text-muted-foreground">Belum ada teks jawaban.</p>}
+          {detail.text_answer ? (
+            <SentenceRhythm text={detail.text_answer} />
+          ) : (
+            <p className="text-sm text-muted-foreground">Belum ada teks jawaban.</p>
+          )}
         </SectionCard>
-        <aside className="lg:sticky lg:top-24"><GradingForm key={detail.id} submissionId={detail.id} initialGrade={detail.grade} initialFeedback={detail.teacher_feedback} /></aside>
-      </div>
-      <RequestCekPahamPanel submissionId={detail.id} items={cekpahamItems} />
-      <details className="group rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <summary className="cursor-pointer text-sm font-bold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Rincian analisis dan bukti pengerjaan <span className="ml-2 text-xs font-normal text-muted-foreground">Bloom, asal skor, linimasa, dan riwayat</span></summary>
-      <div className="mt-5 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          {analysis?.summary ? (
-            <Callout variant={isFlagged ? "danger" : "info"} title="Ringkasan Analisis">
-              {analysis.summary}
-            </Callout>
-          ) : null}
-
-          <RecommendationBlock recommendation={analysis?.recommendation ?? null} />
-
-          {analysis ? (
-            <Card className="space-y-4 p-5 shadow-soft">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="caption-eyebrow text-primary">
-                    Level Kognitif &middot; Taksonomi Bloom
-                  </p>
-                  <p className="mt-1 text-body-sm text-muted-foreground">
-                    Teramati {bloomCode(analysis.bloom_level)} {bloomLabel(analysis.bloom_level)},
-                    target {bloomCode(detail.assignment.expected_bloom_level)}{" "}
-                    {bloomLabel(detail.assignment.expected_bloom_level)}
-                  </p>
-                </div>
-                <ConfidenceBadge confidence={analysis.bloom_confidence} />
-              </div>
-              <BloomStepper
-                observedLevel={analysis.bloom_level}
-                targetLevel={detail.assignment.expected_bloom_level}
-              />
-              <p className="text-caption text-muted-foreground">
-                Level teramati diukur dari isi jawaban dan tidak dipengaruhi oleh target
-                tugas maupun skor AI.
-              </p>
-            </Card>
-          ) : null}
-
-          {breakdown.length > 0 ? (
-            <SectionCard eyebrow="Asal Skor AI">
-              <SignalBreakdown breakdown={breakdown} source={analysis?.analysis_source} />
-            </SectionCard>
-          ) : null}
-        </div>
-
-        <aside className="space-y-4">
-          {analysis ? (
-            <Card className="flex flex-col items-center gap-3 p-5 text-center shadow-soft">
-              <AiScoreRing score={analysis.ai_score} band={analysis.ai_band} />
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <span className="text-body-sm font-semibold text-foreground">
-                  {aiBandLabel(analysis.ai_band)}
-                </span>
-                <ConfidenceBadge confidence={analysis.confidence} />
-                <AnalysisSourceBadge source={analysis.analysis_source} />
-              </div>
-              <AnalysisSourceNote source={analysis.analysis_source} />
-              <p className="text-caption text-muted-foreground">
-                Bukti untuk ditinjau bersama konteks Anda, bukan vonis.
-              </p>
-            </Card>
-          ) : null}
-
-          {/* Tanpa rincian skor, daftar sinyal adalah satu-satunya penjelasan
-              teks dan selalu ditampilkan. Dengan rincian, hanya temuan yang
-              belum muncul di sana yang tersisa. */}
-          {breakdown.length === 0 || extraSignals.length > 0 ? (
-            <SectionCard eyebrow={breakdown.length > 0 ? "Temuan Lain di Teks" : "Sinyal Teks"}>
-              <SignalList
-                signals={analysis?.signals ?? null}
-                exclude={breakdown.map((item) => item.evidence)}
-              />
-            </SectionCard>
-          ) : null}
-
-          <SectionCard eyebrow="Linimasa Pengerjaan">
-            <ProcessTimeline
-              events={detail.reasoning_events}
-              startedAt={detail.started_at}
-              submittedAt={detail.submitted_at}
-            />
-          </SectionCard>
-
-          <SectionCard eyebrow="Riwayat Analisis">
-            <AnalysisHistory runs={detail.analysis_history} />
-          </SectionCard>
-
-          <ReanalyzeButton submissionId={detail.id} busy={analysing} />
+        <aside className="lg:sticky lg:top-24">
+          <GradingForm
+            key={detail.id}
+            submissionId={detail.id}
+            initialGrade={detail.grade}
+            initialFeedback={detail.teacher_feedback}
+          />
         </aside>
       </div>
-      </details>
+
+      <RequestCekPahamPanel submissionId={detail.id} items={cekpahamItems} />
+      <AnalysisDetails detail={detail} analysing={analysing} />
     </div>
   );
-}
-
-function countWords(text: string): number {
-  const trimmed = text.trim();
-  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
-}
-
-function buildProcessSentence(detail: SubmissionDetail): string {
-  const evidence = detail.analysis?.process_evidence;
-  if (evidence) {
-    // Kalimat dari backend sudah memuat revisi; ditambah penjelasan netral
-    // bila pola tiba-sekaligus, supaya tidak terbaca sebagai tuduhan.
-    const note =
-      detail.analysis?.process_band === "attention"
-        ? " Ini bisa terjadi bila jawaban ditulis di aplikasi lain lalu ditempel."
-        : "";
-    return `${evidence}.${note}`;
-  }
-  // Revisi di sini berarti Simpan Revisi setelah dikumpulkan, bukan suntingan
-  // saat menulis, jadi kalimatnya tidak boleh terbaca "tidak pernah menyunting".
-  const revisionPart =
-    detail.revision_count === 0
-      ? "Dikumpulkan sekali"
-      : `Direvisi ${detail.revision_count} kali setelah dikumpulkan`;
-  const growth = detail.reasoning_events.some((event) => event.event_type === "progress")
-    ? "kurva pertumbuhan kata terekam"
-    : "kurva pertumbuhan kata tidak terekam";
-  return `${revisionPart}, ${growth}, durasi ${formatDurationSeconds(detail.duration_seconds)}.`;
-}
-
-function buildTextSentence(detail: SubmissionDetail): string {
-  if (!detail.analysis) return "Sinyal teks belum tersedia. Gunakan Analisis Ulang.";
-  return `Skor ${detail.analysis.ai_score} dari 100. ${BAND_DETAIL_COPY[detail.analysis.ai_band]}`;
-}
-
-function buildCognitiveSentence(detail: SubmissionDetail): string {
-  if (!detail.analysis) return "Estimasi level kognitif belum tersedia.";
-  const observed = detail.analysis.bloom_level;
-  const expected = detail.assignment.expected_bloom_level;
-  const gap = expected - observed;
-  const observedText = `${bloomCode(observed)} ${bloomLabel(observed)}`;
-  if (gap <= 0) return `${observedText}, memenuhi target ${bloomCode(expected)}.`;
-  if (gap === 1) return `${observedText}, satu tingkat di bawah target ${bloomCode(expected)}.`;
-  return `${observedText}, ${gap} tingkat di bawah target ${bloomCode(expected)}.`;
 }

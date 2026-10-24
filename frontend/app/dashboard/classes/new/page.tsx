@@ -1,6 +1,6 @@
-import { BackLink } from "@/components/common/BackLink";
-import { PageHeader } from "@/components/common/PageHeader";
-import { CreateClassForm } from "@/components/dashboard/CreateClassForm";
+import { BackLink } from "@/components/shared/BackLink";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { CreateClassForm } from "@/features/classes/components/CreateClassForm";
 import { Card } from "@/components/ui/card";
 
 export default function NewClassPage() {
@@ -11,7 +11,7 @@ export default function NewClassPage() {
         title="Buat Kelas Baru"
         subtitle="Kelas menjadi wadah tugas dan pengumpulan mahasiswa. Kode gabung dibuat otomatis setelah kelas tersimpan."
       />
-      <Card className="p-6 shadow-soft">
+      <Card variant="raised" className="p-6">
         <CreateClassForm />
       </Card>
     </div>

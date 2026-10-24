@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx"
-import { extendTailwindMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { extendTailwindMerge } from "tailwind-merge";
 
 // Ukuran huruf kustom dari tailwind.config.ts WAJIB didaftarkan di sini.
 // Tanpa daftar ini tailwind-merge membaca `text-body-sm` sebagai warna teks,
@@ -8,13 +8,11 @@ import { extendTailwindMerge } from "tailwind-merge"
 const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
-      "font-size": [
-        { text: ["display-1", "display-2", "body-lg", "body", "body-sm", "caption"] },
-      ],
+      "font-size": [{ text: ["display-1", "display-2", "body-lg", "body", "body-sm", "caption"] }],
     },
   },
-})
+});
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }

@@ -2,60 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
-  ThinkPath theme. Palette: #0ABAB5 / #56DFCF / #ADEED9 / #FFEDF3.
-  shadcn/ui tokens are HSL triplets so they compose as hsl(var(--token) / alpha).
-  Light theme only for now; the reference designs have no dark variant.
-*/
-@layer base {
-  :root {
-    /* shadcn/ui semantic tokens */
-    --background: 164 36% 96%;
-    --foreground: 176 51% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 176 51% 12%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 176 51% 12%;
-    --primary: 178 90% 38%;
-    --primary-foreground: 176 51% 12%;
-    --secondary: 161 66% 81%;
-    --secondary-foreground: 176 51% 18%;
-    --muted: 164 40% 94%;
-    --muted-foreground: 169 11% 40%;
-    --accent: 168 55% 92%;
-    --accent-foreground: 176 51% 16%;
-    --destructive: 346 64% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 160 27% 89%;
-    --input: 160 27% 89%;
-    --ring: 178 90% 38%;
-    --radius: 0.75rem;
-
-    /* ThinkPath brand + status tokens */
-    --brand-teal: 178 90% 38%;
-    --brand-teal-light: 173 68% 61%;
-    --brand-mint: 161 66% 81%;
-    --brand-pink: 340 100% 96%;
-    --success: 156 55% 38%;
-    --success-soft: 156 52% 92%;
-    --warning: 42 82% 44%;
-    --warning-soft: 44 90% 92%;
-    --danger: 346 64% 60%;
-    --danger-soft: 346 90% 96%;
-
-    /* Chart series */
-    --chart-1: 178 90% 38%;
-    --chart-2: 173 68% 61%;
-    --chart-3: 161 66% 72%;
-    --chart-4: 42 82% 55%;
-    --chart-5: 346 64% 66%;
-  }
-
-  .student-theme,
-  .teacher-theme {
-    background-color: hsl(var(--background));
-  }
-}
+/* Token warna dan ukuran ada di styles/tokens.css (diimpor di app/layout.tsx). */
 
 @layer base {
   * {
@@ -69,12 +16,6 @@
 }
 
 @layer utilities {
-  .campus-card {
-    border-radius: 0.75rem;
-    border-color: hsl(var(--border));
-    box-shadow: none;
-  }
-
   .caption-eyebrow {
     text-transform: uppercase;
     font-size: 0.75rem;
@@ -82,5 +23,4 @@
     font-weight: 600;
     color: hsl(var(--muted-foreground));
   }
-
 }

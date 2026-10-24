@@ -23,9 +23,7 @@ export async function readAuthClaims(): Promise<AuthClaims | null> {
   if (parts.length !== 3) return null;
 
   try {
-    const payload: unknown = JSON.parse(
-      Buffer.from(parts[1], "base64url").toString("utf8"),
-    );
+    const payload: unknown = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
     if (typeof payload !== "object" || payload === null) return null;
 
     const { sub, email, role, exp, consent } = payload as Record<string, unknown>;

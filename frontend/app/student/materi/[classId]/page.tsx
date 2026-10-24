@@ -2,12 +2,12 @@ import { ChevronRight, FolderOpen } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { teacherLabel } from "@/components/student/ArchivedClassNotice";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { ClassMaterialBrowser } from "@/components/materials/ClassMaterialBrowser";
-import { academicLabel, distinctSubject } from "@/lib/academic";
+import { teacherLabel } from "@/features/classes/components/ArchivedClassNotice";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ClassMaterialBrowser } from "@/features/materials/components/ClassMaterialBrowser";
+import { academicLabel, distinctSubject } from "@/features/classes/lib/academic";
 import { getStudentClasses, getStudentMaterials } from "@/lib/data";
-import { classAccent, groupByTopic } from "@/lib/materials";
+import { classAccent, groupByTopic } from "@/features/materials/lib/materials";
 import { cn } from "@/lib/utils";
 
 export default async function StudentClassMaterialsPage({
@@ -16,10 +16,7 @@ export default async function StudentClassMaterialsPage({
   params: Promise<{ classId: string }>;
 }) {
   const { classId } = await params;
-  const [classes, materials] = await Promise.all([
-    getStudentClasses(),
-    getStudentMaterials(),
-  ]);
+  const [classes, materials] = await Promise.all([getStudentClasses(), getStudentMaterials()]);
   // Hanya kelas yang diikuti; kelas lain tampil sebagai halaman tidak ditemukan.
   const current = classes.find((cls) => cls.id === classId);
   if (!current) {
@@ -67,7 +64,7 @@ export default async function StudentClassMaterialsPage({
               .join(" · ")}
           </p>
           {own.length > 0 ? (
-            <p className="text-body-sm font-medium text-primary">
+            <p className="text-body-sm font-medium text-brand-ink">
               {own.length} materi dalam {topicCount} topik
             </p>
           ) : null}

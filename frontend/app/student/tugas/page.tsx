@@ -1,9 +1,12 @@
 import { ClipboardList, Clock3, CheckCircle2, GraduationCap, type LucideIcon } from "lucide-react";
 
-import { StudentTaskList, type StudentTaskRow } from "@/components/student/StudentTaskList";
-import { PageHeader } from "@/components/common/PageHeader";
+import {
+  StudentTaskList,
+  type StudentTaskRow,
+} from "@/features/assignments/components/StudentTaskList";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
-import { distinctSubject } from "@/lib/academic";
+import { distinctSubject } from "@/features/classes/lib/academic";
 import { getStudentClasses } from "@/lib/data";
 
 export default async function StudentTugasPage() {
@@ -27,7 +30,9 @@ export default async function StudentTugasPage() {
       if (!b.deadline) return -1;
       return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
     });
-  const notSubmitted = rows.filter((row) => !row.submission || row.submission.status === "draft").length;
+  const notSubmitted = rows.filter(
+    (row) => !row.submission || row.submission.status === "draft",
+  ).length;
   const awaitingReview = rows.filter((row) => row.submission?.status === "submitted").length;
   const reviewed = rows.filter((row) => row.submission?.status === "reviewed").length;
 
@@ -43,12 +48,16 @@ export default async function StudentTugasPage() {
         <TaskStat icon={CheckCircle2} label="Sudah dinilai" value={reviewed} tone="indigo" />
       </div>
       {rows.length === 0 ? (
-        <Card className="rounded-[1.3rem] border-dashed border-border bg-card/75 px-5 py-12 text-center">
+        <Card className="rounded-2xl border-dashed border-border bg-card/75 px-5 py-12 text-center">
           <GraduationCap className="mx-auto h-8 w-8 text-accent-foreground" />
           <h2 className="mt-3 font-bold text-foreground">Belum ada tugas</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Tugas dari kelas yang kamu ikuti akan muncul di sini.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tugas dari kelas yang kamu ikuti akan muncul di sini.
+          </p>
         </Card>
-      ) : <StudentTaskList rows={rows} />}
+      ) : (
+        <StudentTaskList rows={rows} />
+      )}
     </div>
   );
 }
@@ -70,9 +79,18 @@ function TaskStat({
     indigo: "bg-secondary text-accent-foreground",
   };
   return (
-    <Card className="flex min-w-0 items-center gap-2.5 rounded-[1.05rem] border-border bg-card p-3 shadow-none sm:gap-3 sm:p-3.5">
-      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${colors[tone]}`}><Icon className="h-4 w-4" /></span>
-      <span className="min-w-0"><span className="block text-lg font-semibold leading-none text-foreground sm:text-xl">{value}</span><span className="mt-1 block truncate text-[0.65rem] font-medium text-muted-foreground sm:text-xs">{label}</span></span>
+    <Card className="flex min-w-0 items-center gap-2.5 rounded-2xl border-border bg-card p-3 sm:gap-3 sm:p-3.5">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${colors[tone]}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-lg font-semibold leading-none text-foreground sm:text-xl">
+          {value}
+        </span>
+        <span className="mt-1 block truncate text-micro font-medium text-muted-foreground sm:text-xs">
+          {label}
+        </span>
+      </span>
     </Card>
   );
 }

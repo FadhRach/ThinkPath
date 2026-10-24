@@ -1,20 +1,10 @@
 "use client";
 
-import { ErrorState } from "@/components/ErrorState";
+import { ErrorBoundaryPage } from "@/components/shared/ErrorBoundaryPage";
 
-export default function RootError({
-  error,
-  reset,
-}: {
+export default function RootError(props: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  return (
-    <ErrorState
-      title="Terjadi kesalahan"
-      caption="Ada masalah saat memuat halaman. Periksa koneksi internet, lalu coba lagi."
-      reset={reset}
-      digest={error.digest}
-    />
-  );
+  return <ErrorBoundaryPage {...props} layout="screen" homeHref="/" />;
 }

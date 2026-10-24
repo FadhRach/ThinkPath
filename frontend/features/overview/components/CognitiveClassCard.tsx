@@ -1,0 +1,161 @@
+import { Minus, TrendingDown, TrendingUp } from "lucide-react";
+import Link from "next/link";
+
+import { BloomTrendChart } from "@/features/overview/components/charts";
+import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { Card } from "@/components/ui/card";
+import { distinctSubject } from "@/features/classes/lib/academic";
+import { bloomShortLabel } from "@/features/bloom/lib/bloom";
+import {
+  TREND_LABEL,
+  TREND_TONE,
+  gapToTarget,
+  toChartPoints,
+  trendNarrative,
+} from "@/features/overview/lib/cognitive";
+import { formatDate } from "@/lib/formatting";
+import type { CognitiveClassSeries, TrendDirection } from "@/lib/types";
+import { AiBandBadge } from "@/features/submissions/components/AiBandBadge";
+import { cn } from "@/lib/utils";
+
+const TREND_ICON: Record<TrendDirection, typeof TrendingUp> = {
+  naik: TrendingUp,
+  datar: Minus,
+  turun: TrendingDown,
+  belum_cukup_data: Minus,
+};
+
+interface Props {
+  series: CognitiveClassSeries;
+  /** Dosen melihat indikasi AI per tugas; mahasiswa tidak. Dugaan yang belum
+   *  diverifikasi tidak pantas ditampilkan sebagai penilaian ke mahasiswa. */
+  showBand?: boolean;
+  /** Hanya dosen yang bisa membuka halaman detail submission. */
+  linkSubmissions?: boolean;
+}
+
+export function CognitiveClassCard({ series, showBand = false, linkSubmissions = false }: Props) {
+  const gap = gapToTarget(series);
+  const TrendIcon = TREND_ICON[series.direction];
+  const belowTarget = gap != null && gap <= -1;
+  const subject = distinctSubject(series.class_name, series.subject);
+
+  return (
+    <Card variant="raised" className="space-y-4 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-bold text-foreground">{series.class_name}</h2>
+          {subject ? <p className="text-body-sm text-muted-foreground">{subject}</p> : null}
+        </div>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium",
+            TREND_TONE[series.direction],
+          )}
+        >
+          <TrendIcon className="h-3.5 w-3.5" />
+          {TREND_LABEL[series.direction]}
+        </span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Metric
+          label="Level saat ini"
+          value={series.current_level != null ? `L${series.current_level}` : "-"}
+          caption={
+            series.current_level != null
+              ? bloomShortLabel(Math.round(series.current_level))
+              : "Belum ada tugas dianalisis"
+          }
+        />
+        <Metric
+          label="Target rata-rata"
+          value={series.average_target != null ? `L${series.average_target}` : "-"}
+          caption="Ditetapkan dosen per tugas"
+        />
+        <Metric
+          label="Selisih"
+          value={gap != null ? (gap > 0 ? `+${gap}` : `${gap}`) : "-"}
+          caption={belowTarget ? "Di bawah tuntutan tugas" : "Sesuai atau di atas target"}
+          tone={belowTarget ? "warning" : "default"}
+        />
+      </div>
+
+      <div>
+        <BloomTrendChart data={toChartPoints(series)} height={200} />
+      </div>
+
+      <p className="rounded-lg bg-muted/60 px-3.5 py-2.5 text-body-sm text-muted-foreground">
+        {trendNarrative(series)}
+      </p>
+
+      <DataTable
+        minWidthClass="min-w-[30rem]"
+        headers={["Tugas", "Level", "Target", "Dikumpulkan", ...(showBand ? ["Indikasi AI"] : [])]}
+      >
+        {series.points.map((point, index) => (
+          <DataTableRow key={point.submission_id}>
+            <td className="py-2.5 pr-4">
+              <span className="mr-2 text-caption text-muted-foreground">T{index + 1}</span>
+              {linkSubmissions ? (
+                <Link
+                  href={`/dashboard/submission/${point.submission_id}`}
+                  className="font-medium text-foreground hover:text-brand-ink"
+                >
+                  {point.label}
+                </Link>
+              ) : (
+                <span className="font-medium text-foreground">{point.label}</span>
+              )}
+            </td>
+            <td className="py-2.5 pr-4">
+              <span
+                className={cn(
+                  "font-medium",
+                  point.level < point.expected ? "text-warning" : "text-foreground",
+                )}
+              >
+                L{point.level}
+              </span>
+            </td>
+            <td className="py-2.5 pr-4 text-muted-foreground">L{point.expected}</td>
+            <td className="py-2.5 pr-4 text-muted-foreground">{formatDate(point.submitted_at)}</td>
+            {showBand ? (
+              <td className="py-2.5">
+                {point.ai_band ? (
+                  <AiBandBadge band={point.ai_band} />
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </td>
+            ) : null}
+          </DataTableRow>
+        ))}
+      </DataTable>
+    </Card>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  caption,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  caption: string;
+  tone?: "default" | "warning";
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 px-3.5 py-3">
+      <p className="text-caption text-muted-foreground">{label}</p>
+      <p
+        className={cn("text-xl font-bold", tone === "warning" ? "text-warning" : "text-foreground")}
+      >
+        {value}
+      </p>
+      <p className="text-caption text-muted-foreground">{caption}</p>
+    </div>
+  );
+}

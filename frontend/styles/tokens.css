@@ -1,0 +1,104 @@
+/*
+  Token desain ThinkPath: satu-satunya tempat nilai warna dan ukuran dasar didefinisikan.
+  Nilai berupa triplet HSL supaya bisa dipakai sebagai hsl(var(--token) / alpha).
+
+  Terang adalah bawaan. Gelap ditulis sebagai [data-theme="dark"] dan hanya aktif bila elemen
+  (html, atau .lp di landing) diberi atribut itu. Aplikasi BELUM mengaktifkannya: tema yang
+  tersimpan butuh cookie atau localStorage, yang bertentangan dengan kebijakan privasi
+  (satu cookie, tanpa penyimpanan peramban). Landing mengikuti sistem lewat blok @media di bawah.
+*/
+:root {
+  /* shadcn/ui semantic tokens */
+  --background: 164 36% 96%;
+  --foreground: 176 51% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 176 51% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 176 51% 12%;
+  /* Teal dalam + teks putih (kontras ±7:1). Teal terang #0ABAB5 hanya untuk dekorasi: --brand-teal. */
+  --primary: 178 86% 21%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 161 66% 81%;
+  --secondary-foreground: 176 51% 18%;
+  --muted: 164 40% 94%;
+  --muted-foreground: 169 11% 40%;
+  --accent: 168 55% 92%;
+  --accent-foreground: 176 51% 16%;
+  --destructive: 346 64% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 160 27% 89%;
+  --input: 160 27% 89%;
+  --ring: 178 90% 38%;
+  --radius: 0.75rem;
+
+  /* Teks aksen (tautan, angka sorot): lebih gelap dari primary di terang, lebih terang di gelap */
+  --brand-ink: 178 86% 21%;
+
+  /* Merek dan status */
+  --brand-teal: 178 90% 38%;
+  --brand-teal-light: 173 68% 61%;
+  --brand-mint: 161 66% 81%;
+  --brand-pink: 340 100% 96%;
+  --success: 156 55% 38%;
+  --success-soft: 156 52% 92%;
+  --warning: 42 82% 44%;
+  --warning-soft: 44 90% 92%;
+  --danger: 346 64% 60%;
+  --danger-soft: 346 90% 96%;
+
+  /* Garis buku tulis (latar hero landing) */
+  --ruled: 176 30% 82%;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: 176 40% 7%;
+  --foreground: 160 25% 94%;
+  --card: 176 30% 11%;
+  --card-foreground: 160 25% 94%;
+  --popover: 176 30% 11%;
+  --popover-foreground: 160 25% 94%;
+  --primary: 178 84% 26%;
+  --muted: 176 25% 14%;
+  --muted-foreground: 165 14% 68%;
+  --accent: 176 35% 16%;
+  --accent-foreground: 160 40% 88%;
+  --secondary: 176 35% 18%;
+  --secondary-foreground: 161 50% 85%;
+  --border: 176 20% 21%;
+  --input: 176 20% 21%;
+  --brand-ink: 173 68% 61%;
+  --brand-pink: 340 30% 17%;
+  --success-soft: 156 30% 15%;
+  --warning-soft: 44 40% 16%;
+  --danger-soft: 346 35% 17%;
+  --ruled: 176 20% 20%;
+}
+
+/* Landing mengikuti pengaturan sistem; ?tema=terang di URL menimpanya. */
+@media (prefers-color-scheme: dark) {
+  .lp:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: 176 40% 7%;
+    --foreground: 160 25% 94%;
+    --card: 176 30% 11%;
+    --card-foreground: 160 25% 94%;
+    --popover: 176 30% 11%;
+    --popover-foreground: 160 25% 94%;
+    --primary: 178 84% 26%;
+    --muted: 176 25% 14%;
+    --muted-foreground: 165 14% 68%;
+    --accent: 176 35% 16%;
+    --accent-foreground: 160 40% 88%;
+    --secondary: 176 35% 18%;
+    --secondary-foreground: 161 50% 85%;
+    --border: 176 20% 21%;
+    --input: 176 20% 21%;
+    --brand-ink: 173 68% 61%;
+    --brand-pink: 340 30% 17%;
+    --success-soft: 156 30% 15%;
+    --warning-soft: 44 40% 16%;
+    --danger-soft: 346 35% 17%;
+    --ruled: 176 20% 20%;
+  }
+}

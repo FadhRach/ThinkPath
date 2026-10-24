@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { AuthLayout } from "@/components/auth/AuthLayout";
-import { EmailPasswordForm } from "@/components/auth/EmailPasswordForm";
+import { AuthLayout } from "@/features/auth/components/AuthLayout";
+import { EmailPasswordForm } from "@/features/auth/components/EmailPasswordForm";
 
 export default function LoginPage() {
   return (
@@ -11,7 +11,7 @@ export default function LoginPage() {
       footer={
         <>
           Belum punya akun?{" "}
-          <Link href="/register" className="font-semibold text-primary">
+          <Link href="/register" className="font-semibold text-brand-ink">
             Daftar di sini
           </Link>
         </>

@@ -1,13 +1,13 @@
 import { LayoutGrid, TrendingDown, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
-import { Callout } from "@/components/common/Callout";
-import { PageHeader } from "@/components/common/PageHeader";
-import { BackLink } from "@/components/common/BackLink";
-import { StatCard } from "@/components/common/StatCard";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { ClassOverviewSection } from "@/components/overview/ClassOverviewSection";
-import { OverviewClassTabs } from "@/components/overview/OverviewClassTabs";
+import { Alert } from "@/components/ui/alert";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { BackLink } from "@/components/shared/BackLink";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ClassOverviewSection } from "@/features/overview/components/ClassOverviewSection";
+import { OverviewClassTabs } from "@/features/overview/components/OverviewClassTabs";
 import { Button } from "@/components/ui/button";
 import { getOverview } from "@/lib/data";
 
@@ -63,13 +63,12 @@ export default async function TeacherOverviewPage({
             />
           </div>
 
-          <Callout variant="info" title="Dua angka di atas mengukur hal yang berbeda">
-            Yang tertinggal dari target adalah temuan <strong>terukur</strong> dari
-            teks jawaban. Yang berskor AI tinggi baru <strong>dugaan</strong> yang
-            harus diverifikasi lewat percakapan. Keduanya sering menunjuk mahasiswa
-            yang berbeda, dan itu bukan kesalahan sistem melainkan alasan kedua
-            sumbu ini dipisahkan.
-          </Callout>
+          <Alert variant="info" title="Dua angka di atas mengukur hal yang berbeda">
+            Yang tertinggal dari target adalah temuan <strong>terukur</strong> dari teks jawaban.
+            Yang berskor AI tinggi baru <strong>dugaan</strong> yang harus diverifikasi lewat
+            percakapan. Keduanya sering menunjuk mahasiswa yang berbeda, dan itu bukan kesalahan
+            sistem melainkan alasan kedua sumbu ini dipisahkan.
+          </Alert>
 
           {classes.length === 1 ? (
             <ClassOverviewSection data={classes[0]} />

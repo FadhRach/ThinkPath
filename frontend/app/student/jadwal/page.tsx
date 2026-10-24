@@ -1,10 +1,10 @@
-import { Callout } from "@/components/common/Callout";
-import { PageHeader } from "@/components/common/PageHeader";
-import { AgendaPanel } from "@/components/schedule/AgendaPanel";
-import { CalendarLegend } from "@/components/schedule/CalendarLegend";
-import { CalendarToolbar } from "@/components/schedule/CalendarToolbar";
-import { MonthGrid } from "@/components/schedule/MonthGrid";
-import { WeekBoard } from "@/components/schedule/WeekBoard";
+import { Alert } from "@/components/ui/alert";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { AgendaPanel } from "@/features/schedule/components/AgendaPanel";
+import { CalendarLegend } from "@/features/schedule/components/CalendarLegend";
+import { CalendarToolbar } from "@/features/schedule/components/CalendarToolbar";
+import { MonthGrid } from "@/features/schedule/components/MonthGrid";
+import { WeekBoard } from "@/features/schedule/components/WeekBoard";
 import {
   buildRange,
   formatMonthName,
@@ -14,7 +14,7 @@ import {
   parseDayKey,
   rangeInstants,
   type CalendarView,
-} from "@/lib/calendar";
+} from "@/features/schedule/lib/calendar";
 import { getStudentClasses, getStudentSchedule } from "@/lib/data";
 import { dayKey } from "@/lib/formatting";
 
@@ -45,9 +45,7 @@ export default async function StudentSchedulePage({
   const selectedClass = classes.some((cls) => cls.id === requestedClass)
     ? (requestedClass as string)
     : null;
-  const visible = selectedClass
-    ? items.filter((item) => item.class_id === selectedClass)
-    : items;
+  const visible = selectedClass ? items.filter((item) => item.class_id === selectedClass) : items;
   const byDay = itemsByDay(visible);
   const hasPendingCekPaham = visible.some(
     (item) => item.kind === "cekpaham" && item.status === "scheduled",
@@ -78,13 +76,7 @@ export default async function StudentSchedulePage({
         // kalender memakai lebar penuh supaya judul di kotak tanggal terbaca.
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
           <div className="min-w-0 space-y-3">
-            <MonthGrid
-              range={range}
-              today={today}
-              byDay={byDay}
-              now={now}
-              dayHref={dayHref}
-            />
+            <MonthGrid range={range} today={today} byDay={byDay} now={now} dayHref={dayHref} />
             <CalendarLegend />
           </div>
           <AgendaPanel
@@ -103,18 +95,18 @@ export default async function StudentSchedulePage({
       )}
 
       {hasPendingCekPaham ? (
-        <Callout variant="info" title="Tentang Cek Paham">
-          Cek Paham adalah satu pertanyaan singkat tentang jawabanmu sendiri, dijawab
-          dengan suara. Tidak perlu persiapan khusus selain memahami kembali jawabanmu.
-          Suaramu hanya direkam selama sesi yang kamu mulai; rinciannya ada di Kebijakan Privasi.
-        </Callout>
+        <Alert variant="info" title="Tentang Cek Paham">
+          Cek Paham adalah satu pertanyaan singkat tentang jawabanmu sendiri, dijawab dengan suara.
+          Tidak perlu persiapan khusus selain memahami kembali jawabanmu. Suaramu hanya direkam
+          selama sesi yang kamu mulai; rinciannya ada di Kebijakan Privasi.
+        </Alert>
       ) : null}
 
       {classes.length === 0 ? (
-        <Callout variant="info" title="Belum ada kelas">
-          Kalender terisi setelah kamu bergabung ke kelas. Masukkan kode kelas dari
-          dosenmu di Beranda.
-        </Callout>
+        <Alert variant="info" title="Belum ada kelas">
+          Kalender terisi setelah kamu bergabung ke kelas. Masukkan kode kelas dari dosenmu di
+          Beranda.
+        </Alert>
       ) : null}
     </div>
   );

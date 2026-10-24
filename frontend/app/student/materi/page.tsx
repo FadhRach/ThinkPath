@@ -1,18 +1,15 @@
 import Link from "next/link";
 
-import { teacherLabel } from "@/components/student/ArchivedClassNotice";
-import { PageHeader } from "@/components/common/PageHeader";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { MaterialsHome, type ClassFolder } from "@/components/materials/MaterialsHome";
+import { teacherLabel } from "@/features/classes/components/ArchivedClassNotice";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { MaterialsHome, type ClassFolder } from "@/features/materials/components/MaterialsHome";
 import { Button } from "@/components/ui/button";
-import { distinctSubject } from "@/lib/academic";
+import { distinctSubject } from "@/features/classes/lib/academic";
 import { getStudentClasses, getStudentMaterials } from "@/lib/data";
 
 export default async function StudentMaterialsPage() {
-  const [classes, materials] = await Promise.all([
-    getStudentClasses(),
-    getStudentMaterials(),
-  ]);
+  const [classes, materials] = await Promise.all([getStudentClasses(), getStudentMaterials()]);
 
   // Urutan kelas mengikuti Beranda, bukan materi terbaru, supaya letak tiap
   // folder tidak berpindah-pindah setiap ada materi baru.

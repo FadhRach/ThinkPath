@@ -14,7 +14,9 @@ function sourceFiles(dir) {
 }
 
 const sectionIds = new Set(
-  [...read("components/privacy/PolicyArticle.tsx").matchAll(/\{ id: "([^"]+)", title:/g)].map((m) => m[1]),
+  [
+    ...read("features/privacy/components/PolicyArticle.tsx").matchAll(/\{ id: "([^"]+)", title:/g),
+  ].map((m) => m[1]),
 );
 
 test("every consent item points at a section that exists in the policy page", () => {
@@ -26,9 +28,10 @@ test("every consent item points at a section that exists in the policy page", ()
 test("every link into the policy page uses an anchor that exists", () => {
   const root = new URL("../", import.meta.url).pathname;
   const linked = new Set();
-  for (const dir of ["app", "components", "lib"]) {
+  for (const dir of ["app", "components", "features", "lib"]) {
     for (const file of sourceFiles(join(root, dir))) {
-      for (const m of readFileSync(file, "utf8").matchAll(/kebijakan-privasi#([a-z-]+)/g)) linked.add(m[1]);
+      for (const m of readFileSync(file, "utf8").matchAll(/kebijakan-privasi#([a-z-]+)/g))
+        linked.add(m[1]);
     }
   }
   assert.ok(linked.size > 0);
