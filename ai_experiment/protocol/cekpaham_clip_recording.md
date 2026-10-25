@@ -1,7 +1,7 @@
 # Protokol merekam klip uji ASR (Cek Paham)
 
 Tujuan: mengukur WER ASR pada suara yang mirip pemakaian sebenarnya, bukan memercayai angka vendor.
-Dipakai oleh `python -m src.evaluate_asr`.
+Dipakai oleh `notebooks/06_cekpaham_asr_dan_penilai.ipynb` (bagian A).
 
 ## Yang direkam
 
@@ -58,9 +58,9 @@ data/asr_clips/
 
 ```bash
 cp .env.example .env            # GROQ_API_KEY
-python -m src.evaluate_asr      # tiga model: groq-turbo, groq-large-v3, faster-whisper-small
-python -m src.evaluate_asr --adapters groq-turbo,groq-large-v3 --limit 10
 ```
+
+Lalu jalankan bagian A di `notebooks/06_cekpaham_asr_dan_penilai.ipynb` (`ADAPTERS` memilih model, `LIMIT_KLIP` membatasi jumlah klip).
 
 `faster-whisper-small` butuh `pip install faster-whisper` (model ±460 MB) dan dijalankan di CPU; ia ada
 untuk menjawab apakah self-host layak di VPS 2 core / 2 GB. Perkirakan RTF > 1 di CPU kecil, artinya

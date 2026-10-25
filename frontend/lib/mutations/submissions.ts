@@ -1,7 +1,13 @@
 import { apiFetchBrowser } from "@/lib/api/browser";
 import { resolveJson } from "@/lib/api/request";
 import { directFetch } from "@/lib/api/direct";
-import type { AnalysisState, RichDoc, SubmissionDetail } from "@/lib/types";
+import type {
+  AnalysisState,
+  RichDoc,
+  SubmissionComparison,
+  SubmissionDetail,
+  SubmissionSuggestion,
+} from "@/lib/types";
 
 export interface SubmitAnswerInput {
   /** Dokumen editor. Server menurunkan teks polosnya sendiri, jadi `text_answer` hanya cadangan. */
@@ -76,4 +82,18 @@ export function gradeSubmission(submissionId: string, input: GradeInput) {
     method: "PATCH",
     body: JSON.stringify(input),
   });
+}
+
+/** Saran untuk dosen atas satu jawaban. Hanya dijalankan saat dosen menekan tombolnya. */
+export function requestSuggestion(submissionId: string) {
+  return apiFetchBrowser<SubmissionSuggestion>(`/api/submissions/${submissionId}/suggestion`, {
+    method: "POST",
+  });
+}
+
+/** Dua jawaban pada tugas yang sama berdampingan; dibuka dosen dari kartu kemiripan. */
+export function getSubmissionComparison(submissionId: string, otherId: string) {
+  return apiFetchBrowser<SubmissionComparison>(
+    `/api/submissions/${submissionId}/compare/${otherId}`,
+  );
 }

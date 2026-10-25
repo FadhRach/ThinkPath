@@ -1,4 +1,6 @@
 import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/shared/CollapsibleSection";
 import { SectionCard } from "@/components/shared/SectionCard";
 import {
   CekPahamAudio,
@@ -142,7 +144,7 @@ function DimensionRow({
   dimension: CekPahamAttemptView["ai_dimensions"][string];
 }) {
   return (
-    <div className="rounded-xl border border-border p-4">
+    <div className="rounded-xl border border-border px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <p className="font-semibold text-foreground">{DIMENSION_LABEL[name] ?? name}</p>
         <div
@@ -161,14 +163,21 @@ function DimensionRow({
         </div>
       </div>
       <p className="mt-1 text-body-sm text-muted-foreground">{dimension.reason}</p>
-      {dimension.evidence.map((quote) => (
-        <blockquote
-          key={quote}
-          className="mt-2 border-l-2 border-primary pl-3 text-body-sm italic text-foreground"
-        >
-          &ldquo;{quote}&rdquo;
-        </blockquote>
-      ))}
+      {dimension.evidence.length ? (
+        <details className="mt-1.5">
+          <summary className="cursor-pointer text-caption font-semibold text-brand-ink">
+            Kutipan pendukung ({dimension.evidence.length})
+          </summary>
+          {dimension.evidence.map((quote) => (
+            <blockquote
+              key={quote}
+              className="mt-2 border-l-2 border-primary pl-3 text-body-sm italic text-foreground"
+            >
+              &ldquo;{quote}&rdquo;
+            </blockquote>
+          ))}
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -223,35 +232,43 @@ function SessionContext({ attempt }: { attempt: CekPahamAttemptView }) {
   const events = attempt.client_events;
 
   return (
-    <SectionCard eyebrow="Konteks sesi (tidak dinilai)">
-      <dl className="grid gap-3 text-body-sm sm:grid-cols-3">
-        <Fact
-          label="Mulai bicara setelah"
-          value={
-            attempt.first_speech_offset_s !== null
-              ? `${attempt.first_speech_offset_s.toFixed(1)} detik`
-              : "-"
-          }
-        />
-        <Fact
-          label="Durasi audio"
-          value={
-            attempt.audio_duration_s !== null ? `${attempt.audio_duration_s.toFixed(0)} detik` : "-"
-          }
-        />
-        <Fact
-          label="Pindah tab / jendela"
-          value={`${events.visibility_changes ?? 0} / ${events.blur_count ?? 0}`}
-        />
-        <Fact label="Ganti perangkat mikrofon" value={String(events.device_changes ?? 0)} />
-        <Fact label="Galat mikrofon" value={String(events.mic_errors ?? 0)} />
-        <Fact label="Diam (detik)" value={String(events.silent_seconds ?? 0)} />
-      </dl>
-      <p className="text-caption text-muted-foreground">
-        Ini hanya konteks. Pindah tab atau jeda panjang punya banyak sebab wajar dan tidak ikut
-        menghitung skor.
-      </p>
-    </SectionCard>
+    <CollapsibleSection
+      title="Konteks sesi"
+      defaultOpen={false}
+      summary={<span className="text-xs text-muted-foreground">tidak dinilai</span>}
+    >
+      <Card className="space-y-3 p-5">
+        <dl className="grid gap-3 text-body-sm sm:grid-cols-3">
+          <Fact
+            label="Mulai bicara setelah"
+            value={
+              attempt.first_speech_offset_s !== null
+                ? `${attempt.first_speech_offset_s.toFixed(1)} detik`
+                : "-"
+            }
+          />
+          <Fact
+            label="Durasi audio"
+            value={
+              attempt.audio_duration_s !== null
+                ? `${attempt.audio_duration_s.toFixed(0)} detik`
+                : "-"
+            }
+          />
+          <Fact
+            label="Pindah tab / jendela"
+            value={`${events.visibility_changes ?? 0} / ${events.blur_count ?? 0}`}
+          />
+          <Fact label="Ganti perangkat mikrofon" value={String(events.device_changes ?? 0)} />
+          <Fact label="Galat mikrofon" value={String(events.mic_errors ?? 0)} />
+          <Fact label="Diam (detik)" value={String(events.silent_seconds ?? 0)} />
+        </dl>
+        <p className="text-caption text-muted-foreground">
+          Ini hanya konteks. Pindah tab atau jeda panjang punya banyak sebab wajar dan tidak ikut
+          menghitung skor.
+        </p>
+      </Card>
+    </CollapsibleSection>
   );
 }
 

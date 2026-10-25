@@ -6,7 +6,7 @@ import { ApiConfigurationError, ApiError, NetworkError } from "./errors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-export function joinUrl(base: string, path: string): string {
+function joinUrl(base: string, path: string): string {
   return `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
 }
 
@@ -41,7 +41,7 @@ export function fetchApi(path: string, init: RequestInit, token: string | null):
   );
 }
 
-export async function parseResponseBody(response: Response): Promise<unknown> {
+async function parseResponseBody(response: Response): Promise<unknown> {
   const isJson = response.headers.get("content-type")?.includes("application/json");
   return isJson ? response.json() : response.text();
 }

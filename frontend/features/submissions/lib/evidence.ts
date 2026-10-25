@@ -2,7 +2,7 @@ import { bloomCode, bloomLabel } from "@/features/bloom/lib/bloom";
 import { formatDurationSeconds } from "@/lib/formatting";
 import type { AiBand, SubmissionDetail } from "@/lib/types";
 
-export interface EvidenceBands {
+interface EvidenceBands {
   processBand: AiBand;
   textBand: AiBand;
   cognitiveBand: AiBand;
@@ -33,6 +33,8 @@ function processBandFor(durationSeconds: number | null): AiBand {
  * dan satu lagi di dalam skor AI. Sekarang keduanya berasal dari satu sumber.
  */
 function processBandFromDetail(detail: SubmissionDetail): AiBand {
+  // Jawaban dari dokumen tidak punya jejak mengetik: tidak dinilai, jadi tidak boleh tampak mencurigakan.
+  if (detail.is_imported) return "low";
   // Pola pengerjaan hasil backend (bukti tersendiri, tidak masuk skor AI).
   switch (detail.analysis?.process_band) {
     case "attention":
@@ -62,7 +64,7 @@ function cognitiveBandFor(bloomLevel: number | undefined, expected: number | und
   return "low";
 }
 
-export function bandsForDetail(detail: SubmissionDetail): EvidenceBands {
+function bandsForDetail(detail: SubmissionDetail): EvidenceBands {
   return {
     processBand: processBandFromDetail(detail),
     textBand: bandFromAi(detail.analysis?.ai_band),
@@ -90,6 +92,9 @@ export function buildEvidenceRows(detail: SubmissionDetail) {
 }
 
 function buildProcessSentence(detail: SubmissionDetail): string {
+  if (detail.is_imported) {
+    return "Jawaban diimpor dari dokumen, jadi tidak ada jejak mengetik dan pola proses tidak dinilai. Nilai dari isi dokumennya.";
+  }
   const evidence = detail.analysis?.process_evidence;
   if (evidence) {
     // Kalimat dari backend sudah memuat revisi; ditambah penjelasan netral

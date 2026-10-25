@@ -33,7 +33,6 @@ melakukan hydration. Kontrol form login dan pendaftaran memakai
 npm run build         # production build (jangan dijalankan di folder ini saat `npm run dev` hidup)
 npm run lint          # ESLint, termasuk aturan arah impor antar lapisan
 npm run typecheck     # tsc --noEmit (strict, tanpa any)
-npm test              # node --test tests/*.test.mjs
 npm run format        # Prettier ke seluruh kode; format:check untuk CI
 ```
 
@@ -53,8 +52,8 @@ frontend/
 │   └── bff/              Jembatan same-origin ke API; menyisipkan token dari cookie HttpOnly
 ├── components/           Komponen yang TIDAK terikat satu domain
 │   ├── ui/               Primitif shadcn + varian ThinkPath (Button, Badge, Card, Alert, IconTile, Toaster, ...)
-│   ├── shared/           Komposisi lintas fitur (PageHeader, StatCard, EmptyState, StatusPage, FormField, ...)
-│   ├── layout/           Kerangka aplikasi (AppShell, RoleLayout, TopNav, Footer, Brandmark, ...)
+│   ├── shared/           Komposisi lintas fitur (StatCard, EmptyState, StatusPage, FormField, ...)
+│   ├── layout/           Kerangka aplikasi (AppShell, SidebarShell, RoleLayout, Footer, Brandmark, ...)
 │   └── charts/           Pembantu chart generik (ChartLegend, warna)
 ├── features/<domain>/    Segala hal milik satu domain: components/, lib/ (logika murni), hooks/
 │   ├── classes, assignments, submissions, cekpaham, materials, schedule
@@ -68,7 +67,6 @@ frontend/
 │   ├── mutations/        Aksi tulis dari browser per domain (barrel: "@/lib/mutations")
 │   └── formatting, privacy, notify, text, avatar, auth-claims, auth-token, utils
 ├── styles/tokens.css     Token warna terang/gelap (satu-satunya sumber nilai warna dan radius)
-├── tests/                node --test; tests/helpers/load-ts.mjs memuat modul TS murni tanpa bundler
 └── middleware.ts         Guard rute /dashboard, /student, /persetujuan
 ```
 
@@ -105,10 +103,7 @@ bisa diuji tanpa React.
 
 - `lib/privacy.ts` harus tetap di jalur itu: tes backend membaca berkasnya untuk mencocokkan
   `PRIVACY_POLICY_VERSION`.
-- `tests/privacy.test.mjs` membaca `features/privacy/components/PolicyArticle.tsx` dan semua
-  tautan `kebijakan-privasi#...`; jangkar yang diubah harus diubah di kedua tempat.
-- `lib/api/errors|messages|request.ts` dan `features/*/lib/*` yang diuji sengaja tanpa alias `@/`
-  dan tanpa impor runtime Next.js supaya bisa dimuat `tests/helpers/load-ts.mjs`.
+- Jangkar `kebijakan-privasi#...` yang dirujuk dari layar persetujuan dan butir persetujuan harus tetap ada di `PolicyArticle.tsx`.
 
 ---
 
@@ -116,15 +111,17 @@ bisa diuji tanpa React.
 
 | Peran | Rute | Isi |
 |---|---|---|
-| Dosen | `/dashboard` | Overview: peta kelas dua sumbu, sebaran Bloom, tren kohort |
-| Dosen | `/dashboard/classes` | Daftar kelas dan kode gabung |
-| Dosen | `/dashboard/classes/[id]` | Detail kelas: pemilih tugas + tabel submission |
+| Dosen | `/dashboard` | Beranda: antrean "Perlu diperiksa", kartu kelas (pintasan ikon ke Mahasiswa/Materi/Forum/Tugas), forum terbaru, ringkasan Cek Paham, tenggat terdekat |
+| Dosen | `/dashboard/forum` | Forum semua kelas: kartu kelas, pencarian, saringan kelas dan jenis, "Belum dibalas" |
+| Dosen | `/dashboard/classes` | Kartu kelas (pencarian, Buat kelas sebaris, pintasan ikon ke tab) |
+| Dosen | `/dashboard/classes/[id]` | Detail kelas, tab `?tab=`: **Analitik** (bawaan: angka ringkas, antrean periksa kelas ini, Cek Paham per mahasiswa, peta dan tren Bloom), Mahasiswa, Tugas, Materi, Forum |
 | Dosen | `/dashboard/tugas` | Seluruh tugas lintas kelas |
-| Dosen | `/dashboard/cekpaham` | Daftar Cek Paham, ringkasan, dan laporan menunggu |
-| Dosen | `/dashboard/cekpaham/[id]` | Hasil Cek Paham: audio, transkrip server vs caption, saran skor berlabel "belum dikalibrasi", bukti, laporan mahasiswa |
-| Dosen | `/dashboard/laporan` | Laporan agregat per kelas, prodi, semester |
+| Dosen | `/dashboard/cekpaham` | Daftar Cek Paham: saring kelas dan status (perlu ditinjau, belum selesai, dibatalkan), cari |
+| Dosen | `/dashboard/cekpaham/[id]` | Hasil Cek Paham: skor saran berlabel "belum dikalibrasi", transkrip server vs caption, laporan mahasiswa; kolom kanan soal dan analisis tulisan |
+| Dosen | `/dashboard/analitik` | Tab `?tab=kelas` (peta dan tren tiap kelas, `?kelas=`) dan `?tab=lintas` (agregat per kelas, prodi, semester) |
 | Dosen | `/dashboard/students/[id]` | Profil kognitif seorang mahasiswa |
-| Dosen | `/dashboard/submission/[id]` | Bukti lengkap satu jawaban + linimasa proses |
+| Dosen | `/dashboard/pengumpulan?kelas=&tugas=` | Antrean periksa, dikelompokkan per tugas |
+| Dosen | `/dashboard/submission/[id]` | Kartu mahasiswa, dokumen/jawaban, ringkasan bukti, penanda gaya; kolom kanan: nilai, saran satu klik, Cek Paham, kemiripan |
 | Mahasiswa | `/student` | Beranda: peringatan tugas, kartu kelas (progres + rata-rata), to-do pribadi, jadwal terdekat, forum terbaru, nilai terbaru, gabung kelas |
 | Mahasiswa | `/student/tugas` | Tugas semua kelas, dikelompokkan: perlu dikerjakan / menunggu nilai / sudah dinilai; saringan kelas |
 | Mahasiswa | `/student/kelas`, `/student/kelas/[id]` | Daftar kartu kelas; detail dengan tab Ringkasan, Forum, Materi, Tugas, Gradebook (nilai, rata-rata, grafik Bloom kelas itu), Anggota (dosen dan teman sekelas) (`?tab=`; `?post=` membuka topik forum) |
@@ -135,7 +132,7 @@ bisa diuji tanpa React.
 | Mahasiswa | `/student/gradebook` (`?kelas=<id>` memilih kelas awal) | Satu halaman: kartu kelas yang bisa digeser di atas; rapor nilai, umpan balik dosen, dan grafik perkembangan penalaran kelas terpilih tampil di bawahnya, **tanpa kolom indikasi AI** |
 | Keduanya | `/dashboard/pengaturan`, `/student/pengaturan` | Ubah nama tampil dan jenjang |
 
-Materi mahasiswa kini tab di halaman kelas. `/student/progress` dan `/student/materi/[id]` hanya mengalihkan ke Gradebook / tab Materi (tautan lama, termasuk notifikasi lama). Mahasiswa memakai sidebar yang bisa dilipat (`components/layout/StudentShell.tsx`, menu di `nav-config.ts`); dosen memakai `TopNav`. Status lipat sidebar hanya di memori React, karena kebijakan privasi melarang cookie tambahan dan localStorage.
+Materi mahasiswa kini tab di halaman kelas. `/student/progress` dan `/student/materi/[id]` hanya mengalihkan ke Gradebook / tab Materi (tautan lama, termasuk notifikasi lama). Mahasiswa dan dosen memakai sidebar yang bisa dilipat (`components/layout/SidebarShell.tsx`, menu per peran di `nav-config.ts`; menu dikirim sebagai peran, bukan daftar berisi ikon, karena komponen tidak bisa diserialisasi dari server ke klien). Status lipat sidebar hanya di memori React, karena kebijakan privasi melarang cookie tambahan dan localStorage.
 
 ---
 

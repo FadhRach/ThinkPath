@@ -24,7 +24,12 @@ from apps.academics.models import (
     SubmissionStatus,
 )
 from apps.academics.services import analysis_jobs
-from apps.academics.services.documents import verified_source
+from apps.academics.limits import MAX_ANSWER_CHARS, MIN_ANSWER_WORDS
+from apps.academics.services.documents import (
+    combine_with_document,
+    read_text,
+    verified_source,
+)
 from apps.academics.services.drafts import count_words, get_draft, trail_from
 from apps.accounts.models import Profile
 from apps.accounts.privacy import ITEM_EXTERNAL_AI, current_consent
@@ -74,6 +79,20 @@ def _uploaded_id(assignment: Assignment, validated: dict):
     return validated.get("document_id") if assignment.allow_file_upload else None
 
 
+def _answer_text(student_id: UUID, document_id: UUID | None, typed: str) -> str:
+    """Teks yang dianalisis: ketikan mahasiswa (nama, NIM) ditambah isi dokumen terlampir."""
+    text = typed
+    if document_id is not None and (document_text := read_text(student_id, document_id)):
+        text = combine_with_document(typed, document_text)
+    if len(text) > MAX_ANSWER_CHARS:
+        raise ValidationError({"text_answer": "Jawaban terlalu panjang."})
+    if len(text.split()) < MIN_ANSWER_WORDS:
+        raise ValidationError(
+            {"text_answer": f"Tulis minimal {MIN_ANSWER_WORDS} kata sebelum mengumpulkan."}
+        )
+    return text
+
+
 def submit_answer(
     assignment: Assignment, student: Profile, validated: dict
 ) -> tuple[Submission, bool]:
@@ -103,20 +122,19 @@ def submit_answer(
 def _create(
     assignment: Assignment, student: Profile, validated: dict
 ) -> tuple[Submission, AnalysisJob]:
-    text_answer = validated["text_answer"]
     submitted_at = timezone.now()
     # Jejak pengerjaan berasal dari draf yang dicatat server. started_at dan
     # progress kiriman klien (bundel lama) diterima tetapi diabaikan: klien
     # tidak boleh menentukan bukti yang dipakai untuk menilainya sendiri.
     draft = get_draft(assignment, student)
+    if validated.get("document_id") is None and draft is not None and draft.document_id:
+        validated = {**validated, "document_id": draft.document_id}
+    document_id = _uploaded_id(assignment, validated)
+    text_answer = _answer_text(student.id, document_id, validated["text_answer"])
     started_at, duration_seconds, progress = trail_from(
         draft, submitted_at, count_words(text_answer)
     )
-    if validated.get("document_id") is None and draft is not None and draft.document_id:
-        validated = {**validated, "document_id": draft.document_id}
-    source_document = verified_source(
-        student.id, _uploaded_id(assignment, validated), text_answer
-    )
+    source_document = verified_source(student.id, document_id, text_answer)
     try:
         with transaction.atomic():
             submission = Submission.objects.create(
@@ -160,15 +178,11 @@ def _create(
 def _revise(
     submission: Submission, assignment: Assignment, validated: dict
 ) -> tuple[Submission, AnalysisJob]:
-    text_answer = validated["text_answer"]
-    # Dokumen baru bila diunggah ulang; kalau tidak, dokumen lama tetap berlaku
-    # selama teks revisi masih berasal darinya. Teks yang ditulis ulang total
-    # kembali dinilai lewat jejak prosesnya.
-    source_document = verified_source(
-        submission.student_profile_id,
-        _uploaded_id(assignment, validated) or submission.source_document,
-        text_answer,
-    )
+    # Klien selalu mengirim ulang dokumen yang masih terlampir; tanpa itu dokumen dianggap
+    # dilepas. Teks yang ditulis ulang total kembali dinilai lewat jejak prosesnya.
+    document_id = _uploaded_id(assignment, validated)
+    text_answer = _answer_text(submission.student_profile_id, document_id, validated["text_answer"])
+    source_document = verified_source(submission.student_profile_id, document_id, text_answer)
     with transaction.atomic():
         # Kunci baris dan baca ulang: selama request ini berjalan, dosen bisa
         # saja sudah menilai, atau revisi lain sudah tersimpan lebih dulu.

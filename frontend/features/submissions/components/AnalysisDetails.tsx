@@ -1,4 +1,5 @@
 import { AiScoreRing } from "@/features/submissions/components/AiScoreRing";
+import { CollapsibleSection } from "@/components/shared/CollapsibleSection";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
@@ -35,14 +36,14 @@ export function AnalysisDetails({
   );
 
   return (
-    <details className="group rounded-2xl border border-border bg-card p-4 sm:p-5">
-      <summary className="cursor-pointer text-sm font-bold text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        Rincian analisis dan bukti pengerjaan{" "}
-        <span className="ml-2 text-xs font-normal text-muted-foreground">
-          Bloom, asal skor, linimasa, dan riwayat
-        </span>
-      </summary>
-      <div className="mt-5 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+    <CollapsibleSection
+      title="Rincian analisis dan bukti pengerjaan"
+      defaultOpen={false}
+      summary={
+        <span className="text-xs text-muted-foreground">Bloom, asal skor, linimasa, riwayat</span>
+      }
+    >
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           {analysis?.summary ? (
             <Alert variant={isFlagged ? "danger" : "info"} title="Ringkasan Analisis">
@@ -130,6 +131,6 @@ export function AnalysisDetails({
           <ReanalyzeButton submissionId={detail.id} busy={analysing} />
         </aside>
       </div>
-    </details>
+    </CollapsibleSection>
   );
 }

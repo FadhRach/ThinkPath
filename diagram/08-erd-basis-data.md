@@ -84,6 +84,7 @@ erDiagram
         uuid class_id FK
         varchar title
         text instructions
+        jsonb instructions_rich "dokumen editor kaya; instructions diturunkan server"
         timestamptz deadline "null = tanpa tenggat"
         boolean allow_file_upload "dosen mengizinkan jawaban dari berkas"
         smallint expected_bloom_level "1-6"

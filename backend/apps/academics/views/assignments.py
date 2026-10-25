@@ -16,6 +16,7 @@ from apps.academics.selectors import (
 )
 from apps.academics.serializers import (
     AssignmentCreateSerializer,
+    AssignmentDetailSerializer,
     AssignmentListSerializer,
     TeacherAssignmentRowSerializer,
 )
@@ -53,7 +54,7 @@ class AssignmentListCreateView(APIView):
         new_assignment.high_band_count = 0
         new_assignment.needs_review_count = 0
         return Response(
-            AssignmentListSerializer(new_assignment).data, status=status.HTTP_201_CREATED
+            AssignmentDetailSerializer(new_assignment).data, status=status.HTTP_201_CREATED
         )
 
 
@@ -79,7 +80,7 @@ class AssignmentDetailView(APIView):
 
     def get(self, request, assignment_id: str):
         item = require_owned_assignment(request, assignment_id)
-        return Response(AssignmentListSerializer(assignment_summary(item.id)).data)
+        return Response(AssignmentDetailSerializer(assignment_summary(item.id)).data)
 
     def patch(self, request, assignment_id: str):
         item = require_owned_assignment(request, assignment_id)
@@ -95,4 +96,4 @@ class AssignmentDetailView(APIView):
                     {"expected_bloom_level": "Target Bloom tidak dapat diubah setelah ada pengumpulan."}
                 )
             serializer.save()
-        return Response(AssignmentListSerializer(assignment_summary(item.id)).data)
+        return Response(AssignmentDetailSerializer(assignment_summary(item.id)).data)

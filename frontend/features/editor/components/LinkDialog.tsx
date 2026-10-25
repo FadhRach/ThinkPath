@@ -23,7 +23,7 @@ interface LinkDialogProps {
 }
 
 /** Tambahkan http://, kecuali alamat sudah bersakelar (https:, mailto:). Skema lain ditolak. */
-export function normalizeHref(value: string): string | null {
+function normalizeHref(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
   if (/^(https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;

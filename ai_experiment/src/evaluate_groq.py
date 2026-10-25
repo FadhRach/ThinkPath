@@ -33,30 +33,21 @@ Tiga hal yang membentuk rancangan berkas ini, sama seperti evaluate_detector.py:
    melainkan demi batas token harian Groq. Gold set penuh menghabiskan ratusan
    ribu token, dan tanpa cache pengukuran tidak bisa dicicil lintas hari.
 
-Jalankan dari folder ai_experiment:
-
-    python -m src.evaluate_groq --limit 200
-    python -m src.evaluate_groq --limit 0 --sleep 1.0   # seluruh gold set
+Dipakai oleh notebooks/04_rantai_llm_dan_detektor.ipynb.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import time
-from pathlib import Path
 
 import requests
 
 from .config import (
     BACKOFF_BASE_SECONDS,
     CACHE_DIR,
-    GOLD_DIR,
-    GROQ_API_KEY,
     MAX_RETRIES,
 )
-from .evaluate_baseline import bootstrap_backend, load_rows
-from .evaluation import ScoreCache, balanced_sample, print_engine_comparison
-from .evaluation import print_register_caveat
+from .evaluation import ScoreCache
 # Dipakai bersama dengan pembangun gold set. Keduanya menabrak tembok yang sama
 # pada kunci yang sama, dan dua salinan aturan yang sama pasti akan berbeda.
 from .generate import is_daily_quota
@@ -163,95 +154,13 @@ def collect_scores(
     return groq_scores, heuristic_scores, labels
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Bandingkan lapisan Groq terhadap heuristik E1."
-    )
-    parser.add_argument("--gold", default=str(GOLD_DIR / "gold_set.csv"))
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=200,
-        help=(
-            "jumlah sampel, diseimbangkan manusia dan AI. Default 200 karena "
-            "Groq membatasi token per hari; skor tersimpan di cache sehingga "
-            "sisanya bisa dikerjakan besoknya. Pakai 0 untuk semua."
-        ),
-    )
-    parser.add_argument(
-        "--sleep",
-        type=float,
-        default=0.5,
-        help="jeda antar permintaan, penahan batas laju",
-    )
-    parser.add_argument("--split", choices=("train", "test"), default=None)
-    parser.add_argument(
-        "--mixed-as", choices=("ai", "human", "exclude"), default="exclude"
-    )
-    parser.add_argument(
-        "--education-level",
-        default=DEFAULT_EDUCATION_LEVEL,
-        help="jenjang yang dikirim ke prompt produksi untuk seluruh sampel",
-    )
-    args = parser.parse_args()
-
-    if not GROQ_API_KEY:
-        raise SystemExit(
-            "GROQ_API_KEY belum diisi di ai_experiment/.env.\n"
-            "Kunci yang sama dipakai lapisan kedua produksi, jadi kalau kosong\n"
-            "di sini, ada baiknya memeriksa backend/.env juga."
-        )
-
-    bootstrap_backend()
-    import os
-
+def production_llm():
+    """Antarmuka kecil atas lapisan Groq produksi (dipakai fetch_ai_probability dan dipalsukan tes)."""
     from types import SimpleNamespace
 
     from apps.analysis import pipeline
     from apps.analysis.providers import groq
 
-    # Antarmuka kecil yang dipakai fetch_ai_probability (dan dipalsukan tes).
-    llm = SimpleNamespace(
+    return SimpleNamespace(
         _call_groq=groq.call, _clamp=pipeline._clamp, DEFAULT_MODEL=groq.DEFAULT_MODEL
     )
-    model = os.getenv("GROQ_MODEL", llm.DEFAULT_MODEL)
-
-    rows = load_rows(Path(args.gold), args.split, args.mixed_as)
-    if not rows:
-        raise SystemExit("Tidak ada baris yang cocok dengan filter.")
-
-    rows = balanced_sample(rows, args.limit)
-    print(
-        f"Akan menilai {len(rows)} teks dengan {model}.\n"
-        f"Skor yang sudah pernah diambil dibaca dari {CACHE.path}."
-    )
-
-    groq_scores, heuristic_scores, labels = collect_scores(
-        rows, args.education_level, args.sleep, model, llm
-    )
-    print_engine_comparison(
-        "Groq",
-        groq_scores,
-        heuristic_scores,
-        labels,
-        subheading=f"Model yang diukur: {model}",
-        worse_note=(
-            "  Groq TIDAK lebih baik daripada heuristik pada subset ini.\n"
-            "  Artinya lapisan kedua rantai bukan jaring pengaman, dan ketika\n"
-            "  kredit detektor eksternal habis, mutu skor AI langsung jatuh ke\n"
-            "  tingkat heuristik tanpa peredam apa pun. Ini temuan yang harus\n"
-            "  dilaporkan, bukan diabaikan."
-        ),
-    )
-    print_register_caveat(
-        "Ada satu ketidakcocokan tambahan yang khas berkas ini. Prompt produksi\n"
-        "meminta model menilai JAWABAN MAHASISWA, sedangkan yang diberikan di\n"
-        "sini abstrak jurnal. Sisi manusia gold set ditulis peneliti terlatih,\n"
-        "dan tulisan rapi memang cenderung dinilai lebih mirip AI. Karena itu\n"
-        "angka Groq di sini condong PESIMIS, bukan optimis."
-    )
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

@@ -7,10 +7,11 @@ import { formatRelativeTime } from "@/lib/formatting";
 import type { ForumPost } from "@/lib/types";
 
 /** Satu topik di daftar forum lintas kelas; membuka topiknya di forum kelas yang bersangkutan. */
-export function ForumPostRow({ post }: { post: ForumPost }) {
+/** Awalan alamat kelas menurut peran: "/student/kelas" atau "/dashboard/classes". */
+export function ForumPostRow({ post, classBase }: { post: ForumPost; classBase: string }) {
   return (
     <Link
-      href={`/student/kelas/${post.class_id}?tab=forum&post=${post.id}`}
+      href={`${classBase}/${post.class_id}?tab=forum&post=${post.id}`}
       className="block px-5 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">

@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 
-import { BackLink } from "@/components/shared/BackLink";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { TeacherAssignmentDetail } from "@/features/assignments/components/TeacherAssignmentDetail";
 import { TeacherAssignmentList } from "@/features/assignments/components/TeacherAssignmentList";
 import { ForumPanel } from "@/features/forum/components/ForumPanel";
+import { ClassAnalyticsTab } from "@/features/classes/components/ClassAnalyticsTab";
 import { ClassRoster } from "@/features/classes/components/ClassRoster";
 import {
   ClassSectionTabs,
@@ -15,12 +16,16 @@ import {
   getAssignments,
   getClassForum,
   getClassMaterials,
+  getCekPahamQueue,
   getClassRoster,
   getClasses,
+  getOverview,
   getSubmissions,
+  getTeacherAssignment,
+  getTeacherSubmissions,
 } from "@/lib/data";
 
-const SECTIONS: ClassSection[] = ["mahasiswa", "materi", "forum", "tugas"];
+const SECTIONS: ClassSection[] = ["analitik", "mahasiswa", "tugas", "materi", "forum"];
 
 export default async function ClassDetailPage({
   params,
@@ -34,22 +39,39 @@ export default async function ClassDetailPage({
   const current = classes.find((item) => item.id === classId);
   if (!current) notFound();
 
-  const [assignments, materials, roster, forumPosts] = await Promise.all([
-    getAssignments(classId),
-    getClassMaterials(classId),
-    getClassRoster(classId),
-    getClassForum(classId),
-  ]);
+  const [assignments, materials, roster, forumPosts, overview, queue, cekpaham] = await Promise.all(
+    [
+      getAssignments(classId),
+      getClassMaterials(classId),
+      getClassRoster(classId),
+      getClassForum(classId),
+      getOverview().catch(() => ({ classes: [] })),
+      getTeacherSubmissions("submitted").catch(() => []),
+      getCekPahamQueue().catch(() => []),
+    ],
+  );
   // Tab dari URL; tanpa ?tab=, membuka tugas tertentu berarti tab Tugas.
   const section: ClassSection =
-    SECTIONS.find((id) => id === query.tab) ?? (query.assignment ? "tugas" : "mahasiswa");
+    SECTIONS.find((id) => id === query.tab) ?? (query.assignment ? "tugas" : "analitik");
   const selected =
     section === "tugas" ? assignments.find((item) => item.id === query.assignment) : undefined;
-  const submissions = selected ? await getSubmissions(selected.id) : [];
+  // Daftar tugas tidak memuat instruksi berformat (bisa berisi gambar); detailnya diambil sendiri.
+  const [selectedDetail, submissions] = selected
+    ? await Promise.all([
+        getTeacherAssignment(selected.id).catch(() => selected),
+        getSubmissions(selected.id),
+      ])
+    : [undefined, []];
 
   return (
     <div className="space-y-5">
-      <BackLink href="/dashboard/classes" label="Kembali ke kelas" />
+      <Breadcrumb
+        items={[
+          { label: "Beranda", href: "/dashboard" },
+          { label: "Kelas", href: "/dashboard/classes" },
+          { label: current.name },
+        ]}
+      />
       <TeacherClassHeader klass={current} />
       <ClassSectionTabs
         classId={classId}
@@ -62,6 +84,14 @@ export default async function ClassDetailPage({
         }}
       />
 
+      {section === "analitik" ? (
+        <ClassAnalyticsTab
+          studentCount={roster.length}
+          overview={overview.classes.find((item) => item.class_id === classId) ?? null}
+          submissions={queue.filter((row) => row.class_id === classId)}
+          cekpaham={cekpaham.filter((row) => row.class_id === classId)}
+        />
+      ) : null}
       {section === "mahasiswa" ? <ClassRoster students={roster} /> : null}
       {section === "materi" ? (
         <TeacherMaterialsSection classId={classId} materials={materials} />
@@ -87,7 +117,7 @@ export default async function ClassDetailPage({
       {selected ? (
         <TeacherAssignmentDetail
           classId={classId}
-          assignment={selected}
+          assignment={selectedDetail ?? selected}
           submissions={submissions}
           filter={query.filter}
         />

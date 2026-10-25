@@ -29,4 +29,6 @@ urlpatterns = [
     path("submissions/<str:submission_id>", views.SubmissionDetailView.as_view()),
     path("submissions/<str:submission_id>/document", views.SubmissionDocumentView.as_view()),
     path("submissions/<str:submission_id>/reanalyze", views.SubmissionReanalyzeView.as_view()),
+    path("submissions/<str:submission_id>/suggestion", views.SubmissionSuggestionView.as_view()),
+    path("submissions/<str:submission_id>/compare/<str:other_id>", views.SubmissionCompareView.as_view()),
 ]

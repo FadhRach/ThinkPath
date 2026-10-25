@@ -1,6 +1,7 @@
 import { Lock } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { richToPlain } from "@/features/editor/lib/rich-text";
 import { LazyRichContent } from "@/features/editor/components/LazyEditors";
 import { OriginalDocumentButton } from "@/features/submissions/components/OriginalDocumentButton";
 import type { RichDoc } from "@/lib/types";
@@ -31,7 +32,9 @@ export function LockedAnswer({ title, reason, rich, text, documentPath }: Locked
             <OriginalDocumentButton path={documentPath} label="Lihat berkas yang diunggah" />
           </div>
         ) : null}
-        {rich ? (
+        {documentPath && !(rich && richToPlain(rich).trim()) ? (
+          <p className="text-sm text-muted-foreground">Jawabanmu berupa dokumen yang diunggah.</p>
+        ) : rich ? (
           <LazyRichContent doc={rich} />
         ) : (
           <p className="whitespace-pre-wrap leading-7 text-foreground">{text}</p>

@@ -1,32 +1,36 @@
-import { ClipboardCheck, FileCheck2, Files } from "lucide-react";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ReviewBoard } from "@/features/submissions/components/ReviewBoard";
+import { getAllAssignments, getClasses, getTeacherSubmissions } from "@/lib/data";
 
-import { PageHeader } from "@/components/shared/PageHeader";
-import { StatCard } from "@/components/shared/StatCard";
-import { SubmissionTable } from "@/features/submissions/components/SubmissionTable";
-import { getTeacherSubmissions } from "@/lib/data";
-
-export default async function SubmissionQueuePage() {
-  const submissions = await getTeacherSubmissions();
-  const waiting = submissions.filter((row) => row.status === "submitted").length;
-  const graded = submissions.filter((row) => row.status === "reviewed").length;
+export default async function SubmissionQueuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kelas?: string; tugas?: string }>;
+}) {
+  const [submissions, assignments, classes, query] = await Promise.all([
+    getTeacherSubmissions(),
+    getAllAssignments(),
+    getClasses(),
+    searchParams,
+  ]);
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Periksa pengumpulan"
-        subtitle="Baca jawaban mahasiswa dan berikan nilai serta umpan balik."
-      />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard
-          icon={ClipboardCheck}
-          label="Menunggu pemeriksaan"
-          value={waiting}
-          tone="danger"
+    <div className="flex flex-col gap-6">
+      <h1 className="sr-only">Periksa pengumpulan</h1>
+      {submissions.length ? (
+        <ReviewBoard
+          submissions={submissions}
+          assignments={assignments}
+          classes={classes.map(({ id, name }) => ({ id, name }))}
+          initialClassId={query.kelas}
+          initialAssignmentId={query.tugas}
         />
-        <StatCard icon={FileCheck2} label="Sudah dinilai" value={graded} />
-        <StatCard icon={Files} label="Total pengumpulan" value={submissions.length} />
-      </div>
-      <SubmissionTable submissions={submissions} initialFilter="needs_review" />
+      ) : (
+        <EmptyState
+          title="Belum ada pengumpulan"
+          caption="Pengumpulan mahasiswa akan muncul di sini begitu mereka mengirim jawaban."
+        />
+      )}
     </div>
   );
 }

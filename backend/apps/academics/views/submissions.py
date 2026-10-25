@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -22,6 +22,8 @@ from apps.academics.serializers import (
     SubmissionListSerializer,
     SubmissionQueueSerializer,
 )
+from apps.academics.services.suggestion import build_suggestion
+from apps.analysis.engines.similarity import shingles, shared_spans, similarity
 from apps.academics.services.submissions import (
     reject_if_past_deadline,
     request_reanalysis,
@@ -158,4 +160,49 @@ class SubmissionReanalyzeView(APIView):
         submission.refresh_from_db(fields=["analysis_state"])
         return Response(
             {"analysis_state": submission.analysis_state}, status=status.HTTP_202_ACCEPTED
+        )
+
+
+class SubmissionSuggestionView(APIView):
+    """POST saran untuk dosen atas satu jawaban (aturan lokal, plus narasi bila diizinkan).
+
+    Dosen yang menekan tombolnya, satu kali per permintaan: tidak ada pemanggilan otomatis, jadi
+    jawaban tidak dikirim ke luar negeri tanpa tindakan dosen dan izin mahasiswa."""
+
+    permission_classes = [IsTeacher]
+    throttle_classes = [PerUserScopedThrottle]
+    throttle_scope = "ai_suggestion"
+
+    def post(self, request, submission_id: str):
+        submission = require_owned_submission(request, submission_id)
+        return Response(build_suggestion(submission))
+
+
+class SubmissionCompareView(APIView):
+    """GET dua jawaban pada tugas yang sama berdampingan, dengan potongan yang sama disorot."""
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request, submission_id: str, other_id: str):
+        mine = require_owned_submission(request, submission_id)
+        other = require_owned_submission(request, other_id)
+        if mine.assignment_id != other.assignment_id or mine.pk == other.pk:
+            raise NotFound()
+
+        def side(row: Submission, against: Submission) -> dict:
+            return {
+                "submission_id": str(row.pk),
+                "student_name": row.student_profile.label,
+                "text": row.text_answer,
+                "spans": shared_spans(row.text_answer, against.text_answer),
+            }
+
+        return Response(
+            {
+                "score": round(
+                    similarity(shingles(mine.text_answer), shingles(other.text_answer)), 3
+                ),
+                "a": side(mine, other),
+                "b": side(other, mine),
+            }
         )

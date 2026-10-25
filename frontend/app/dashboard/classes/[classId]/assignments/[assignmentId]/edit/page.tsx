@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { BackLink } from "@/components/shared/BackLink";
-import { PageHeader } from "@/components/shared/PageHeader";
+
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { CreateAssignmentForm } from "@/features/assignments/components/CreateAssignmentForm";
-import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/errors";
 import { getClasses, getTeacherAssignment } from "@/lib/data";
 
@@ -23,16 +22,27 @@ export default async function EditAssignmentPage({
     throw error;
   }
   if (assignment.class_id !== classId) notFound();
+
   return (
     <div className="space-y-5">
-      <BackLink
-        href={`/dashboard/classes/${classId}?tab=tugas&assignment=${assignmentId}`}
-        label="Kembali ke tugas"
+      <Breadcrumb
+        items={[
+          { label: "Kelas", href: "/dashboard/classes" },
+          { label: current.name, href: `/dashboard/classes/${classId}?tab=tugas` },
+          {
+            label: assignment.title,
+            href: `/dashboard/classes/${classId}?tab=tugas&assignment=${assignmentId}`,
+          },
+          { label: "Edit" },
+        ]}
       />
-      <PageHeader title="Edit tugas" subtitle={`Perbarui tugas untuk ${current.name}.`} />
-      <Card className="max-w-3xl p-5 sm:p-7">
-        <CreateAssignmentForm classId={classId} assignment={assignment} />
-      </Card>
+      <header>
+        <h1 className="text-title font-bold text-foreground">Edit tugas</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Perubahan judul, instruksi, dan tenggat langsung terlihat oleh mahasiswa {current.name}.
+        </p>
+      </header>
+      <CreateAssignmentForm classId={classId} assignment={assignment} />
     </div>
   );
 }

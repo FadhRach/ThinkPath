@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from django.db.models import Count, Q
 from rest_framework import status
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -17,7 +17,6 @@ from apps.academics.serializers import (
 )
 from apps.academics.services.join_codes import generate_unique_join_code
 from apps.academics.services.submissions import reject_if_archived
-from apps.accounts.models import Role
 from apps.accounts.permissions import IsStudent, IsTeacher
 from apps.accounts.services import get_request_profile
 from apps.notifications import events as notify_events

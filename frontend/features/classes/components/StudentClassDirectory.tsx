@@ -14,7 +14,11 @@ export function StudentClassDirectory({ classes }: { classes: StudentClassWithAs
     <ClassDirectory
       items={classes}
       searchText={searchText}
-      toolbarEnd={<JoinCodeForm />}
+      toolbarEnd={
+        <div className="sm:min-w-80">
+          <JoinCodeForm />
+        </div>
+      }
       renderCard={(item) => <StudentClassCard studentClass={item} />}
       placeholder="Cari nama kelas atau dosen"
       emptyCaption="Coba kata kunci lain, atau gabung kelas menggunakan kode dari dosen di Beranda."

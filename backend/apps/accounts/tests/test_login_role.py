@@ -20,7 +20,7 @@ from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.accounts.models import Profile, Role
+from apps.accounts.models import Role
 from apps.accounts.services import register_profile
 
 PASSWORD = "rahasia123"

@@ -258,6 +258,15 @@ def import_document(upload, student_id: UUID, *, allow_external: bool) -> tuple[
     return document_id, result
 
 
+def original_exists(student_id: UUID, document_id: UUID) -> bool:
+    """Apakah berkas asli masih ada di penyimpanan (tanpa membukanya)."""
+    try:
+        _, names = default_storage.listdir(f"documents/{student_id}")
+    except FileNotFoundError:
+        return False
+    return any(name.rpartition(".")[0] == str(document_id) and not name.endswith(".txt") for name in names)
+
+
 def open_original(student_id: UUID, document_id: UUID):
     """(berkas terbuka, content-type) dari unggahan asli, atau None bila tidak ada."""
     folder = f"documents/{student_id}"
@@ -270,6 +279,21 @@ def open_original(student_id: UUID, document_id: UUID):
         if stem == str(document_id) and ext in CONTENT_TYPES:
             return default_storage.open(f"{folder}/{name}"), CONTENT_TYPES[ext]
     return None
+
+
+def read_text(student_id: UUID, document_id: UUID) -> str | None:
+    """Teks hasil baca dokumen yang tersimpan, atau None bila berkasnya tidak ada."""
+    try:
+        with default_storage.open(f"documents/{student_id}/{document_id}.txt") as stored:
+            return stored.read().decode("utf-8")
+    except FileNotFoundError:
+        return None
+
+
+def combine_with_document(typed: str, document_text: str) -> str:
+    """Ketikan mahasiswa (nama, NIM, catatan) lalu isi dokumen: satu teks untuk dianalisis."""
+    typed = typed.strip()
+    return f"{typed}\n\n{document_text}" if typed else document_text
 
 
 def verified_source(student_id: UUID, document_id: UUID | None, text: str) -> UUID | None:

@@ -40,9 +40,11 @@ interface Props {
   data: OverviewClass;
   /** Judul kelas tidak perlu diulang bila nama kelas sudah tertulis di tab. */
   showTitle?: boolean;
+  /** Tautan "Buka kelas"; dimatikan di dalam halaman kelas itu sendiri. */
+  showOpenLink?: boolean;
 }
 
-export function ClassOverviewSection({ data, showTitle = true }: Props) {
+export function ClassOverviewSection({ data, showTitle = true, showOpenLink = true }: Props) {
   const attention = data.students.filter((student) => student.gap !== null && student.gap <= -1);
   const subject = distinctSubject(data.class_name, data.subject);
   const distributionCaption = [
@@ -66,13 +68,15 @@ export function ClassOverviewSection({ data, showTitle = true }: Props) {
             {subject ? ` · ${subject}` : ""}
           </p>
         )}
-        <Link
-          href={`/dashboard/classes/${data.class_id}`}
-          className="inline-flex items-center gap-1.5 text-body-sm font-medium text-brand-ink hover:underline"
-        >
-          Buka kelas
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        {showOpenLink ? (
+          <Link
+            href={`/dashboard/classes/${data.class_id}`}
+            className="inline-flex items-center gap-1.5 text-body-sm font-medium text-brand-ink hover:underline"
+          >
+            Buka kelas
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        ) : null}
       </div>
 
       <SectionCard eyebrow="Peta Kelas" className="space-y-4">

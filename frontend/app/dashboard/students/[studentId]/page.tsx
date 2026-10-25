@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 
 import { CognitiveClassCard } from "@/features/overview/components/CognitiveClassCard";
-import { BackLink } from "@/components/shared/BackLink";
+import { AvatarInitials } from "@/components/shared/AvatarInitials";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { Alert } from "@/components/ui/alert";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { getStudentProfile } from "@/lib/data";
 
@@ -25,12 +26,24 @@ export default async function StudentProfilePage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <BackLink href="/dashboard" label="Kembali ke overview" />
-
-      <PageHeader
-        title={profile.student.display_name}
-        subtitle="Profil kognitif: perkembangan level penalaran lintas tugas, per kelas."
+      <Breadcrumb
+        items={[
+          { label: "Analitik", href: "/dashboard/analitik" },
+          { label: profile.student.display_name },
+        ]}
       />
+
+      <Card className="flex items-center gap-3.5 px-4 py-3.5 sm:px-5">
+        <AvatarInitials name={profile.student.display_name} size="lg" />
+        <div className="min-w-0">
+          <h1 className="break-words text-heading font-bold text-foreground">
+            {profile.student.display_name}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Profil kognitif: perkembangan level penalaran lintas tugas, per kelas.
+          </p>
+        </div>
+      </Card>
 
       <Alert variant="info" title="Cara membaca halaman ini">
         Level dihitung dari teks jawaban, <strong>bukan</strong> dari nilai atau skor AI. Angka

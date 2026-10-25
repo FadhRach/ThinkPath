@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ClipboardCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,19 @@ interface Props {
   submissionId: string;
   initialGrade: number | null;
   initialFeedback: string;
+  /** Draf umpan balik dari saran; mengisi kolom umpan balik saat dosen memakainya. */
+  draft?: string | null;
 }
 
-export function GradingForm({ submissionId, initialGrade, initialFeedback }: Props) {
+export function GradingForm({ submissionId, initialGrade, initialFeedback, draft }: Props) {
   const [grade, setGrade] = useState(initialGrade !== null ? String(initialGrade) : "");
   const [feedback, setFeedback] = useState(initialFeedback);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Nilai yang sudah diketik tetap; hanya umpan balik yang diisi dari draf.
+  useEffect(() => {
+    if (draft) setFeedback(draft);
+  }, [draft]);
   const { pending, error, run } = useAction("Gagal menyimpan nilai. Coba lagi.", {
     successMessage: "Nilai dan umpan balik tersimpan.",
   });

@@ -80,6 +80,8 @@ REST_FRAMEWORK = {
         # sebelum tenggat tetap leluasa, skrip pembakar kredit tidak.
         "submission_submit": "10/hour",
         "submission_reanalyze": "20/hour",
+        # Saran AI untuk dosen: bisa memanggil Groq, jadi dibatasi seperti analisis ulang.
+        "ai_suggestion": "40/hour",
         # Ruang kode kelas ±6e8; 10/menit membuat menebak tidak layak.
         "class_join": "10/min",
         # Penyimpanan otomatis berkala (debounce klien); jauh di atas pemakaian

@@ -6,7 +6,7 @@ import type { Material } from "@/lib/types";
  * mengingat pertemuannya ("slide pertemuan 6"), bukan tanggal dibagikannya.
  */
 
-export const GENERAL_TOPIC_LABEL = "Umum";
+const GENERAL_TOPIC_LABEL = "Umum";
 
 /** Materi dianggap baru selama sepekan setelah dibagikan. */
 const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
@@ -14,7 +14,7 @@ const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
 export type MaterialSource =
   "slides" | "docs" | "sheets" | "forms" | "drive" | "video" | "pdf" | "web" | "note";
 
-export interface SourceInfo {
+interface SourceInfo {
   kind: MaterialSource;
   /** Nama tempat materinya berada, supaya mahasiswa tahu apa yang akan terbuka. */
   label: string;

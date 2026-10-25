@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase
 
 from apps.analysis import pipeline
 from apps.analysis.engines.process_signals import (

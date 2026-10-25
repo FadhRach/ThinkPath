@@ -22,6 +22,10 @@ export function OriginalDocumentButton({
     setError(null);
     try {
       const response = await directFetch(path);
+      if (response.status === 404) {
+        setError("Berkas aslinya sudah tidak ada di server.");
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);

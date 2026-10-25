@@ -1,12 +1,10 @@
 import { BellRing } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { BackLink } from "@/components/shared/BackLink";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { Alert } from "@/components/ui/alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { MaterialForm } from "@/features/materials/components/MaterialForm";
 import { Card } from "@/components/ui/card";
-import { distinctSubject } from "@/features/classes/lib/academic";
 import { getClassMaterials, getClasses } from "@/lib/data";
 import { groupByTopic } from "@/features/materials/lib/materials";
 
@@ -29,12 +27,12 @@ export default async function NewMaterialPage({
 
   return (
     <div className="space-y-6">
-      <BackLink href={`/dashboard/classes/${targetClass.id}?tab=materi`} label="Kembali ke kelas" />
-      <PageHeader
-        title="Bagikan Materi"
-        subtitle={[targetClass.name, distinctSubject(targetClass.name, targetClass.subject)]
-          .filter(Boolean)
-          .join(" · ")}
+      <Breadcrumb
+        items={[
+          { label: "Kelas", href: "/dashboard/classes" },
+          { label: targetClass.name, href: `/dashboard/classes/${targetClass.id}?tab=materi` },
+          { label: "Bagikan Materi" },
+        ]}
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card variant="raised" className="p-6">

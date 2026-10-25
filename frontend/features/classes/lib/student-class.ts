@@ -31,7 +31,7 @@ export function summarizeStudentClass(current: StudentClassWithAssignments, mate
 }
 
 /** Tugas yang sudah dikumpulkan (menunggu nilai atau sudah dinilai). */
-export function isDoneAssignment(assignment: StudentAssignment): boolean {
+function isDoneAssignment(assignment: StudentAssignment): boolean {
   return !isOpenAssignment(assignment);
 }
 

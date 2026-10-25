@@ -1,27 +1,16 @@
-import { Plus } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/shared/PageHeader";
+
 import { EmptyState } from "@/components/shared/EmptyState";
-import { TeacherClassDirectory } from "@/features/classes/components/TeacherClassDirectory";
 import { Button } from "@/components/ui/button";
+import { TeacherClassDirectory } from "@/features/classes/components/TeacherClassDirectory";
 import { getAllAssignments, getClasses } from "@/lib/data";
 
 export default async function ClassesPage() {
   const [classes, assignments] = await Promise.all([getClasses(), getAllAssignments()]);
+
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Kelas yang Anda ajar"
-        subtitle="Kelola mahasiswa, materi, pengumuman, dan tugas di setiap kelas."
-        actions={
-          <Button asChild>
-            <Link href="/dashboard/classes/new">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Buat kelas
-            </Link>
-          </Button>
-        }
-      />
+    <div className="flex flex-col gap-6">
+      <h1 className="sr-only">Kelas yang Anda ajar</h1>
       {classes.length ? (
         <TeacherClassDirectory classes={classes} assignments={assignments} />
       ) : (

@@ -1,11 +1,11 @@
 "use client";
 
-import { FileUp } from "lucide-react";
+import { FileUp, Loader2 } from "lucide-react";
 import { useRef } from "react";
 
-import { ToolbarButton } from "@/features/editor/components/ToolbarButton";
-import { uploadDocument, type DocumentImportResult } from "@/lib/mutations";
+import { Button } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/api/messages";
+import { uploadDocument, type DocumentImportResult } from "@/lib/mutations";
 
 const ACCEPT = ".pdf,.docx,.png,.jpg,.jpeg";
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -15,16 +15,24 @@ interface Props {
   onImported: (result: DocumentImportResult, filename: string) => void;
   onError: (message: string) => void;
   onPending: (pending: boolean) => void;
+  pending: boolean;
   disabled?: boolean;
+  label?: string;
+  variant?: "default" | "outline";
+  size?: "default" | "sm";
 }
 
-/** Tombol toolbar: pilih berkas, kirim ke backend, lalu serahkan teks hasilnya ke editor. */
+/** Tombol pilih berkas: kirim ke backend, lalu serahkan teks hasil bacanya ke induk. */
 export function DocumentUploadField({
   assignmentId,
   onImported,
   onError,
   onPending,
+  pending,
   disabled,
+  label = "Pilih dokumen",
+  variant = "default",
+  size = "default",
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -57,12 +65,16 @@ export function DocumentUploadField({
         tabIndex={-1}
         aria-label="Pilih dokumen jawaban"
       />
-      <ToolbarButton
-        icon={FileUp}
-        label="Impor dokumen (PDF, DOCX, gambar)"
-        disabled={disabled}
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        disabled={disabled || pending}
         onClick={() => inputRef.current?.click()}
-      />
+      >
+        {pending ? <Loader2 className="animate-spin" /> : <FileUp />}
+        {pending ? "Membaca dokumen…" : label}
+      </Button>
     </>
   );
 }

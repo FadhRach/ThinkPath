@@ -5,6 +5,8 @@ interface Props {
   score: number;
   band: AiBand;
   size?: number;
+  /** Cincin kecil untuk kepala halaman: hanya angka di tengah, tanpa keterangan. */
+  compact?: boolean;
 }
 
 const BAND_STROKE: Record<AiBand, string> = {
@@ -26,8 +28,8 @@ const BAND_TEXT: Record<AiBand, string> = {
  * sinyal berbobot, bukan peluang terkalibrasi; "62%" terbaca sebagai "62 persen
  * kemungkinan memakai AI", klaim yang tidak bisa dipertanggungjawabkan.
  */
-export function AiScoreRing({ score, band, size = 160 }: Props) {
-  const stroke = 14;
+export function AiScoreRing({ score, band, size = 160, compact = false }: Props) {
+  const stroke = compact ? 5 : 14;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
@@ -61,11 +63,21 @@ export function AiScoreRing({ score, band, size = 160 }: Props) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={cn("text-4xl font-extrabold leading-none", BAND_TEXT[band])}>
+        <span
+          className={cn(
+            "font-extrabold leading-none",
+            compact ? "text-sm" : "text-4xl",
+            BAND_TEXT[band],
+          )}
+        >
           {clamped}
         </span>
-        <span className="mt-1 text-caption text-muted-foreground">dari 100</span>
-        <span className="text-caption font-medium text-muted-foreground">Skor indikasi AI</span>
+        {compact ? null : (
+          <>
+            <span className="mt-1 text-caption text-muted-foreground">dari 100</span>
+            <span className="text-caption font-medium text-muted-foreground">Skor indikasi AI</span>
+          </>
+        )}
       </div>
     </div>
   );

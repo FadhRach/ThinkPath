@@ -1,14 +1,15 @@
-import { ClipboardList, LibraryBig, MessagesSquare, Users } from "lucide-react";
+import { ChartColumn, ClipboardList, LibraryBig, MessagesSquare, Users } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { tabLinkClass } from "@/components/ui/tab-styles";
 
-export type ClassSection = "mahasiswa" | "materi" | "forum" | "tugas";
+export type ClassSection = "analitik" | "mahasiswa" | "tugas" | "materi" | "forum";
 const TABS = [
+  { id: "analitik", label: "Analitik", icon: ChartColumn },
   { id: "mahasiswa", label: "Mahasiswa", icon: Users },
+  { id: "tugas", label: "Tugas", icon: ClipboardList },
   { id: "materi", label: "Materi", icon: LibraryBig },
   { id: "forum", label: "Forum", icon: MessagesSquare },
-  { id: "tugas", label: "Tugas", icon: ClipboardList },
 ] as const;
 
 export function ClassSectionTabs({
@@ -18,7 +19,8 @@ export function ClassSectionTabs({
 }: {
   classId: string;
   active: ClassSection;
-  counts: Record<ClassSection, number>;
+  /** Jumlah isi per bagian; Analitik tidak punya hitungan. */
+  counts: Record<Exclude<ClassSection, "analitik">, number>;
 }) {
   return (
     <nav
@@ -34,14 +36,16 @@ export function ClassSectionTabs({
         >
           <Icon className="h-4 w-4" />
           {label}
-          <span
-            className={cn(
-              "rounded-full px-1.5 py-0.5 text-micro",
-              active === id ? "bg-white/15" : "bg-muted",
-            )}
-          >
-            {counts[id]}
-          </span>
+          {id === "analitik" ? null : (
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-micro",
+                active === id ? "bg-white/15" : "bg-muted",
+              )}
+            >
+              {counts[id]}
+            </span>
+          )}
         </Link>
       ))}
     </nav>

@@ -125,8 +125,10 @@ export interface CekPahamAttemptView {
 export interface CekPahamRow {
   id: string;
   submission_id: string;
+  student_id: string;
   student_name: string;
   assignment_title: string;
+  class_id: string;
   class_name: string;
   question_text: string;
   language: CekPahamLanguage;

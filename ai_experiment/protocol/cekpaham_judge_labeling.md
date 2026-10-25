@@ -1,6 +1,6 @@
 # Protokol melabeli sesi untuk menguji penilai Cek Paham
 
-Dipakai oleh `python -m src.evaluate_cekpaham_judge`. Rubriknya SAMA dengan yang dipakai penilai LLM di
+Dipakai oleh `notebooks/06_cekpaham_asr_dan_penilai.ipynb` (bagian B). Rubriknya SAMA dengan yang dipakai penilai LLM di
 `backend/apps/cekpaham/rubric.py`; baca jangkar levelnya di sana sebelum melabeli.
 
 ## Bahan: 30 sesi
@@ -32,9 +32,7 @@ Berkas ini berisi data pribadi: jangan masuk git (`data/cekpaham_gold/` sudah di
 
 ## Menjalankan dan membaca hasil
 
-```bash
-python -m src.evaluate_cekpaham_judge --sleep 20
-```
+Jalankan bagian B di notebook `06_cekpaham_asr_dan_penilai` (parameter `SLEEP_JUDGE = 20`).
 
 Biayanya ±90 sesi penilaian (30 asli + 30 injeksi + 30 salah dengar), masing-masing dua jalan. Satu sesi
 memakai ±4.100 token dari jatah 8.000 token/menit Groq yang dipakai bersama analisis submission, jadi

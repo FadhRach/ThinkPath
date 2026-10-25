@@ -15,7 +15,7 @@ import { MicMeter } from "./MicMeter";
 import type { LostReason, Microphone } from "@/features/cekpaham/hooks/useMicrophone";
 import { useLiveCaption } from "@/features/cekpaham/hooks/useLiveCaption";
 
-export type EndedReason = "manual" | "time" | LostReason;
+type EndedReason = "manual" | "time" | LostReason;
 
 export interface SessionResult {
   liveTranscript: string;

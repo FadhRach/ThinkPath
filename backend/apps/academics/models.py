@@ -137,6 +137,9 @@ class Assignment(models.Model):
     )
     title = models.CharField(max_length=160)
     instructions = models.TextField(blank=True, default="")
+    # Instruksi berformat (editor TipTap; gambar, tautan, tabel, rumus) yang sudah dibersihkan server.
+    # `instructions` selalu teks polos turunannya, dipakai daftar, notifikasi, dan analisis.
+    instructions_rich = models.JSONField(null=True, blank=True, default=None)
     deadline = models.DateTimeField(null=True, blank=True)
     expected_bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],

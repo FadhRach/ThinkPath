@@ -68,9 +68,7 @@ ada yang perlu dipasang.
 Sebelum melabeli seluruhnya, **kedua penilai melabeli 20 jawaban yang sama lebih
 dulu**, lalu berhenti dan hitung kappa-nya:
 
-```bash
-python -m src.evaluate_bloom --raters data/labels/penilai1.csv data/labels/penilai2.csv
-```
+Jalankan tahap 1 di `notebooks/05_validasi_bloom.ipynb` (dua CSV penilai di `data/labels/`).
 
 - Kappa di bawah 0,4: **jangan lanjut.** Bacalah bersama jawaban yang berbeda
   penilaiannya, perbaiki rubriknya, lalu ulangi dengan 20 jawaban baru.
@@ -106,9 +104,7 @@ ditulis di naskah.
 
 ### 7. Ukur sistemnya
 
-```bash
-python -m src.evaluate_bloom --raters data/labels/penilai1.csv data/labels/penilai2.csv --gold data/labels/konsensus.csv
-```
+Jalankan tahap 2 di `notebooks/05_validasi_bloom.ipynb` (menambah `konsensus.csv` dan `jawaban.csv`).
 
 Keluarannya: kappa antar penilai, F1 makro sistem, matriks konfusi, dan rincian
 per level.

@@ -1,22 +1,17 @@
 import { EmptyState } from "@/components/shared/EmptyState";
-import { StudentForumBrowser } from "@/features/forum/components/StudentForumBrowser";
-import { getClassForum, getStudentClasses } from "@/lib/data";
+import { ForumBrowser } from "@/features/forum/components/ForumBrowser";
+import { getForumsOf, getStudentClasses } from "@/lib/data";
 
 export default async function StudentForumPage() {
   const classes = await getStudentClasses();
-  // Forum satu kelas yang gagal dimuat tidak boleh mengosongkan seluruh halaman.
-  const perClass = await Promise.all(
-    classes.map((studentClass) => getClassForum(studentClass.id).catch(() => [])),
-  );
-  const posts = perClass
-    .flat()
-    .sort((a, b) => b.last_activity_at.localeCompare(a.last_activity_at));
+  const posts = await getForumsOf(classes.map((studentClass) => studentClass.id));
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="sr-only">Forum</h1>
       {classes.length ? (
-        <StudentForumBrowser
+        <ForumBrowser
+          viewer="student"
           classes={classes.map(({ id, name }) => ({ id, name }))}
           posts={posts}
         />

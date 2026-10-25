@@ -1,10 +1,11 @@
 import { apiFetchBrowser } from "@/lib/api/browser";
-import type { AssignmentSummary } from "@/lib/types";
+import type { AssignmentSummary, RichDoc } from "@/lib/types";
 
 /** Jenjang tidak dikirim: tugas mewarisinya dari kelas. */
 export interface CreateAssignmentInput {
   title: string;
-  instructions: string;
+  /** Dokumen editor; server menurunkan teks polosnya sendiri. */
+  instructions_rich: RichDoc;
   deadline: string;
   expected_bloom_level: number;
   allow_file_upload: boolean;

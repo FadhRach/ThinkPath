@@ -80,7 +80,9 @@ export function PolicyArticle({ className }: { className?: string }) {
             items={[
               "Saat mengerjakan tugas, yang dicatat hanya jumlah kata setiap 30 detik, waktu mulai dan kumpul, serta jumlah revisi. Isi ketikan per detik, tindakan menempel, layar, kamera, dan lokasi tidak direkam.",
               "Jawaban dianalisis otomatis untuk level Bloom dan indikasi penggunaan AI. Hasilnya bahan tinjau dosen, bukan vonis: ThinkPath tidak memberi nilai, tidak menjatuhkan sanksi, dan tidak menyimpulkan kecurangan.",
-              "Skor indikasi AI hanya terlihat oleh dosen pengampu kelas Anda. Dosen hanya melihat data dari kelasnya sendiri.",
+              "Skor indikasi AI hanya terlihat oleh dosen pengampu kelas Anda. Dosen hanya melihat data dari kelasnya sendiri. Dosen juga dapat melihat penanda gaya teks dan membandingkan jawaban Anda dengan jawaban mahasiswa lain pada tugas yang sama; mahasiswa lain tidak pernah melihatnya.",
+              "Dokumen yang Anda kumpulkan disimpan selama akun Anda ada. Hanya rekaman suara Cek Paham yang dihapus otomatis, yaitu setelah 30 hari.",
+              "Teman sekelas dapat melihat nama tampilan Anda di daftar anggota dan tulisan Anda di forum kelas. Jawaban, nilai, dan to-do Anda tidak terlihat oleh mahasiswa lain.",
               "Cek Paham (tes lisan) merekam suara Anda hanya selama sesi yang Anda mulai sendiri. Audio dihapus setelah 30 hari; transkrip dan hasil penilaiannya tetap tersimpan sebagai bahan tinjau dosen, bukan nilai dan bukan sanksi.",
               "Teks jawaban, gambar halaman dokumen scan atau foto yang Anda unggah, dan audio Cek Paham dikirim ke penyedia di luar negeri (Groq dan Winston AI) untuk dianalisis. Itu bagian dari persetujuan yang Anda berikan.",
               "Anda menyetujui kebijakan ini satu kali, dengan satu centang saat mendaftar. Bukti persetujuan (versi, waktu, dan tujuan) bisa dilihat di Pengaturan, dan persetujuan bisa ditarik kapan saja.",
@@ -160,21 +162,21 @@ export function PolicyArticle({ className }: { className?: string }) {
             ],
             [
               "Tugas dan materi",
-              "Judul, instruksi, tenggat, dan target level Bloom tugas; judul, topik, ringkasan, dan tautan materi.",
+              "Judul, instruksi (boleh berformat: gambar kecil dan tautan), tenggat, dan target level Bloom tugas; judul, topik, ringkasan, dan tautan materi.",
               "Dosen.",
               "",
             ],
             [
               "Jawaban",
-              "Teks jawaban, waktu mulai, waktu kumpul, durasi, jumlah revisi setelah dikumpulkan, dan status.",
-              "Mahasiswa. Waktu mulai dikirim peramban.",
-              "",
+              "Teks jawaban beserta formatnya (judul, daftar, tabel, kode, rumus, tautan) dan gambar yang Anda sisipkan, waktu mulai, waktu kumpul, durasi, jumlah revisi setelah dikumpulkan, dan status.",
+              "Mahasiswa. Waktu mulai dicatat server dari draf yang tersimpan otomatis.",
+              "Gambar dikecilkan di peramban dan disimpan di dalam jawaban itu sendiri (maksimal 6 gambar), sehingga ikut terhapus bersama jawabannya. Hanya teks polos yang dianalisis; gambar, rumus, dan format tidak dikirim ke penyedia mana pun.",
             ],
             [
               "Dokumen unggahan",
               "Berkas PDF, DOCX, PNG, atau JPG (maksimal 10 MB) yang Anda unggah untuk mengisi jawaban, beserta teks hasil pembacaannya.",
               "Mahasiswa.",
-              "Disimpan di server Jakarta dan hanya dipakai untuk mengisi jawaban serta memeriksa bahwa jawaban berasal darinya. DOCX dan PDF berlapis teks dibaca di server; halaman gambar dikirim ke Groq hanya dengan izin Anda. Jawaban yang diimpor ditandai bagi dosen.",
+              "Disimpan di server Jakarta selama akun Anda ada, supaya dosen dapat membuka berkas aslinya. Teks hasil pembacaan digabung dengan apa pun yang Anda tulis di kotak jawaban (misalnya nama atau NIM), dan gabungan itulah yang dianalisis. DOCX dan PDF berlapis teks dibaca di server; halaman gambar dikirim ke Groq hanya dengan izin Anda. Jawaban dari dokumen ditandai bagi dosen. Berkas yang tidak pernah dikumpulkan dibuang setelah 24 jam.",
             ],
             [
               "Jejak proses menulis",
@@ -189,6 +191,24 @@ export function PolicyArticle({ className }: { className?: string }) {
               "Lihat bagian Analisis otomatis.",
             ],
             ["Penilaian", "Nilai dan umpan balik.", "Dosen.", ""],
+            [
+              "Forum kelas",
+              "Judul, isi, jenis (pengumuman atau diskusi), balasan, nama penulis, dan waktu.",
+              "Dosen dan mahasiswa anggota kelas.",
+              "Hanya dosen dan mahasiswa kelas itu yang melihatnya. Tulisan mahasiswa dihapus bersama akunnya; tulisan dosen tetap ada sebagai arsip kelas.",
+            ],
+            [
+              "Daftar anggota kelas",
+              "Nama tampilan dosen dan mahasiswa kelas itu.",
+              "Anda, saat mendaftar dan di Pengaturan.",
+              'Terlihat oleh anggota kelas yang sama. Email dan data lain tidak ditampilkan; akun tanpa nama tampil ditulis sebagai "Mahasiswa".',
+            ],
+            [
+              "To-do pribadi",
+              "Judul catatan, tenggat bila diisi, dan status selesai.",
+              "Mahasiswa.",
+              "Hanya terlihat oleh pemiliknya, tidak oleh dosen maupun mahasiswa lain.",
+            ],
             [
               "Cek Paham: soal dan jadwal",
               "Soal konfirmasi, bahasa, batas waktu menjawab, jendela waktu pengerjaan, dan status.",
@@ -263,7 +283,7 @@ export function PolicyArticle({ className }: { className?: string }) {
             "Tindakan menempel (copy-paste) maupun isi papan klip. Menempel kutipan dari sumber yang Anda rujuk adalah hal wajar dalam menulis akademik.",
             "Rekaman layar, kamera, atau lokasi. Mikrofon hanya aktif selama sesi Cek Paham yang Anda mulai sendiri.",
             "Riwayat penelusuran, daftar kontak, atau data lain dari perangkat Anda.",
-            "NIK, NIM, nomor telepon, atau alamat rumah.",
+            "NIK, NIM, nomor telepon, atau alamat rumah. Bila Anda sendiri menuliskan nama atau NIM di kotak jawaban atau di dokumen, itu menjadi bagian dari jawaban Anda.",
             "Cookie iklan, pelacak, atau analitik pihak ketiga.",
           ]}
         />
@@ -381,12 +401,13 @@ export function PolicyArticle({ className }: { className?: string }) {
             <>
               <b>Level Bloom (L1-L6)</b>, yaitu taksiran level penalaran yang ditunjukkan jawaban,
               dibandingkan dengan target yang ditetapkan dosen. Mahasiswa dapat melihat level dan
-              perkembangannya sendiri di halaman Progres.
+              perkembangannya sendiri di halaman Gradebook.
             </>,
             <>
-              <b>Indikasi penggunaan AI (0-100)</b>, yang dihitung dari teks jawaban saja. Skor ini
-              berasal dari detektor Winston AI atau model Groq; bila layanan itu tidak tersedia,
-              dari heuristik di server ThinkPath.
+              <b>Indikasi penggunaan AI (0-100)</b>, yang dihitung dari teks polos jawaban saja;
+              gambar, rumus, dan format tidak ikut dianalisis. Skor ini berasal dari detektor
+              Winston AI atau model Groq; bila layanan itu tidak tersedia, dari heuristik di server
+              ThinkPath.
             </>,
             <>
               <b>Pola pengerjaan</b>, yang ditampilkan terpisah dari skor dan tidak mengubahnya:
@@ -394,6 +415,33 @@ export function PolicyArticle({ className }: { className?: string }) {
               server dari draf yang tersimpan otomatis selama Anda menulis. Pencatatan baru dimulai
               saat Anda mengetik, bukan saat halaman dibuka. Jawaban yang diimpor dari dokumen tidak
               punya jejak mengetik, sehingga dosen melihat tandanya.
+            </>,
+          ]}
+        />
+        <p>
+          Selain itu, dosen pengampu dapat melihat bahan pendukung berikut. Ketiganya tidak mengubah
+          skor di atas:
+        </p>
+        <Bullets
+          items={[
+            <>
+              <b>Penanda gaya teks</b>: sisa salinan dari antarmuka obrolan (simbol poin, sintaks
+              markdown, kalimat penutup seperti &ldquo;beri tahu saya&rdquo;, karakter tak terlihat)
+              dan kebiasaan gaya yang juga dipakai penulis manusia. Ini dihitung di server ThinkPath
+              dari teks jawaban; tidak ada layanan luar yang terlibat.
+            </>,
+            <>
+              <b>Kemiripan antar jawaban</b>: irisan potongan lima kata berurutan antara jawaban
+              Anda dan jawaban mahasiswa lain pada tugas yang sama, dihitung di server ThinkPath.
+              Dosen dapat membuka dua jawaban berdampingan untuk membandingkannya. Kutipan dari soal
+              atau bacaan yang sama ikut mirip, sehingga hasilnya hanya petunjuk untuk bertanya.
+            </>,
+            <>
+              <b>Saran satu klik untuk dosen</b>: ringkasan apakah jawaban sudah baik, perlu Cek
+              Paham, atau perlu dibandingkan. Saran dasarnya dibuat dengan aturan di server
+              ThinkPath. Uraian naratifnya dibuat Groq hanya bila dosen menekan tombolnya dan Anda
+              telah menyetujui analisis oleh penyedia di luar negeri; teks jawaban, judul dan
+              instruksi tugas, serta ringkasan hasil analisisnya dikirim tanpa nama atau email.
             </>,
           ]}
         />
@@ -476,15 +524,24 @@ export function PolicyArticle({ className }: { className?: string }) {
           rows={[
             [
               "Anda sendiri (mahasiswa)",
-              "Akun, jawaban, status, nilai, umpan balik, level Bloom dan perkembangannya, jadwal, materi, notifikasi, dan riwayat persetujuan Anda.",
+              "Akun, jawaban, status, nilai, umpan balik, level Bloom dan perkembangannya, jadwal, materi, notifikasi, to-do pribadi, tulisan forum Anda, dan riwayat persetujuan Anda.",
               "Skor indikasi AI, serta skor dan penilaian Cek Paham.",
             ],
             [
               "Dosen pengampu kelas",
-              "Nama tampilan (atau email bila nama tampilan dikosongkan), jawaban, jejak proses, hasil analisis lengkap, profil kognitif, serta audio, transkrip, dan hasil Cek Paham dari kelasnya sendiri.",
+              "Nama tampilan (atau email bila nama tampilan dikosongkan), jawaban dan dokumen aslinya, jejak proses, hasil analisis lengkap, penanda gaya teks, kemiripan dengan jawaban mahasiswa lain pada tugas yang sama, profil kognitif, tulisan forum, daftar anggota, serta audio, transkrip, dan hasil Cek Paham dari kelasnya sendiri.",
               "Data Anda di kelas dosen lain.",
             ],
-            ["Mahasiswa lain", "Tidak ada.", "Jawaban, nilai, dan hasil analisis Anda."],
+            [
+              "Mahasiswa lain di kelas yang sama",
+              "Nama tampilan Anda di daftar anggota, serta tulisan Anda di forum kelas (judul, isi, balasan, dan nama).",
+              "Jawaban, nilai, hasil analisis, to-do, dan email Anda.",
+            ],
+            [
+              "Mahasiswa di kelas lain",
+              "Tidak ada.",
+              "Jawaban, nilai, hasil analisis, dan tulisan forum Anda.",
+            ],
             [
               "Tim pengelola ThinkPath",
               "Akses teknis ke basis data untuk pemeliharaan dan untuk menangani permohonan Anda, dengan kewajiban menjaga kerahasiaan (Pasal 36).",
@@ -539,7 +596,7 @@ export function PolicyArticle({ className }: { className?: string }) {
             [
               "Groq, Inc.",
               "Analisis teks (taksiran level Bloom dan indikasi AI), pembacaan teks dari gambar halaman dokumen, serta pengenalan suara dan penilaian jawaban Cek Paham.",
-              "Teks jawaban dan jenjang studi, gambar halaman dokumen scan atau foto yang Anda unggah, audio jawaban Cek Paham beserta transkripnya, tanpa nama atau email.",
+              "Teks jawaban dan jenjang studi, gambar halaman dokumen scan atau foto yang Anda unggah, audio jawaban Cek Paham beserta transkripnya, dan, bila dosen meminta saran, judul dan instruksi tugas serta ringkasan hasil analisis jawaban Anda, tanpa nama atau email.",
               <>
                 Amerika Serikat. Menurut dokumentasinya, Groq secara bawaan tidak menyimpan data
                 permintaan; log untuk menangani galat atau penyalahgunaan disimpan paling lama 30
@@ -580,9 +637,9 @@ export function PolicyArticle({ className }: { className?: string }) {
       <PolicySection id="retensi" number={number("retensi")} title="Penyimpanan dan penghapusan">
         <Bullets
           items={[
-            "Data disimpan selama akun Anda masih ada. Berkas unggahan yang tidak pernah dikumpulkan dibuang setelah 24 jam, notifikasi setelah 90 hari, dan riwayat tugas analisis setelah 30 hari.",
-            "Anda dapat menghapus akun sendiri di Pengaturan (kata sandi dan ketikan HAPUS diperlukan). Akun beserta jawaban, dokumen unggahan, rekaman suara, hasil analisis, notifikasi, sesi, dan catatan persetujuan Anda langsung dihapus dari basis data dan dari disk. Yang tersisa hanya catatan anonim bahwa sebuah akun dihapus (peran, versi kebijakan, jumlah data), tanpa identitas (Pasal 43 dan 45). Salinan cadangan memuat data sampai berkas cadangan kedaluwarsa (7 hari). Jawaban dan nilai Anda tidak lagi tersedia bagi dosen setelah akun dihapus.",
-            "Bila akun dosen dihapus, kelasnya tidak ikut dihapus. Kelas, tugas, materi, pengumuman, dan jawaban mahasiswa tetap tersimpan sebagai arsip yang hanya bisa dibaca, dengan keterangan bahwa dosennya telah menghapus akun, karena data itu juga milik mahasiswa. Mahasiswa dapat menghapus jawabannya dengan menghapus akunnya sendiri.",
+            "Data disimpan selama akun Anda masih ada, termasuk jawaban dan dokumen yang sudah dikumpulkan; keduanya tidak dibuang otomatis. Yang dibuang otomatis hanya berkas unggahan yang tidak pernah dikumpulkan (setelah 24 jam), rekaman suara Cek Paham (setelah 30 hari), notifikasi (setelah 90 hari), dan riwayat tugas analisis (setelah 30 hari).",
+            "Anda dapat menghapus akun sendiri di Pengaturan (kata sandi dan ketikan HAPUS diperlukan). Akun beserta jawaban, dokumen unggahan, rekaman suara, hasil analisis, tulisan forum, to-do, notifikasi, sesi, dan catatan persetujuan Anda langsung dihapus dari basis data dan dari disk. Yang tersisa hanya catatan anonim bahwa sebuah akun dihapus (peran, versi kebijakan, jumlah data), tanpa identitas (Pasal 43 dan 45). Salinan cadangan memuat data sampai berkas cadangan kedaluwarsa (7 hari). Jawaban dan nilai Anda tidak lagi tersedia bagi dosen setelah akun dihapus.",
+            'Bila akun dosen dihapus, kelasnya tidak ikut dihapus. Kelas, tugas, materi, pengumuman, forum, dan jawaban mahasiswa tetap tersimpan sebagai arsip yang hanya bisa dibaca, dengan keterangan bahwa dosennya telah menghapus akun, karena data itu juga milik mahasiswa. Tulisan dosen di forum tampil sebagai "Dosen (akun telah dihapus)". Mahasiswa dapat menghapus jawabannya dengan menghapus akunnya sendiri.',
             "Audio jawaban Cek Paham dihapus otomatis setelah 30 hari oleh tugas terjadwal di server. Transkrip dan hasil penilaiannya tetap tersimpan selama akun dan kelas terkait ada, atau sampai Anda meminta penghapusan.",
             "Menarik persetujuan tidak otomatis menghapus data yang sudah ada. Pemrosesan baru berhenti seketika, sedangkan data lama tetap tersimpan sampai Anda menghapus akun.",
             "Laporan di dasbor Winston AI dapat kami hapus atas permintaan Anda; cadangannya terhapus dalam 90 hari sesuai kebijakan Winston AI. Log Groq terhapus sendiri paling lama 30 hari.",
@@ -747,6 +804,14 @@ export function PolicyArticle({ className }: { className?: string }) {
           rows={[
             [
               PRIVACY_POLICY_VERSION,
+              "Dosen kini dapat menulis instruksi tugas berformat (gambar kecil dan tautan). Dosen melihat penanda gaya teks dan kemiripan jawaban Anda dengan mahasiswa lain pada tugas yang sama, serta dapat meminta saran satu klik; narasi sarannya dibuat Groq hanya dengan persetujuan analisis luar negeri. Mahasiswa yang mengunggah dokumen tetap dapat menulis nama atau NIM di kotak jawaban, dan teks keduanya dianalisis bersama. Dokumen yang dikumpulkan disimpan selama akun ada; hanya rekaman suara Cek Paham yang dihapus otomatis (30 hari).",
+            ],
+            [
+              "2026-10-25",
+              "Forum kelas menggantikan pengumuman: dosen dan mahasiswa menulis dan membalas topik, dan nama penulis terlihat oleh anggota kelas. Daftar anggota kelas menampilkan nama tampilan dosen dan teman sekelas (tanpa email). To-do pribadi mahasiswa disimpan di server dan hanya terlihat oleh pemiliknya. Jawaban kini berformat kaya (tabel, rumus, tautan, gambar kecil yang disimpan di dalam jawaban); yang dianalisis tetap teks polos, dan waktu mulai dicatat server dari draf. Penghapusan akun kini juga menghapus tulisan forum dan to-do mahasiswa.",
+            ],
+            [
+              "2026-10-23",
               "Penghapusan akun mandiri di Pengaturan (baris basis data dan berkas di disk); kelas dosen yang menghapus akun menjadi arsip, bukan ikut terhapus. Atur ulang kata sandi lewat email, sehingga penyedia email ditambahkan ke daftar penyedia. Skor indikasi AI kini dihitung dari teks saja, dan pola pengerjaan (waktu mulai, durasi, kurva kata) ditampilkan terpisah serta dicatat server dari draf yang tersimpan otomatis. Keterangan cookie disesuaikan: HttpOnly dan sesi yang bisa dicabut.",
             ],
             [

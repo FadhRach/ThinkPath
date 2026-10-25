@@ -1,4 +1,4 @@
-export type Urgency = "overdue" | "soon" | "later" | "none";
+type Urgency = "overdue" | "soon" | "later" | "none";
 
 const SOON_MS = 48 * 60 * 60 * 1000;
 

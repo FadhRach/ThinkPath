@@ -112,13 +112,13 @@ flowchart TB
     end
 
     subgraph C["components/shared · komposisi lintas fitur"]
-        C1["PageHeader · SectionCard · StatCard · SectionHeading"]
+        C1["SectionCard · StatCard · SectionHeading"]
         C2["EmptyState · StatusPage · ErrorBoundaryPage · ConfirmDialog"]
         C3["FormField · IconInput · SearchInput · FilterPills · DataTable"]
     end
 
     subgraph L["components/layout · kerangka"]
-        L1["AppShell · RoleLayout · StudentShell + SidebarNav (mahasiswa) · TopNav (dosen) · NavUser · Footer · Brandmark"]
+        L1["AppShell · RoleLayout · SidebarShell + SidebarNav (mahasiswa dan dosen, menu beda) · NavUser · Footer · Brandmark"]
     end
 
     subgraph D["features/&lt;domain&gt; · komponen, lib, hooks per domain"]

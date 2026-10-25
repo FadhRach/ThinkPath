@@ -36,7 +36,7 @@ export function richToPlain(doc: RichDoc): string {
 }
 
 /** Teks polos (jawaban lama, atau hasil impor dokumen) menjadi dokumen: satu paragraf per baris. */
-export function textToDoc(text: string): RichDoc {
+function textToDoc(text: string): RichDoc {
   const paragraphs = text
     .split(/\r?\n/)
     .map<RichNode>((line) =>

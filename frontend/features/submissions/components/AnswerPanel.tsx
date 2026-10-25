@@ -73,7 +73,11 @@ export function AnswerPanel({
         deadline={deadline}
         allowUpload={allowUpload}
         mode="revise"
-        initialDoc={docFrom(submission.rich_answer, submission.text_answer)}
+        initialDoc={docFrom(
+          submission.rich_answer,
+          submission.is_imported ? "" : submission.text_answer,
+        )}
+        initialDocumentId={submission.document_id}
       />
     );
   }

@@ -16,7 +16,7 @@ import { ChartLegend } from "@/components/charts/ChartLegend";
 import { bloomShortLabel } from "@/features/bloom/lib/bloom";
 import { CHART_COLORS } from "@/components/charts/colors";
 
-export interface BloomPoint {
+interface BloomPoint {
   label: string;
   level: number;
   /** Target tugas pada titik itu. Tanpa ini grafik hanya menunjukkan gerakan,

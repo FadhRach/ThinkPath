@@ -39,7 +39,7 @@ export function AssignmentHeader({ detail, achievedLevel }: AssignmentHeaderProp
               <AssignmentStatusBadge submission={submission} />
             </div>
           </div>
-          <InstructionText text={assignment.instructions} />
+          <InstructionText text={assignment.instructions} rich={assignment.instructions_rich} />
           <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-8">
             <DeadlineLabel deadline={assignment.deadline} finished={submission !== null} />
             <CognitiveTarget

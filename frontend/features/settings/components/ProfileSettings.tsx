@@ -1,6 +1,5 @@
 import { AvatarInitials } from "@/components/shared/AvatarInitials";
 import { Alert } from "@/components/ui/alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { ConsentProof } from "@/features/settings/components/ConsentProof";
 import { DeleteAccountCard } from "@/features/settings/components/DeleteAccountCard";
 import { PasswordForm } from "@/features/settings/components/PasswordForm";
@@ -29,14 +28,7 @@ export function ProfileSettings({
 }) {
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Pengaturan"
-        subtitle={
-          profile.role === "teacher"
-            ? "Ubah nama tampil dan jenjang pendidikan Anda, serta lihat bukti persetujuan data."
-            : "Ubah nama tampil dan jenjang pendidikanmu, serta lihat bukti persetujuan datamu."
-        }
-      />
+      <h1 className="sr-only">Pengaturan</h1>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">

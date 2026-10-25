@@ -24,7 +24,7 @@ import { notify } from "@/lib/notify";
 import type { RichDoc } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export interface RichEditorProps {
+interface RichEditorProps {
   /** Dokumen awal. Diabaikan setelah editor terpasang; ganti isi lewat `editorRef`. */
   initial: RichDoc;
   onChange: (doc: RichDoc) => void;
@@ -129,7 +129,8 @@ export function RichEditor({
   // `editable` di opsi useEditor hanya dibaca saat pemasangan; penguncian karena tenggat lewat
   // datang belakangan, jadi diterapkan ke instans yang sudah hidup.
   useEffect(() => {
-    editor?.setEditable(!disabled);
+    // Tanpa emitUpdate: mengunci bukan perubahan isi, dan onChange memicu simpan draf.
+    editor?.setEditable(!disabled, false);
   }, [editor, disabled]);
 
   function submitMath(latex: string, block: boolean) {

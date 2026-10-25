@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME } from "./auth-token";
 import type { Role } from "./types";
 
-export interface AuthClaims {
+interface AuthClaims {
   sub: string;
   email: string;
   role: Role;

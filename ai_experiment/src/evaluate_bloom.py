@@ -5,24 +5,11 @@ ditafsirkan sebelum diketahui seberapa jauh manusia sendiri sepakat. Kalau dua
 penilai hanya sepakat 65%, mesin yang mencapai 60% sudah nyaris menyentuh langit
 langit tugas ini, dan melaporkannya sebagai kegagalan justru keliru.
 
-Jalankan dari folder ai_experiment.
-
-Kalibrasi awal, sebelum melabeli seluruhnya:
-
-    python -m src.evaluate_bloom --raters data/labels/penilai1.csv data/labels/penilai2.csv
-
-Evaluasi penuh, setelah ketidaksepakatan diselesaikan:
-
-    python -m src.evaluate_bloom \\
-        --raters data/labels/penilai1.csv data/labels/penilai2.csv \\
-        --gold data/labels/konsensus.csv \\
-        --answers data/labels/jawaban.csv
+Dipakai oleh notebooks/05_validasi_bloom.ipynb.
 """
 from __future__ import annotations
 
-import argparse
 import csv
-import sys
 from pathlib import Path
 
 from .agreement import (
@@ -167,60 +154,3 @@ def print_system(gold: dict[str, str], predicted: dict[str, str], ceiling: float
                 f"  Masih ada jarak {gap:.1%} menuju batas atas. Ini kesenjangan\n"
                 "  nyata yang layak diperbaiki."
             )
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Kesepakatan antar penilai dan evaluasi E2."
-    )
-    parser.add_argument(
-        "--raters",
-        nargs=2,
-        required=True,
-        metavar=("PENILAI1", "PENILAI2"),
-        help="dua CSV keluaran tools/label.html",
-    )
-    parser.add_argument(
-        "--gold",
-        help="CSV label konsensus. Tanpa ini hanya kesepakatan yang dihitung",
-    )
-    parser.add_argument(
-        "--answers",
-        help="CSV jawaban (id, text) untuk dijalankan lewat E2",
-    )
-    args = parser.parse_args()
-
-    paths = [Path(p) for p in args.raters]
-    names = [p.stem for p in paths]
-    rater_a, rater_b = (read_labels(p) for p in paths)
-
-    print(f"{names[0]}: {len(rater_a)} label")
-    print(f"{names[1]}: {len(rater_b)} label")
-
-    print_agreement(rater_a, rater_b, names)
-    ceiling = compare_raters(rater_a, rater_b).observed
-
-    if not args.gold:
-        print(
-            "\nLangkah berikutnya: selesaikan ketidaksepakatan, simpan hasilnya\n"
-            "sebagai CSV konsensus, lalu jalankan ulang dengan --gold dan\n"
-            "--answers untuk mengukur sistemnya."
-        )
-        return 0
-
-    if not args.answers:
-        raise SystemExit("--gold membutuhkan --answers agar E2 bisa dijalankan.")
-
-    gold = read_labels(Path(args.gold))
-    answers = read_answers(Path(args.answers))
-    missing = set(gold) - set(answers)
-    if missing:
-        print(f"\n  {len(missing)} item berlabel tidak ada teksnya, dilewati.")
-
-    predicted = predict_with_e2({k: v for k, v in answers.items() if k in gold})
-    print_system(gold, predicted, ceiling)
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

@@ -9,7 +9,7 @@ Pelindungan Data Pribadi (UU PDP) di JDIH BPK, bukan dari ringkasan pihak ketiga
 Fakta penyedia layanan diambil dari dokumen resmi masing-masing penyedia, yang
 dicantumkan di bagian 7.7.
 
-Versi kebijakan yang dibahas: **2026-10-23** (penghapusan akun mandiri, kelas dosen menjadi arsip, atur ulang sandi lewat email, skor AI dari teks saja dan pola pengerjaan terpisah, cookie HttpOnly).
+Versi kebijakan yang dibahas: **2026-10-26** (instruksi tugas berformat, penanda gaya dan kemiripan jawaban untuk dosen, saran satu klik, ketikan digabung dengan dokumen, dokumen disimpan selama akun ada; sebelumnya 2026-10-25: forum kelas dan daftar anggota yang terlihat teman sekelas, to-do pribadi, jawaban berformat kaya; sebelumnya 2026-10-23: penghapusan akun mandiri, kelas dosen menjadi arsip, atur ulang sandi lewat email, skor AI dari teks saja dan pola pengerjaan terpisah, cookie HttpOnly).
 
 ---
 

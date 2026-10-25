@@ -537,7 +537,6 @@ class TeacherViewsTest(CekPahamAPITestCase):
         self.assertTrue(attempt["audio_available"])
 
     def test_queue_filters(self):
-        now = timezone.now()
         open_one = self.make_request()
         cancelled = self.make_request(status="cancelled")
         client = self.client_for(self.teacher)

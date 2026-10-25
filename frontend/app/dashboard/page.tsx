@@ -1,102 +1,104 @@
-import { BookOpen, ClipboardCheck, FileCheck2 } from "lucide-react";
 import Link from "next/link";
 
-import { FocusBanner } from "@/components/shared/FocusBanner";
-import { SectionHeading } from "@/components/shared/SectionHeading";
-import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { UpcomingDeadlines } from "@/features/assignments/components/UpcomingDeadlines";
-import { TeacherClassList } from "@/features/classes/components/TeacherClassList";
-import { getAllAssignments, getClasses, getMe } from "@/lib/data";
-import { formatDateLong } from "@/lib/formatting";
+import { TeacherClassCard } from "@/features/classes/components/TeacherClassCard";
+import { CekPahamCard } from "@/features/home/components/CekPahamCard";
+import { ClassCarousel } from "@/features/home/components/ClassCarousel";
+import { ForumFeedCard } from "@/features/home/components/ForumFeedCard";
+import { HomeHeader } from "@/features/home/components/HomeHeader";
+import { QuickCreateCard } from "@/features/home/components/QuickCreateCard";
+import { ReviewQueueCard } from "@/features/home/components/ReviewQueueCard";
+import {
+  getAllAssignments,
+  getCekPahamQueue,
+  getClasses,
+  getForumsOf,
+  getMe,
+  getTeacherSubmissions,
+} from "@/lib/data";
 
 export default async function TeacherDashboardPage() {
-  const [me, classes, assignments] = await Promise.all([
+  // Hanya profil dan kelas yang wajib; kartu pelengkap tidak boleh merobohkan beranda.
+  const [me, classes, assignments, submissions, cekpaham] = await Promise.all([
     getMe(),
     getClasses(),
     getAllAssignments(),
+    getTeacherSubmissions("submitted").catch(() => []),
+    getCekPahamQueue().catch(() => []),
   ]);
-  const pending = assignments.reduce((sum, item) => sum + item.needs_review_count, 0);
-  const submissions = assignments.reduce((sum, item) => sum + item.submission_count, 0);
+  const forum = await getForumsOf(classes.map((klass) => klass.id));
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <h1 className="text-title font-bold sm:text-4xl">
-            Selamat datang, {me.display_name || me.email.split("@")[0]}
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {formatDateLong()} ·{" "}
-            {pending
-              ? `${pending} pengumpulan menunggu diperiksa`
-              : "Tidak ada pengumpulan yang menunggu diperiksa"}
-          </p>
-        </div>
-        <Button asChild className="w-fit">
-          <Link href="/dashboard/tugas/new">Buat tugas</Link>
-        </Button>
+    <div className="space-y-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <HomeHeader
+          firstName={me.display_name || me.email.split("@")[0]}
+          classCount={classes.length}
+          classLabel="kelas diampu"
+        />
+        <QuickCreateCard />
       </header>
 
-      <div
-        className="grid gap-3 sm:grid-cols-3 sm:gap-4"
-        role="group"
-        aria-label="Ringkasan mengajar"
-      >
-        <StatCard icon={BookOpen} label="Kelas yang diajar" value={classes.length} />
-        <StatCard icon={ClipboardCheck} label="Perlu diperiksa" value={pending} />
-        <StatCard icon={FileCheck2} label="Total pengumpulan" value={submissions} />
-      </div>
-
-      <FocusBanner
-        title={
-          pending
-            ? `${pending} pengumpulan menunggu diperiksa.`
-            : "Semua pengumpulan sudah diperiksa."
-        }
-        description={
-          pending
-            ? "Berikan nilai dan umpan balik agar mahasiswa bisa melanjutkan belajarnya."
-            : "Gunakan waktu untuk menyiapkan materi atau tugas berikutnya untuk kelas Anda."
-        }
-        href={
-          pending
-            ? "/dashboard/pengumpulan"
-            : classes.length
-              ? "/dashboard/classes"
-              : "/dashboard/classes/new"
-        }
-        linkLabel={pending ? "Periksa pengumpulan" : classes.length ? "Lihat kelas" : "Buat kelas"}
-      />
-
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] xl:gap-10">
-        <section className="min-w-0">
-          <SectionHeading
-            title="Kelas yang Anda ajar"
-            href="/dashboard/classes"
-            linkLabel="Semua kelas"
-          />
-          <TeacherClassList classes={classes} assignments={assignments} />
+      {/* Dua baris. Baris 1: kelas (kolom 1-2, menggulir ke samping) dan Cek Paham (kolom 3). Baris 2:
+          antrean periksa, tenggat, dan forum, tingginya tetap dan isinya menggulir ke bawah, sehingga
+          antrean atau forum yang membludak tidak mengubah tata letak. */}
+      <div className="grid gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_22rem] xl:grid-rows-[auto_36rem]">
+        <section aria-labelledby="my-classes-heading" className="min-w-0 xl:col-span-2">
+          <h2 id="my-classes-heading" className="mb-3 text-heading font-semibold">
+            Kelas yang Anda ajar
+          </h2>
+          {classes.length ? (
+            <ClassCarousel label="Kelas yang Anda ajar">
+              {classes.map((klass) => (
+                <TeacherClassCard key={klass.id} studentClass={klass} assignments={assignments} />
+              ))}
+            </ClassCarousel>
+          ) : (
+            <EmptyState
+              title="Belum ada kelas"
+              caption="Buat kelas, lalu bagikan kode undangan kepada mahasiswa."
+              action={
+                <Button asChild>
+                  <Link href="/dashboard/classes/new">Buat kelas</Link>
+                </Button>
+              }
+            />
+          )}
+        </section>
+        <section aria-labelledby="cekpaham-heading" className="flex min-w-0 flex-col">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 id="cekpaham-heading" className="text-heading font-semibold">
+              Cek Paham
+            </h2>
+            <Link
+              href="/dashboard/cekpaham"
+              className="text-sm font-medium text-brand-ink hover:underline"
+            >
+              Buka
+            </Link>
+          </div>
+          <div className="min-h-0 flex-1">
+            <CekPahamCard rows={cekpaham} />
+          </div>
         </section>
 
-        <aside className="space-y-6">
+        <div className="min-w-0 xl:min-h-0">
+          <ReviewQueueCard submissions={submissions} />
+        </div>
+        <div className="min-w-0 xl:min-h-0">
           <UpcomingDeadlines assignments={assignments} />
-          <section className="border-t border-border pt-5">
-            <h2 className="font-semibold">Perkembangan kelas</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Lihat hasil analisis jawaban dan perkembangan pemahaman mahasiswa.
-            </p>
-            <Link
-              href="/dashboard/overview"
-              className="mt-3 inline-block text-sm font-medium text-brand-ink hover:underline"
-            >
-              Buka analisis →
-            </Link>
-          </section>
-          <Button asChild variant="outline">
-            <Link href="/dashboard/pengumpulan">Periksa pengumpulan</Link>
-          </Button>
-        </aside>
+        </div>
+        <div className="min-w-0 xl:min-h-0">
+          <ForumFeedCard
+            posts={forum}
+            title="Forum terbaru"
+            href="/dashboard/forum"
+            classBase="/dashboard/classes"
+            fill
+          />
+        </div>
       </div>
     </div>
   );

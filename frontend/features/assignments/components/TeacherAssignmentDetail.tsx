@@ -1,9 +1,9 @@
-import { Pencil } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import Link from "next/link";
 
-import { BackLink } from "@/components/shared/BackLink";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { InstructionText } from "@/features/assignments/components/InstructionText";
 import { AssignmentSummary } from "@/features/assignments/components/AssignmentSummary";
 import { SubmissionTable } from "@/features/submissions/components/SubmissionTable";
 import type { AssignmentSummary as AssignmentSummaryData, SubmissionRow } from "@/lib/types";
@@ -26,7 +26,11 @@ export function TeacherAssignmentDetail({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <BackLink href={`/dashboard/classes/${classId}?tab=tugas`} label="Semua tugas kelas" />
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/dashboard/classes/${classId}?tab=tugas`}>
+            <ArrowLeft /> Semua tugas kelas
+          </Link>
+        </Button>
         <Button asChild variant="outline">
           <Link href={`/dashboard/classes/${classId}/assignments/${assignment.id}/edit`}>
             <Pencil /> Edit tugas
@@ -34,12 +38,10 @@ export function TeacherAssignmentDetail({
         </Button>
       </div>
       <AssignmentSummary assignment={assignment} />
-      {assignment.instructions ? (
+      {assignment.instructions || assignment.instructions_rich ? (
         <Card className="p-5">
-          <h2 className="text-sm font-bold">Instruksi tugas</h2>
-          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
-            {assignment.instructions}
-          </p>
+          <h2 className="mb-2 text-sm font-bold">Instruksi tugas</h2>
+          <InstructionText text={assignment.instructions} rich={assignment.instructions_rich} />
         </Card>
       ) : null}
       <div>

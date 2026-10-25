@@ -38,7 +38,7 @@ export function parseDayKey(raw: string | undefined): string | null {
   return Number.isNaN(date.getTime()) || fromUtc(date) !== raw ? null : raw;
 }
 
-export function addDays(key: string, days: number): string {
+function addDays(key: string, days: number): string {
   const date = toUtc(key);
   date.setUTCDate(date.getUTCDate() + days);
   return fromUtc(date);

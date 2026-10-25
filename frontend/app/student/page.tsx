@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/shared/EmptyState";
+import { StudentClassCard } from "@/features/classes/components/StudentClassCard";
 import { ClassCarousel } from "@/features/home/components/ClassCarousel";
 import { ForumFeedCard } from "@/features/home/components/ForumFeedCard";
 import { HomeHeader } from "@/features/home/components/HomeHeader";
@@ -41,7 +42,11 @@ export default async function StudentHomePage() {
       </h2>
       <div className="min-w-0 xl:col-span-2 xl:row-start-3">
         {classes.length ? (
-          <ClassCarousel classes={classes} />
+          <ClassCarousel label="Kelas yang kamu ikuti">
+            {classes.map((classroom) => (
+              <StudentClassCard key={classroom.id} studentClass={classroom} />
+            ))}
+          </ClassCarousel>
         ) : (
           <EmptyState
             title="Belum bergabung dengan kelas"

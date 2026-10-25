@@ -1,10 +1,13 @@
 import {
   BookOpen,
   CalendarDays,
+  ChartColumn,
+  ClipboardCheck,
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
   MessagesSquare,
+  Mic,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,7 +22,7 @@ export interface NavItem {
 }
 
 /** Menu sidebar mahasiswa. Urutannya mengikuti alur belajar: kerjakan, pelajari, diskusikan, lihat hasil. */
-export const STUDENT_NAV: NavItem[] = [
+const STUDENT_NAV: NavItem[] = [
   { label: "Beranda", href: "/student", icon: LayoutDashboard },
   {
     label: "Tugas",
@@ -33,18 +36,28 @@ export const STUDENT_NAV: NavItem[] = [
   { label: "Gradebook", href: "/student/gradebook", icon: GraduationCap },
 ];
 
-/** Menu navigasi atas dosen. */
-export const TEACHER_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Kelas", href: "/dashboard/classes" },
-  { label: "Tugas", href: "/dashboard/tugas" },
+/**
+ * Menu sidebar dosen, urut menurut alur kerja: lihat kelas, siapkan tugas, periksa jawaban,
+ * jawab forum, tinjau Cek Paham, lalu baca analitik.
+ */
+const TEACHER_NAV: NavItem[] = [
+  { label: "Beranda", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Kelas", href: "/dashboard/classes", icon: BookOpen },
+  { label: "Tugas", href: "/dashboard/tugas", icon: ClipboardList },
   {
-    label: "Pengumpulan",
+    label: "Periksa",
     href: "/dashboard/pengumpulan",
+    icon: ClipboardCheck,
     alsoActiveFor: ["/dashboard/submission"],
   },
-  { label: "Cek Paham", href: "/dashboard/cekpaham" },
-  { label: "Laporan", href: "/dashboard/laporan" },
+  { label: "Forum", href: "/dashboard/forum", icon: MessagesSquare },
+  { label: "Cek Paham", href: "/dashboard/cekpaham", icon: Mic },
+  {
+    label: "Analitik",
+    href: "/dashboard/analitik",
+    icon: ChartColumn,
+    alsoActiveFor: ["/dashboard/students"],
+  },
 ];
 
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
@@ -61,7 +74,17 @@ export function isNavActive(pathname: string, item: NavItem): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+/** Halaman di luar menu yang tetap berjudul sendiri di topbar. */
+const EXTRA_TITLES: Record<string, string> = {
+  "/dashboard/pengaturan": "Pengaturan",
+  "/student/pengaturan": "Pengaturan",
+};
+
 /** Judul halaman untuk topbar: label menu yang aktif. */
 export function navTitle(pathname: string, items: NavItem[]): string {
-  return items.find((item) => isNavActive(pathname, item))?.label ?? "ThinkPath";
+  return (
+    items.find((item) => isNavActive(pathname, item))?.label ??
+    EXTRA_TITLES[pathname] ??
+    "ThinkPath"
+  );
 }

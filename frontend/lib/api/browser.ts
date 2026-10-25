@@ -3,9 +3,9 @@ import { buildHeaders, resolveJson, withNetworkErrors } from "./request";
 // Semua panggilan API dari browser lewat jembatan same-origin /bff, yang
 // menyisipkan token dari cookie HttpOnly. Browser tidak memegang token.
 // Hanya unggahan besar yang langsung ke API, dengan tiket (direct.ts).
-export const BFF_PREFIX = "/bff";
+const BFF_PREFIX = "/bff";
 
-export function bffFetch(path: string, init: RequestInit = {}): Promise<Response> {
+function bffFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return withNetworkErrors(
     fetch(`${BFF_PREFIX}${path}`, {
       ...init,

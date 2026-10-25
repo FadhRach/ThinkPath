@@ -42,7 +42,7 @@ export function secondsLeft(deadlineIso: string, serverNowIso: string, elapsedMs
 }
 
 /** Menempelkan potongan caption tanpa dobel spasi. */
-export function appendCaption(current: string, next: string): string {
+function appendCaption(current: string, next: string): string {
   const addition = next.trim();
   if (addition === "") return current;
   return current === "" ? addition : `${current} ${addition}`;

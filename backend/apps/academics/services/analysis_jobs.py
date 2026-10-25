@@ -103,6 +103,11 @@ def build_process(submission: Submission) -> ProcessContext | None:
     )
 
 
+def allows_external_analysis(submission: Submission) -> bool:
+    """Mahasiswa mengizinkan jawabannya dikirim ke penyedia di luar negeri (persetujuan berlaku)."""
+    return _allow_external(submission)
+
+
 def _allow_external(submission: Submission) -> bool:
     consent = current_consent(submission.student_profile_id)
     return consent is not None and ITEM_EXTERNAL_AI in consent.items

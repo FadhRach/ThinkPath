@@ -54,9 +54,7 @@ export function ClassDirectory<T extends { id: string }>({
           />
         </div>
         {toolbarEnd ? (
-          <div className="order-2 min-w-0 flex-1 sm:min-w-80 sm:flex-none lg:order-3">
-            {toolbarEnd}
-          </div>
+          <div className="order-2 min-w-0 flex-1 sm:flex-none lg:order-3">{toolbarEnd}</div>
         ) : null}
       </div>
 

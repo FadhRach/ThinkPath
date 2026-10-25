@@ -21,6 +21,7 @@ from apps.academics.selectors import (
 from apps.academics.serializers import (
     ClassPublicSerializer,
     MaterialSerializer,
+    StudentAssignmentDetailSerializer,
     StudentAssignmentSerializer,
     StudentSubmissionStatusListSerializer,
     StudentSubmissionStatusSerializer,
@@ -103,7 +104,7 @@ class StudentAssignmentDetailView(APIView):
         return Response(
             {
                 "class": ClassPublicSerializer(assignment.class_ref).data,
-                "assignment": StudentAssignmentSerializer(assignment).data,
+                "assignment": StudentAssignmentDetailSerializer(assignment).data,
                 "submission": (
                     StudentSubmissionStatusSerializer(submission).data if submission else None
                 ),

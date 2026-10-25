@@ -33,7 +33,7 @@ export function buildTaskRows(classes: StudentClassWithAssignments[]): StudentTa
   );
 }
 
-export function isUnfinished(row: StudentTaskRow): boolean {
+function isUnfinished(row: StudentTaskRow): boolean {
   return !row.submission || row.submission.status === "draft";
 }
 
@@ -52,7 +52,7 @@ export function groupTasks(rows: StudentTaskRow[]): Record<TaskGroupKey, Student
 
 export type TaskStatusFilter = "semua" | TaskGroupKey;
 
-export interface TaskFilters {
+interface TaskFilters {
   query: string;
   /** "semua" atau id kelas. */
   classId: string;

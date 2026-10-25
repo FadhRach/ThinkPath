@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export interface OverviewTab {
+interface OverviewTab {
   id: string;
   label: string;
   /** Mahasiswa yang tertinggal minimal satu tingkat dari target. */

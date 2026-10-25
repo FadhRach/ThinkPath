@@ -1,10 +1,11 @@
 "use client";
-import { Search, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { AvatarInitials } from "@/components/shared/AvatarInitials";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/shared/IconInput";
+import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/formatting";
 import type { ClassRosterStudent } from "@/lib/types";
 
@@ -22,10 +23,8 @@ export function ClassRoster({ students }: { students: ClassRosterStudent[] }) {
             {students.length} mahasiswa terdaftar
           </p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
+        <div className="w-full sm:w-64">
+          <SearchInput
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Cari nama mahasiswa…"
@@ -58,6 +57,11 @@ export function ClassRoster({ students }: { students: ClassRosterStudent[] }) {
                   </span>{" "}
                   dinilai
                 </div>
+                {student.submission_count - student.reviewed_count > 0 ? (
+                  <Badge tone="warning">
+                    {student.submission_count - student.reviewed_count} perlu diperiksa
+                  </Badge>
+                ) : null}
                 <Link
                   href={`/dashboard/students/${student.id}`}
                   className="rounded-lg border border-border px-3 py-2 font-bold text-brand-ink hover:bg-muted"

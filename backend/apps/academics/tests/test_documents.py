@@ -382,18 +382,30 @@ class ImportedSubmissionTest(DocumentTestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_light_edits_still_count_as_imported(self):
+    def test_typed_note_is_analysed_together_with_the_document(self):
+        document_id = self.upload(make_docx(ANSWER)).data["document_id"]
+
+        created = self.submit(document_id=document_id, text_answer="Budi Santoso, NIM 2210511001")
+
+        submission = Submission.objects.get(pk=created.data["id"])
+        self.assertTrue(submission.is_imported)
+        self.assertTrue(submission.text_answer.startswith("Budi Santoso, NIM 2210511001\n\n"))
+        self.assertIn("Ketimpangan antarwilayah", submission.text_answer)
+        self.assertNotIn("process_forensics", self.breakdown_keys(submission))
+
+    def test_note_alone_is_enough_when_the_document_carries_the_answer(self):
         document_id = self.upload(make_docx(ANSWER)).data["document_id"]
 
         created = self.submit(
-            document_id=document_id, text_answer=ANSWER + " Saya menambahkan penutup sendiri."
+            document_id=document_id, rich_answer={"type": "doc", "content": [{"type": "paragraph"}]}
         )
 
+        self.assertEqual(created.status_code, 201)
         self.assertTrue(Submission.objects.get(pk=created.data["id"]).is_imported)
 
-    def test_unrelated_text_cannot_borrow_a_document_id(self):
+    def test_long_typed_text_cannot_ride_on_a_document(self):
         document_id = self.upload(make_docx(ANSWER)).data["document_id"]
-        other = " ".join(["Kalimat lain sama sekali yang tidak ada di dokumen unggahan."] * 8)
+        other = " ".join(["Kalimat lain sama sekali yang tidak ada di dokumen unggahan."] * 40)
 
         created = self.submit(document_id=document_id, text_answer=other)
 
@@ -428,10 +440,32 @@ class ImportedSubmissionTest(DocumentTestCase):
         self.assertIn("process_forensics", self.breakdown_keys(submission))
         self.assertEqual(submission.revision_count, 1)
 
-    def test_revision_keeps_the_document_while_text_still_comes_from_it(self):
+    def test_revision_resending_the_document_keeps_it(self):
         document_id = self.upload(make_docx(ANSWER)).data["document_id"]
         created = self.submit(document_id=document_id)
 
-        self.submit(text_answer=ANSWER + " Satu kalimat tambahan saat revisi.")
+        self.submit(document_id=document_id, text_answer="Catatan tambahan saat revisi.")
 
         self.assertTrue(Submission.objects.get(pk=created.data["id"]).is_imported)
+
+    def test_revision_without_the_document_detaches_it(self):
+        document_id = self.upload(make_docx(ANSWER)).data["document_id"]
+        created = self.submit(document_id=document_id)
+
+        self.submit(text_answer="Jawaban pengganti yang diketik sendiri sepenuhnya oleh mahasiswa.")
+
+        self.assertFalse(Submission.objects.get(pk=created.data["id"]).is_imported)
+
+
+class DocumentAvailabilityTest(DocumentTestCase):
+    def test_detail_says_whether_the_original_file_still_exists(self):
+        document_id = self.upload(make_docx(ANSWER)).data["document_id"]
+        submission_id = self.submit(document_id=document_id).data["id"]
+        url = f"/api/submissions/{submission_id}"
+
+        self.assertTrue(self.client_for(self.teacher).get(url).data["document_available"])
+
+        from django.core.files.storage import default_storage
+
+        default_storage.delete(f"documents/{self.student.id}/{document_id}.docx")
+        self.assertFalse(self.client_for(self.teacher).get(url).data["document_available"])

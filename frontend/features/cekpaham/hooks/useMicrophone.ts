@@ -9,12 +9,11 @@ import {
   rmsLevel,
 } from "@/features/cekpaham/lib/recording";
 
-export type MicStatus =
-  "idle" | "requesting" | "ready" | "denied" | "unsupported" | "error" | "lost";
+type MicStatus = "idle" | "requesting" | "ready" | "denied" | "unsupported" | "error" | "lost";
 export type LostReason = "track_ended" | "dead_input";
 
 /** Konteks dari klien untuk dosen. Tidak pernah diskor. */
-export interface MicEvents {
+interface MicEvents {
   visibility_changes: number;
   blur_count: number;
   device_changes: number;

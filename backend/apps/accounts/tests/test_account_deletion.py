@@ -149,7 +149,6 @@ class AccountDeletionTest(TestCase):
 
         self.assertFalse(Profile.objects.filter(pk=self.student.pk).exists())
         for model in (Submission, Notification, ConsentRecord, AuthSession, CekPahamAttempt):
-            owner = {"student_profile": self.student} if model is Submission else None
             if model is Submission:
                 self.assertFalse(model.objects.filter(student_profile_id=self.student.pk).exists())
         self.assertFalse(ConsentRecord.objects.filter(profile_id=self.student.pk).exists())

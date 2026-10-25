@@ -131,3 +131,17 @@ def pearson(xs: list[float], ys: list[float]) -> float:
     if var_x == 0 or var_y == 0:
         return 0.0
     return cov / ((var_x**0.5) * (var_y**0.5))
+
+
+def roc_points(scores: list[float], labels: list[int]) -> list[tuple[float, float]]:
+    """Titik kurva ROC (FPR, TPR) dari ambang tertinggi ke terendah, untuk digambar."""
+    positives = sum(labels)
+    negatives = len(labels) - positives
+    if not positives or not negatives:
+        return []
+    points = [(0.0, 0.0)]
+    for threshold in sorted(set(scores), reverse=True):
+        tp = sum(1 for s, y in zip(scores, labels) if y == 1 and s >= threshold)
+        fp = sum(1 for s, y in zip(scores, labels) if y == 0 and s >= threshold)
+        points.append((fp / negatives, tp / positives))
+    return points

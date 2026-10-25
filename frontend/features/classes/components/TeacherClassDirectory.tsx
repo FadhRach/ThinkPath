@@ -1,5 +1,9 @@
 "use client";
 
+import { Plus } from "lucide-react";
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
 import { ClassDirectory } from "@/features/classes/components/ClassDirectory";
 import { TeacherClassCard } from "@/features/classes/components/TeacherClassCard";
 import type { ClassSummary, TeacherAssignmentRow } from "@/lib/types";
@@ -20,6 +24,13 @@ export function TeacherClassDirectory({
       renderCard={(item) => <TeacherClassCard studentClass={item} assignments={assignments} />}
       placeholder="Cari kelas atau mata kuliah"
       emptyCaption="Coba kata kunci lain."
+      toolbarEnd={
+        <Button asChild>
+          <Link href="/dashboard/classes/new">
+            <Plus /> Buat kelas
+          </Link>
+        </Button>
+      }
     />
   );
 }

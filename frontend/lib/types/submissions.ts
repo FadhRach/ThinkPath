@@ -21,6 +21,8 @@ export interface StudentSubmissionStatus {
   revision_count: number;
   /** Jawaban berasal dari berkas unggahan; berkas aslinya bisa dibuka kembali. */
   is_imported: boolean;
+  /** Berkas yang terlampir pada jawaban ini (milik mahasiswa sendiri), null bila diketik. */
+  document_id: string | null;
 }
 
 /** Dokumen editor kaya (TipTap/ProseMirror JSON) yang sudah dibersihkan server. */
@@ -67,6 +69,72 @@ export interface ReasoningEventView {
   payload: Record<string, unknown>;
 }
 
+export interface StyleMarker {
+  key: string;
+  /** strong: sisa salinan obrolan; weak: kebiasaan gaya yang juga dipakai penulis manusia. */
+  tier: "strong" | "weak";
+  label: string;
+  hint: string;
+  count: number;
+  examples: string[];
+}
+
+export interface StyleMarkerSpan {
+  start: number;
+  end: number;
+  key: string;
+  tier: "strong" | "weak";
+}
+
+export interface StyleMarkers {
+  markers: StyleMarker[];
+  /** Indeks karakter pada `text_answer` yang sama persis. */
+  spans: StyleMarkerSpan[];
+  strong_total: number;
+}
+
+export interface SimilarSubmission {
+  submission_id: string;
+  student_name: string;
+  /** 0-1, Jaccard potongan lima kata. */
+  score: number;
+}
+
+export interface ComparisonSide {
+  submission_id: string;
+  student_name: string;
+  text: string;
+  /** Rentang karakter pada `text` yang potongannya sama dengan jawaban pembanding. */
+  spans: { start: number; end: number }[];
+}
+
+export interface SubmissionComparison {
+  score: number;
+  a: ComparisonSide;
+  b: ComparisonSide;
+}
+
+export type SuggestionVerdict = "baik" | "tinjau" | "cekpaham" | "bandingkan";
+
+export interface SubmissionSuggestion {
+  verdict: SuggestionVerdict;
+  headline: string;
+  points: string[];
+  next_steps: string[];
+  caveats: string[];
+  similar: SimilarSubmission[];
+  class_context: { graded: number; average_grade: number | null; average_level: number | null };
+  /** Narasi Groq; null bila tidak diizinkan, tidak dikonfigurasi, atau gagal. */
+  narrative: {
+    ringkasan: string;
+    kekuatan: string[];
+    kekurangan: string[];
+    draf_umpan_balik: string;
+  } | null;
+  narrative_skipped?: string;
+  source: "aturan" | "aturan+groq";
+}
+
 export interface SubmissionDetail {
   id: string;
   assignment: {
@@ -74,6 +142,8 @@ export interface SubmissionDetail {
     /** Opsional: backend lama belum mengirimnya. */
     class_id?: string;
     title: string;
+    instructions: string;
+    instructions_rich: RichDoc | null;
     expected_bloom_level: number;
     /** Diwarisi dari kelas, tidak lagi disimpan di Assignment. */
     education_level: EducationLevel;
@@ -85,6 +155,8 @@ export interface SubmissionDetail {
   rich_answer: RichDoc | null;
   /** Jawaban berasal dari dokumen unggahan, jadi tanpa jejak mengetik. */
   is_imported: boolean;
+  /** Berkas asli masih ada di server; false bila hilang (teks hasil baca tetap tersimpan). */
+  document_available: boolean;
   started_at: string;
   submitted_at: string | null;
   duration_seconds: number | null;
@@ -97,4 +169,6 @@ export interface SubmissionDetail {
   analysis: AnalysisView | null;
   /** Terbaru dulu. */
   analysis_history: AnalysisRunView[];
+  style_markers: StyleMarkers;
+  similar_submissions: SimilarSubmission[];
 }

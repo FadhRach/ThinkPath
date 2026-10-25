@@ -9,3 +9,12 @@ export function getClassForum(classId: string) {
 export function getForumFeed(limit = 6) {
   return apiFetch<ForumPost[]>(`/api/student/forum/recent?limit=${limit}`);
 }
+
+/**
+ * Topik forum dari beberapa kelas, aktivitas terbaru di atas. Forum satu kelas yang gagal dimuat
+ * tidak boleh mengosongkan seluruh halaman.
+ */
+export async function getForumsOf(classIds: string[]) {
+  const perClass = await Promise.all(classIds.map((id) => getClassForum(id).catch(() => [])));
+  return perClass.flat().sort((a, b) => b.last_activity_at.localeCompare(a.last_activity_at));
+}

@@ -159,7 +159,7 @@ make seed                                # opsional: akun demo
 curl https://api.thinkpath.id/health     # {"status":"ok"}
 ```
 
-**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-23`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
+**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-26`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
 
 **6. Backup harian**
 
@@ -317,8 +317,10 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | PUT | `/api/assignments/<id>/draft` | mahasiswa anggota | simpan otomatis draf (`rich_answer` dokumen editor, atau `text_answer` teks polos); **server mencatat waktu mulai dan kurva kata**; baru mulai pada simpan pertama yang berisi teks |
 | GET/POST | `/api/assignments/<id>/submissions` | GET dosen, POST mahasiswa | daftar / **submit atau revisi** (hanya menyimpan, analisis dikerjakan worker) |
 | POST | `/api/assignments/<id>/documents` | mahasiswa anggota | unggah PDF/DOCX/PNG/JPG (maks 10 MB, multipart `file`); membalas teks hasil baca |
-| GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik |
+| GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik; detail memuat `style_markers` (penanda gaya teks, bukan bagian skor AI) dan `similar_submissions` (irisan 5 kata berurutan dengan jawaban lain di tugas yang sama, maks. 5); `assignment` memuat `instructions`/`instructions_rich` |
 | POST | `/api/submissions/<id>/reanalyze` | dosen pemilik | antrekan analisis ulang; **202** + `analysis_state` |
+| GET | `/api/submissions/<id>/compare/<other_id>` | dosen pemilik | dua jawaban pada tugas yang sama berdampingan; `spans` = potongan lima kata yang sama persis di tiap sisi |
+| POST | `/api/submissions/<id>/suggestion` | dosen pemilik | saran satu klik (baik / tinjau / perlu Cek Paham / bandingkan). **409** sampai analisis selesai. Aturan lokal selalu jalan; narasi Groq hanya bila mahasiswa menyetujui analisis luar negeri. Throttle `ai_suggestion` 40/jam |
 | GET/POST | `/api/submissions/<id>/cekpaham` | dosen pemilik | daftar / **minta Cek Paham** (soal, bahasa, durasi 15–300 dtk, jendela waktu) |
 | GET | `/api/cekpaham` | dosen | antrean; filter `status`, `phase` (`upcoming`/`open`/`closed`), `has_open_report` |
 | GET | `/api/cekpaham/<id>` | dosen pemilik | detail: transkrip, saran skor, bukti, flag, konteks sesi, laporan |
@@ -374,8 +376,8 @@ Token JWT memuat `sid` yang menunjuk baris `auth_sessions`; tiap request memerik
 
 Dosen memilih per tugas lewat `Assignment.allow_file_upload` (bawaan `false`, wajib diketik): bila mati, endpoint unggah dibalas `403` dan `document_id` diabaikan. Bila hidup, mahasiswa bisa mengisi jawaban dari berkas. Alurnya dua langkah, dan unggahan **tidak pernah mengumpulkan jawaban sendiri**:
 
-1. `POST /api/assignments/<id>/documents` (multipart, field `file`, maks 10 MB, tenggat dan persetujuan privasi diperiksa seperti submit) membalas `{document_id, text, page_count, method, warnings}`. Mahasiswa meninjau `text` di editor.
-2. Submit biasa dengan tambahan `document_id`.
+1. `POST /api/assignments/<id>/documents` (multipart, field `file`, maks 10 MB, tenggat dan persetujuan privasi diperiksa seperti submit) membalas `{document_id, text, page_count, method, warnings}`. Teks ini tidak dimasukkan ke editor.
+2. Submit biasa dengan tambahan `document_id`. Server **menggabungkan** tulisan mahasiswa di kotak jawaban (nama, NIM, catatan; boleh kosong) dengan teks dokumen yang tersimpan: `text_answer` = ketikan + teks dokumen, dan inilah yang dianalisis. `rich_answer` hanya berisi ketikannya. Klien harus mengirim ulang `document_id` pada revisi; tanpa itu dokumen dianggap dilepas. Bila ketikan lebih dari separuh gabungan, jawaban tidak lagi dianggap diimpor dan forensik proses berlaku.
 
 Cara baca (`apps/academics/services/documents.py`): jenis berkas ditentukan dari isinya (bukan nama atau content-type). DOCX dan PDF berlapis teks dibaca di server. Halaman gambar (scan, foto, PNG/JPG) dibaca model visual Groq (`providers/groq_vision.py`, `GROQ_VISION_MODEL`, bawaan `qwen/qwen3.8-27b`), **hanya bila mahasiswa mengizinkan analisis di luar negeri**; selain itu ditolak dengan pesan yang jelas. Batas: 20 halaman, 6 halaman gambar (dibaca paralel agar di bawah timeout gunicorn 60 detik). `.doc` lama tidak didukung.
 

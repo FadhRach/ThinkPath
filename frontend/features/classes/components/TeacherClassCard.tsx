@@ -1,3 +1,4 @@
+import { ClassQuickLinks } from "@/features/classes/components/ClassQuickLinks";
 import { ClassCard } from "@/features/classes/components/ClassCard";
 import { academicLabel } from "@/features/classes/lib/academic";
 import { formatDate } from "@/lib/formatting";
@@ -21,6 +22,7 @@ export function TeacherClassCard({
     <ClassCard
       href={`/dashboard/classes/${studentClass.id}`}
       name={studentClass.name}
+      actions={<ClassQuickLinks classId={studentClass.id} role="teacher" />}
       details={
         <>
           <p>{academicLabel(studentClass)}</p>

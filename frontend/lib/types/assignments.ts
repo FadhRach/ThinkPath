@@ -13,6 +13,8 @@ export interface StudentAssignment {
   id: string;
   title: string;
   instructions: string;
+  /** Instruksi berformat; hanya ada di detail satu tugas, tidak di daftar. */
+  instructions_rich?: RichDoc | null;
   deadline: string | null;
   expected_bloom_level: number;
   /** Dosen mengizinkan jawaban diisi dari berkas; bila false, wajib diketik. */
@@ -40,6 +42,8 @@ export interface AssignmentSummary {
   class_id: string;
   title: string;
   instructions: string;
+  /** Instruksi berformat; hanya ada di detail satu tugas, tidak di daftar. */
+  instructions_rich?: RichDoc | null;
   deadline: string | null;
   expected_bloom_level: number;
   allow_file_upload: boolean;

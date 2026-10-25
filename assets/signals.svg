@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="t">Bobot sinyal indikasi AI</title><desc id="d">Lima sinyal teks dengan bobot hasil tuning dan pola pengerjaan berbobot nol</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#086361"/></marker>
+<marker id="arm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5B7377"/></marker>
+<filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F2F33" flood-opacity="0.10"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="518" rx="24" fill="#FFFFFF" stroke="#CFE3E1" stroke-width="2"/>
+<text x="40" y="52" font-size="22" font-weight="800" fill="#0F2F33" text-anchor="start">Dari mana skor indikasi AI berasal</text>
+<text x="40" y="78" font-size="14" font-weight="400" fill="#5B7377" text-anchor="start">Lima sinyal teks dijumlahkan sesuai bobotnya. Tiap poin skor bisa ditelusuri ke sinyalnya.</text>
+<text x="48" y="136" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Keseragaman kalimat</text>
+<text x="48" y="156" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">variasi panjang kalimat</text>
+<rect x="280" y="122" width="500" height="32" rx="16" fill="#EEF7F6"/>
+<rect x="280" y="122" width="500.0" height="32" rx="16" fill="#086361"/>
+<text x="792.0" y="145" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">40%</text>
+<text x="48" y="196" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Frasa formulaik</text>
+<text x="48" y="216" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">transisi khas model bahasa</text>
+<rect x="280" y="182" width="500" height="32" rx="16" fill="#EEF7F6"/>
+<rect x="280" y="182" width="312.5" height="32" rx="16" fill="#0E8A87"/>
+<text x="604.5" y="205" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">25%</text>
+<text x="48" y="256" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Keragaman kosakata</text>
+<text x="48" y="276" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">jarak dari titik tengah wajar</text>
+<rect x="280" y="242" width="500" height="32" rx="16" fill="#EEF7F6"/>
+<rect x="280" y="242" width="312.5" height="32" rx="16" fill="#2FB5AC"/>
+<text x="604.5" y="265" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">25%</text>
+<text x="48" y="316" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Tanpa suara personal</text>
+<text x="48" y="336" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">sudut pandang dan contoh konkret</text>
+<rect x="280" y="302" width="500" height="32" rx="16" fill="#EEF7F6"/>
+<rect x="280" y="302" width="62.5" height="32" rx="16" fill="#8EDDCB"/>
+<text x="354.5" y="325" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">5%</text>
+<text x="48" y="376" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Kepastian datar</text>
+<text x="48" y="396" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">nada yakin tanpa kualifikasi</text>
+<rect x="280" y="362" width="500" height="32" rx="16" fill="#EEF7F6"/>
+<rect x="280" y="362" width="62.5" height="32" rx="16" fill="#BFEBDD"/>
+<text x="354.5" y="385" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">5%</text>
+<text x="48" y="436" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Pola pengerjaan</text>
+<text x="48" y="456" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">kurva kata dan durasi</text>
+<rect x="280" y="422" width="500" height="32" rx="16" fill="#fff" stroke="#CFE3E1" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="300" y="444" font-size="13" font-weight="400" fill="#5B7377" text-anchor="start">0%  dilaporkan terpisah, tidak menambah skor</text>
+<rect x="840" y="108" width="320" height="378" rx="18" fill="#EEF7F6" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="862" y="140" font-size="16.5" font-weight="800" fill="#086361" text-anchor="start">Bobot dicari dari data</text>
+<text x="862" y="166" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Grid search di data latih,<tspan x="862" dy="16.9">diuji di data uji yang</tspan><tspan x="862" dy="16.9">tidak pernah dilihat.</tspan></text>
+<text x="862" y="246" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">ROC-AUC uji</text>
+<text x="862" y="278" font-size="24" font-weight="700" fill="#5B7377" text-anchor="start">0,884</text>
+<line x1="940" y1="270" x2="982" y2="270" stroke="#086361" stroke-width="3" stroke-linecap="round" marker-end="url(#ar)"/>
+<text x="996" y="278" font-size="28" font-weight="800" fill="#086361" text-anchor="start">0,912</text>
+<text x="862" y="320" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Ambang sedang</text>
+<text x="862" y="352" font-size="24" font-weight="700" fill="#5B7377" text-anchor="start">56</text>
+<line x1="940" y1="344" x2="982" y2="344" stroke="#086361" stroke-width="3" stroke-linecap="round" marker-end="url(#ar)"/>
+<text x="996" y="352" font-size="28" font-weight="800" fill="#086361" text-anchor="start">42</text>
+<text x="862" y="408" font-size="12" font-weight="700" fill="#2C9A62" text-anchor="start">FPR di bawah 5%: mahasiswa jujur</text>
+<text x="862" y="428" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">jarang tertuduh. Diukur pada abstrak,</text>
+<text x="862" y="446" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">bukan esai mahasiswa.</text>
+</svg>

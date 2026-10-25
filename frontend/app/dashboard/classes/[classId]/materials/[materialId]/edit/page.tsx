@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { BackLink } from "@/components/shared/BackLink";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { Alert } from "@/components/ui/alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { MaterialForm } from "@/features/materials/components/MaterialForm";
 import { Card } from "@/components/ui/card";
 import { getClassMaterials, getClasses } from "@/lib/data";
@@ -30,8 +29,13 @@ export default async function EditMaterialPage({
 
   return (
     <div className="space-y-6">
-      <BackLink href={`/dashboard/classes/${targetClass.id}?tab=materi`} label="Kembali ke kelas" />
-      <PageHeader title="Ubah Materi" subtitle={`${targetClass.name} · ${material.title}`} />
+      <Breadcrumb
+        items={[
+          { label: "Kelas", href: "/dashboard/classes" },
+          { label: targetClass.name, href: `/dashboard/classes/${targetClass.id}?tab=materi` },
+          { label: "Ubah Materi" },
+        ]}
+      />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card variant="raised" className="p-6">
           <MaterialForm classId={targetClass.id} topics={topics} material={material} />

@@ -4,7 +4,7 @@ import type { Copy, Lang, Theme } from "./types";
 
 // Alamat kontak sungguhan belum ada. Selama kosong, tombol daftar tunggu dan
 // "Hubungi tim" tampil nonaktif berlabel "Segera hadir", bukan alamat karangan.
-export const CONTACT_EMAIL = "";
+const CONTACT_EMAIL = "";
 
 export interface LandingQuery {
   lang?: string | string[];

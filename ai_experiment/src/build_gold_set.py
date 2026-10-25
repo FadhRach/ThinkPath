@@ -1,9 +1,4 @@
-"""CLI pembangun gold set manusia vs AI berbahasa Indonesia.
-
-Jalankan dari folder ai_experiment:
-
-    python -m src.build_gold_set --target 500
-    python -m src.build_gold_set --target 500 --include-mixed
+"""Pembangun gold set manusia vs AI berbahasa Indonesia (notebooks/01_gold_set.ipynb).
 
 Aman dihentikan di tengah jalan. Hasil sementara disimpan sebagai JSONL di
 data/cache, jadi menjalankan ulang akan melanjutkan, bukan mengulang dari nol.
@@ -11,23 +6,17 @@ Ini penting karena bagian generate memakan ratusan panggilan API.
 """
 from __future__ import annotations
 
-import argparse
 import csv
 import hashlib
 import json
 import random
-import sys
 import time
 from pathlib import Path
 
 from .config import (
     AI_CACHE,
-    DEFAULT_MODELS,
-    GOLD_DIR,
-    GROQ_API_KEY,
     HUMAN_CACHE,
     HUMAN_CUTOFF_DATE,
-    ensure_dirs,
 )
 from .generate import (
     PROMPT_VARIANTS,
@@ -315,82 +304,3 @@ def report(rows: list[dict]) -> None:
         print("\n  Sebaran generator:")
         for name, count in sorted(generators.items()):
             print(f"    {name:<28} {count}")
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Bangun gold set manusia vs AI berbahasa Indonesia."
-    )
-    parser.add_argument("--target", type=int, default=500, help="jumlah abstrak manusia")
-    parser.add_argument(
-        "--models",
-        default=",".join(DEFAULT_MODELS),
-        help="daftar model Groq, dipisah koma",
-    )
-    parser.add_argument(
-        "--include-mixed",
-        action="store_true",
-        help="tambahkan kelas campuran (teks manusia dipoles AI)",
-    )
-    parser.add_argument(
-        "--human-only",
-        action="store_true",
-        help="hanya unduh sisi manusia, lewati pemanggilan LLM",
-    )
-    parser.add_argument(
-        "--split-by",
-        choices=("work", "field"),
-        default="work",
-        help=(
-            "work menjaga pasangan manusia dan AI dari satu judul tetap satu "
-            "sisi. field menguji generalisasi lintas bidang ilmu, lebih keras"
-        ),
-    )
-    parser.add_argument(
-        "--sleep",
-        type=float,
-        default=1.0,
-        help=(
-            "jeda detik antar generasi. Bawaannya 1.0 karena batas laju Groq "
-            "per menit berbeda tiap model, dan tanpa jeda yang gagal selalu "
-            "model terbesar sehingga sebaran generator jadi timpang"
-        ),
-    )
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--out", default=str(GOLD_DIR / "gold_set.csv"))
-    args = parser.parse_args()
-
-    if not args.human_only and not GROQ_API_KEY:
-        print(
-            "GROQ_API_KEY belum di-set, sedangkan tahap generate membutuhkannya.\n"
-            "Isi di ai_experiment/.env, atau jalankan dengan --human-only untuk\n"
-            "mengunduh sisi manusia lebih dulu."
-        )
-        return 1
-
-    ensure_dirs()
-    human_rows = collect_human(args.target)
-    if not human_rows:
-        print("Tidak ada abstrak manusia yang berhasil diambil.")
-        return 1
-
-    rows = list(human_rows)
-    if not args.human_only:
-        models = [name.strip() for name in args.models.split(",") if name.strip()]
-        models = validate_models(models)
-        if not models:
-            return 1
-        rows += collect_ai(
-            human_rows, models, args.include_mixed, args.seed, args.sleep
-        )
-
-    out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    write_csv(rows, out_path, args.split_by)
-    report(rows)
-    print(f"\nTersimpan di {out_path}")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

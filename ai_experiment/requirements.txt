@@ -3,4 +3,11 @@ python-dotenv>=1.0.1,<2
 
 # Dibutuhkan evaluate_baseline untuk mengimpor scorer asli dari
 # backend/apps/analysis. Tidak menyentuh basis data, hanya memuat definisi model.
-Django>=5.2.8,<5.3   # samakan dengan backend/requirements/base.txt
+Django>=5.2.8,<5.3   # samakan dengan backend/requirements.txt
+
+# Notebook (notebooks/): tabel, grafik, dan penjalan notebook.
+pandas>=2.2
+matplotlib>=3.9
+ipykernel>=6.29
+nbclient>=0.10
+nbformat>=5.10

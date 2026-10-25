@@ -32,6 +32,8 @@ from apps.academics.views.submissions import (
     SubmissionDetailView,
     SubmissionListView,
     SubmissionReanalyzeView,
+    SubmissionCompareView,
+    SubmissionSuggestionView,
     TeacherSubmissionQueueView,
 )
 
@@ -58,6 +60,8 @@ __all__ = [
     "SubmissionDocumentView",
     "SubmissionListView",
     "SubmissionReanalyzeView",
+    "SubmissionCompareView",
+    "SubmissionSuggestionView",
     "TeacherAssignmentListView",
     "TeacherOverviewView",
     "TeacherSubmissionQueueView",
