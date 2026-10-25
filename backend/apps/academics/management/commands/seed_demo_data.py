@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from apps.analysis.engines.heuristic import analyze_text
 from apps.academics.services.join_codes import generate_unique_join_code
-from apps.analysis.engines.process_signals import ProcessContext, ProgressSample
+from apps.analysis.engines.process_signals import ProcessContext, ProgressSample, assess_process
 from apps.academics.models import (
     Assignment,
     Class,
@@ -34,8 +34,10 @@ from apps.accounts.models import ConsentAction, EducationLevel, Profile, Role
 from apps.accounts.privacy import SOURCE_SEED, current_consent, items_for, record_consent
 from apps.cekpaham.models import CekPaham, RequestStatus
 from apps.cekpaham.seed import seed_cekpaham_demo
+from apps.forum.seed import seed_forum_demo
 from apps.notifications import events as notify_events
 from apps.notifications.models import Notification, NotificationKind
+from apps.todos.seed import seed_todos_demo
 
 
 SEED_NAMESPACE = uuid.UUID("8c5ff61a-94e0-4f3a-9d4e-4ad27d2e8d3c")
@@ -390,17 +392,17 @@ def _seed_submissions_for_assignment(
         # Tidak ada angka yang ditulis tangan. Seluruh baris demo dihitung
         # pipeline yang sama dengan jalur produksi, termasuk sinyal forensik
         # proses dari cuplikan di atas.
-        analysis = analyze_text(
-            submission.text_answer,
-            assignment.expected_bloom_level,
-            ProcessContext(
-                duration_seconds=duration_seconds,
-                revision_count=revision_count,
-                word_count=len(submission.text_answer.split()),
-                char_count=len(submission.text_answer),
-                progress=tuple(samples),
-            ),
+        process = ProcessContext(
+            duration_seconds=duration_seconds,
+            revision_count=revision_count,
+            word_count=len(submission.text_answer.split()),
+            char_count=len(submission.text_answer),
+            progress=tuple(samples),
         )
+        analysis = analyze_text(submission.text_answer, assignment.expected_bloom_level, process)
+        assessment = assess_process(process)
+        analysis["process_band"] = assessment.band
+        analysis["process_evidence"] = assessment.evidence
         analysis["analysis_source"] = AnalysisSource.SEED
         AnalysisResult.objects.update_or_create(
             submission=submission,
@@ -949,7 +951,10 @@ class Command(BaseCommand):
                     )
                 )
 
-            materials = _seed_materials({"metpen-a": class_metpen, "ekbang-b": class_ekbang})
+            class_labels = {"metpen-a": class_metpen, "ekbang-b": class_ekbang}
+            materials = _seed_materials(class_labels)
+            forum_count = seed_forum_demo(teacher, students, class_labels)
+            seed_todos_demo(students[0])
             notification_count = _seed_notifications(
                 teacher, students, assignments, materials
             )
@@ -957,13 +962,14 @@ class Command(BaseCommand):
         self.stdout.write(
             "Seeded teacher={teacher_id}, classes=2, assignments={assignments}, "
             "submissions={submissions}, analysis_results={submissions}, "
-            "cekpaham={cekpaham}, materials={materials}, "
+            "cekpaham={cekpaham}, materials={materials}, forum_posts={forum}, "
             "notifications={notifications}".format(
                 teacher_id=teacher.id,
                 assignments=len(assignments),
                 submissions=total_submissions,
                 cekpaham=cekpaham_count,
                 materials=len(materials),
+                forum=forum_count,
                 notifications=notification_count,
             )
         )

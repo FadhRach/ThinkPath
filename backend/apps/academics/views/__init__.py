@@ -4,8 +4,8 @@ from apps.academics.views.assignments import (
     TeacherAssignmentListView,
 )
 from apps.academics.views.classes import (
-    ClassAnnouncementView,
     ClassListCreateView,
+    ClassPeopleView,
     ClassRosterView,
     JoinClassView,
 )
@@ -14,6 +14,7 @@ from apps.academics.views.documents import (
     DocumentImportView,
     SubmissionDocumentView,
 )
+from apps.academics.views.drafts import DraftView
 from apps.academics.views.insights import (
     ReportOverviewView,
     StudentCognitiveProfileView,
@@ -31,17 +32,20 @@ from apps.academics.views.submissions import (
     SubmissionDetailView,
     SubmissionListView,
     SubmissionReanalyzeView,
+    SubmissionCompareView,
+    SubmissionSuggestionView,
     TeacherSubmissionQueueView,
 )
 
 __all__ = [
     "AssignmentDetailView",
     "AssignmentListCreateView",
-    "ClassAnnouncementView",
     "ClassListCreateView",
     "ClassMaterialListCreateView",
+    "ClassPeopleView",
     "ClassRosterView",
     "DocumentFileView",
+    "DraftView",
     "DocumentImportView",
     "JoinClassView",
     "MaterialDetailView",
@@ -56,6 +60,8 @@ __all__ = [
     "SubmissionDocumentView",
     "SubmissionListView",
     "SubmissionReanalyzeView",
+    "SubmissionCompareView",
+    "SubmissionSuggestionView",
     "TeacherAssignmentListView",
     "TeacherOverviewView",
     "TeacherSubmissionQueueView",

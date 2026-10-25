@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
+import "@/styles/tokens.css";
 import "./globals.css";
 
 const sans = Plus_Jakarta_Sans({
@@ -11,16 +13,16 @@ const sans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "ThinkPath",
-  description:
-    "Sistem verifikasi pemahaman berbasis proses untuk integritas akademik mahasiswa.",
+  description: "Sistem verifikasi pemahaman berbasis proses untuk integritas akademik mahasiswa.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" className={sans.variable}>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

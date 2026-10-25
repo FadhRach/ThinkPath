@@ -16,19 +16,15 @@ Nomor 4 yang paling berharga. Sinyal dengan korelasi mendekati nol tidak
 membedakan apa pun tetapi tetap menyumbang bobot ke setiap orang, sehingga hanya
 menaikkan skor semua submission secara merata.
 
-Jalankan dari folder ai_experiment:
-
-    python -m src.evaluate_baseline
-    python -m src.evaluate_baseline --split test --mixed-as ai
+Dipakai oleh notebooks/02_baseline_heuristik.ipynb.
 """
 from __future__ import annotations
 
-import argparse
 import csv
 import sys
 from pathlib import Path
 
-from .config import BASE_DIR, GOLD_DIR
+from .config import BASE_DIR
 from .evaluation import CURRENT_HIGH_THRESHOLD, CURRENT_MID_THRESHOLD
 from .metrics import confusion_at, pearson, roc_auc, threshold_at_max_fpr
 
@@ -75,8 +71,7 @@ def bootstrap_backend() -> None:
 def load_rows(path: Path, split: str | None, mixed_as: str) -> list[dict]:
     if not path.exists():
         raise SystemExit(
-            f"{path} belum ada. Bangun dulu dengan:\n"
-            "    python -m src.build_gold_set --target 500"
+            f"{path} belum ada. Bangun dulu lewat notebooks/01_gold_set.ipynb."
         )
 
     rows: list[dict] = []
@@ -158,14 +153,10 @@ def print_overall(scores: list[float], labels: list[int]) -> None:
     )
 
 
-def print_signal_diagnostics(
-    per_signal: dict[str, list[float]], labels: list[int]
-) -> None:
+def signal_diagnostics(per_signal: dict[str, list[float]], labels: list[int]) -> list[dict]:
+    """Korelasi tiap sinyal terhadap label, terkuat lebih dulu, dengan catatan."""
     if len(set(labels)) < 2:
-        return
-
-    print("\nDiagnostik per sinyal")
-    print(f"  {'sinyal':<22} {'korelasi':>9} {'manusia':>9} {'AI':>9}  catatan")
+        return []
 
     rows = []
     for key, values in per_signal.items():
@@ -174,11 +165,6 @@ def print_signal_diagnostics(
         ai_values = [v for v, y in zip(values, labels) if y == 1]
         mean_human = sum(human_values) / len(human_values) if human_values else 0.0
         mean_ai = sum(ai_values) / len(ai_values) if ai_values else 0.0
-        rows.append((key, correlation, mean_human, mean_ai))
-
-    for key, correlation, mean_human, mean_ai in sorted(
-        rows, key=lambda item: abs(item[1]), reverse=True
-    ):
         note = ""
         if abs(correlation) < 0.05:
             note = "MATI, tidak membedakan apa pun"
@@ -186,9 +172,31 @@ def print_signal_diagnostics(
             note = "TERBALIK, arahnya melawan label"
         elif abs(mean_human - mean_ai) < 0.02:
             note = "nyaris identik antar kelas"
+        rows.append(
+            {
+                "sinyal": key,
+                "korelasi": correlation,
+                "rata2_manusia": mean_human,
+                "rata2_ai": mean_ai,
+                "catatan": note,
+            }
+        )
+    return sorted(rows, key=lambda row: abs(row["korelasi"]), reverse=True)
+
+
+def print_signal_diagnostics(
+    per_signal: dict[str, list[float]], labels: list[int]
+) -> None:
+    rows = signal_diagnostics(per_signal, labels)
+    if not rows:
+        return
+
+    print("\nDiagnostik per sinyal")
+    print(f"  {'sinyal':<22} {'korelasi':>9} {'manusia':>9} {'AI':>9}  catatan")
+    for row in rows:
         print(
-            f"  {key:<22} {correlation:>9.3f} {mean_human:>9.3f} "
-            f"{mean_ai:>9.3f}  {note}"
+            f"  {row['sinyal']:<22} {row['korelasi']:>9.3f} {row['rata2_manusia']:>9.3f} "
+            f"{row['rata2_ai']:>9.3f}  {row['catatan']}"
         )
 
     print(
@@ -213,38 +221,3 @@ def print_length_check(rows: list[dict], labels: list[int]) -> None:
             "  Sebagian dari AUC di atas kemungkinan berasal dari panjang,\n"
             "  bukan dari gaya."
         )
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Evaluasi heuristik E1 terhadap gold set."
-    )
-    parser.add_argument("--gold", default=str(GOLD_DIR / "gold_set.csv"))
-    parser.add_argument(
-        "--split",
-        choices=("train", "test"),
-        default=None,
-        help="batasi ke satu split, default memakai semuanya",
-    )
-    parser.add_argument(
-        "--mixed-as",
-        choices=("ai", "human", "exclude"),
-        default="exclude",
-        help="perlakuan untuk kelas campuran",
-    )
-    args = parser.parse_args()
-
-    bootstrap_backend()
-    rows = load_rows(Path(args.gold), args.split, args.mixed_as)
-    if not rows:
-        raise SystemExit("Tidak ada baris yang cocok dengan filter.")
-
-    scores, labels, per_signal = score_rows(rows)
-    print_overall(scores, labels)
-    print_signal_diagnostics(per_signal, labels)
-    print_length_check(rows, labels)
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

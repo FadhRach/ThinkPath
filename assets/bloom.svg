@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 470" width="1200" height="470" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="t">Level Bloom L1 sampai L6</title><desc id="d">Tangga enam level penalaran: mengingat, memahami, menerapkan, menganalisis, mengevaluasi, mencipta</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#086361"/></marker>
+<marker id="arm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5B7377"/></marker>
+<filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F2F33" flood-opacity="0.10"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="468" rx="24" fill="#FFFFFF" stroke="#CFE3E1" stroke-width="2"/>
+<text x="40" y="52" font-size="22" font-weight="800" fill="#0F2F33" text-anchor="start">Tangga level berpikir (Taksonomi Bloom)</text>
+<text x="40" y="78" font-size="14" font-weight="400" fill="#5B7377" text-anchor="start">Dosen memilih target level per tugas. ThinkPath menaksir level yang benar-benar muncul di jawaban.</text>
+<rect x="48" y="290" width="175" height="130" rx="14" fill="#DDF5EC" filter="url(#sh)"/>
+<text x="66" y="334" font-size="30" font-weight="800" fill="#0F2F33" text-anchor="start">L1</text>
+<text x="66" y="362" font-size="16.5" font-weight="800" fill="#0F2F33" text-anchor="start">Mengingat</text>
+<text x="66" y="386" font-size="12.5" font-weight="400" fill="#0F2F33" text-anchor="start">menyebutkan,<tspan x="66" dy="16.9">mendefinisikan</tspan></text>
+<rect x="235" y="254" width="175" height="166" rx="14" fill="#BFEBDD" filter="url(#sh)"/>
+<text x="253" y="298" font-size="30" font-weight="800" fill="#0F2F33" text-anchor="start">L2</text>
+<text x="253" y="326" font-size="16.5" font-weight="800" fill="#0F2F33" text-anchor="start">Memahami</text>
+<text x="253" y="350" font-size="12.5" font-weight="400" fill="#0F2F33" text-anchor="start">menjelaskan,<tspan x="253" dy="16.9">merangkum</tspan></text>
+<rect x="422" y="218" width="175" height="202" rx="14" fill="#8EDDCB" filter="url(#sh)"/>
+<text x="440" y="262" font-size="30" font-weight="800" fill="#0F2F33" text-anchor="start">L3</text>
+<text x="440" y="290" font-size="16.5" font-weight="800" fill="#0F2F33" text-anchor="start">Menerapkan</text>
+<text x="440" y="314" font-size="12.5" font-weight="400" fill="#0F2F33" text-anchor="start">memakai konsep<tspan x="440" dy="16.9">pada kasus</tspan></text>
+<rect x="609" y="182" width="175" height="238" rx="14" fill="#2FB5AC" filter="url(#sh)"/>
+<text x="627" y="226" font-size="30" font-weight="800" fill="#FFFFFF" text-anchor="start">L4</text>
+<text x="627" y="254" font-size="16.5" font-weight="800" fill="#FFFFFF" text-anchor="start">Menganalisis</text>
+<text x="627" y="278" font-size="12.5" font-weight="400" fill="#FFFFFF" text-anchor="start">membandingkan,<tspan x="627" dy="16.9">mengaitkan sebab-akibat</tspan></text>
+<rect x="796" y="146" width="175" height="274" rx="14" fill="#0E8A87" filter="url(#sh)"/>
+<text x="814" y="190" font-size="30" font-weight="800" fill="#FFFFFF" text-anchor="start">L5</text>
+<text x="814" y="218" font-size="16.5" font-weight="800" fill="#FFFFFF" text-anchor="start">Mengevaluasi</text>
+<text x="814" y="242" font-size="12.5" font-weight="400" fill="#FFFFFF" text-anchor="start">mengkritik,<tspan x="814" dy="16.9">membela pilihan</tspan></text>
+<rect x="983" y="110" width="175" height="310" rx="14" fill="#086361" filter="url(#sh)"/>
+<text x="1001" y="154" font-size="30" font-weight="800" fill="#FFFFFF" text-anchor="start">L6</text>
+<text x="1001" y="182" font-size="16.5" font-weight="800" fill="#FFFFFF" text-anchor="start">Mencipta</text>
+<text x="1001" y="206" font-size="12.5" font-weight="400" fill="#FFFFFF" text-anchor="start">merancang,<tspan x="1001" dy="16.9">mengusulkan</tspan></text>
+<path d="M60 452 H1140" stroke="#CFE3E1" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="60" y="446" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">dasar</text>
+<text x="1140" y="446" font-size="12" font-weight="400" fill="#5B7377" text-anchor="end">tingkat lanjut</text>
+</svg>

@@ -22,6 +22,8 @@ class NotificationKind(models.TextChoices):
     DEADLINE_SOON = "deadline_soon", "Tenggat dekat"
     CEKPAHAM_NEW = "cekpaham_new", "Cek Paham"
     CEKPAHAM_RESOLVED = "cekpaham_resolved", "Laporan Cek Paham ditanggapi"
+    FORUM_POST_NEW = "forum_post_new", "Topik forum baru"
+    FORUM_REPLY_NEW = "forum_reply_new", "Balasan forum"
     # Untuk dosen
     SUBMISSIONS_NEW = "submissions_new", "Pengumpulan baru"
     STUDENTS_JOINED = "students_joined", "Mahasiswa bergabung"

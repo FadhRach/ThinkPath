@@ -5,7 +5,7 @@ COMPOSE := docker compose
 export COMPOSE_ENV_FILES := $(if $(wildcard .env.docker),.env.docker,.env)
 PY := $(if $(wildcard venv/bin/python),venv/bin/python,python)
 
-.PHONY: help dev test seed-local up down restart logs ps migrate seed shell psql backup restore deploy prune
+.PHONY: help dev test seed-local up down restart logs logs-worker ps migrate seed shell psql backup restore deploy prune
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-11s %s\n", $$1, $$2}'
@@ -28,11 +28,14 @@ up: ## build + jalankan db, api, caddy
 down: ## hentikan container (data tetap di volume)
 	$(COMPOSE) down
 
-restart: ## restart api saja
-	$(COMPOSE) restart api
+restart: ## restart api dan worker
+	$(COMPOSE) restart api worker
 
 logs: ## ikuti log api
 	$(COMPOSE) logs -f --tail=100 api
+
+logs-worker: ## ikuti log worker analisis
+	$(COMPOSE) logs -f --tail=100 worker
 
 ps: ## status + healthcheck tiap container
 	$(COMPOSE) ps

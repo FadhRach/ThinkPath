@@ -74,19 +74,20 @@ class SubmissionRaceTest(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Submission.objects.count(), 1)
 
-    def test_revision_rejected_when_graded_during_analysis(self):
+    def test_revision_rejected_when_graded_meanwhile(self):
         """Dosen menilai selagi analisis revisi masih berjalan."""
         self.assertEqual(self._post().status_code, 201)
         submission = Submission.objects.get()
-        real_analyse = submission_service._analyse_for
+        real_verified = submission_service.verified_source
 
         def grade_meanwhile(*args, **kwargs):
+            # Dosen menilai setelah pemeriksaan awal, sebelum baris dikunci.
             Submission.objects.filter(pk=submission.pk).update(
                 status=SubmissionStatus.REVIEWED, grade=80
             )
-            return real_analyse(*args, **kwargs)
+            return real_verified(*args, **kwargs)
 
-        with patch.object(submission_service, "_analyse_for", side_effect=grade_meanwhile):
+        with patch.object(submission_service, "verified_source", side_effect=grade_meanwhile):
             response = self._post()
         self.assertEqual(response.status_code, 400)
         submission.refresh_from_db()
@@ -103,7 +104,7 @@ class SubmissionRaceTest(TestCase):
         self.assertEqual(self._post().status_code, 201)
         with self.assertRaises(ValidationError):
             submission_service._create(
-                self.assignment, self.student, {"text_answer": ANSWER}, False
+                self.assignment, self.student, {"text_answer": ANSWER}
             )
 
 

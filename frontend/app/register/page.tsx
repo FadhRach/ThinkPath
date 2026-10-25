@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { AuthLayout } from "@/components/auth/AuthLayout";
-import { EmailPasswordForm } from "@/components/auth/EmailPasswordForm";
-import { PolicyArticle } from "@/components/privacy/PolicyArticle";
+import { AuthLayout } from "@/features/auth/components/AuthLayout";
+import { EmailPasswordForm } from "@/features/auth/components/EmailPasswordForm";
+import { PolicyArticle } from "@/features/privacy/components/PolicyArticle";
 
 export default function RegisterPage() {
   return (
@@ -12,7 +12,7 @@ export default function RegisterPage() {
       footer={
         <>
           Sudah punya akun?{" "}
-          <Link href="/login" className="font-semibold text-primary">
+          <Link href="/login" className="font-semibold text-brand-ink">
             Masuk
           </Link>
         </>

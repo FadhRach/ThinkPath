@@ -21,11 +21,14 @@ from apps.academics.selectors import (
 from apps.academics.serializers import (
     ClassPublicSerializer,
     MaterialSerializer,
+    StudentAssignmentDetailSerializer,
     StudentAssignmentSerializer,
     StudentSubmissionStatusListSerializer,
     StudentSubmissionStatusSerializer,
 )
+from apps.academics.services.drafts import get_draft
 from apps.accounts.permissions import IsStudent
+from apps.accounts.services import get_request_profile
 from common.http import request_user_id
 
 # Rentang kalender terlebar per permintaan: tampilan bulan memuat paling
@@ -74,7 +77,11 @@ class StudentClassListView(APIView):
                     "education_level": membership.class_ref.education_level,
                     "program_studi": membership.class_ref.program_studi,
                     "semester": membership.class_ref.semester,
-                    "teacher_name": membership.class_ref.owner.label,
+                    "teacher_name": (
+                        membership.class_ref.owner.label if membership.class_ref.owner else None
+                    ),
+                    "is_archived": membership.class_ref.is_archived,
+                    "owner_left_at": membership.class_ref.owner_left_at,
                     "joined_at": membership.joined_at,
                     "assignments": assignments_by_class.get(membership.class_ref_id, []),
                 }
@@ -93,12 +100,24 @@ class StudentAssignmentDetailView(APIView):
         submission = student_submissions_by_assignment(
             request_user_id(request), [assignment.id]
         ).get(assignment.id)
+        draft = None if submission else get_draft(assignment, get_request_profile(request))
         return Response(
             {
                 "class": ClassPublicSerializer(assignment.class_ref).data,
-                "assignment": StudentAssignmentSerializer(assignment).data,
+                "assignment": StudentAssignmentDetailSerializer(assignment).data,
                 "submission": (
                     StudentSubmissionStatusSerializer(submission).data if submission else None
+                ),
+                # Draf tersimpan agar halaman yang ditutup tidak menghilangkan tulisan.
+                "draft": (
+                    {
+                        "text_answer": draft.text_answer,
+                        "rich_answer": draft.rich_answer,
+                        "document_id": draft.document_id,
+                        "saved_at": draft.last_saved_at,
+                    }
+                    if draft
+                    else None
                 ),
             }
         )

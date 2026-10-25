@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="t">Arsitektur ThinkPath</title><desc id="d">Browser ke Next.js di Vercel, lalu Caddy, Django dan PostgreSQL di VPS Jakarta, analisis memanggil Winston dan Groq</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#086361"/></marker>
+<marker id="arm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5B7377"/></marker>
+<filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F2F33" flood-opacity="0.10"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="418" rx="24" fill="#FFFFFF" stroke="#CFE3E1" stroke-width="2"/>
+<text x="40" y="52" font-size="22" font-weight="800" fill="#0F2F33" text-anchor="start">Arsitektur</text>
+<rect x="40" y="130" width="150" height="80" rx="14" fill="#fff" stroke="#5B7377" stroke-width="2" filter="url(#sh)"/>
+<text x="115.0" y="168.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">Browser</text>
+<text x="115.0" y="188.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">dosen / mahasiswa</text>
+<rect x="250" y="130" width="170" height="80" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<text x="335.0" y="168.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">Next.js 15</text>
+<text x="335.0" y="188.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">Vercel · /bff proxy</text>
+<rect x="470" y="80" width="700" height="300" rx="20" fill="#EEF7F6" stroke="#086361" stroke-width="2" stroke-dasharray="9 7"/>
+<text x="492" y="110" font-size="13.5" font-weight="800" fill="#086361" text-anchor="start">VPS IDCloudHost, Jakarta · Docker Compose</text>
+<rect x="496" y="130" width="130" height="80" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<text x="561.0" y="168.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">Caddy</text>
+<text x="561.0" y="188.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">HTTPS otomatis</text>
+<rect x="676" y="130" width="190" height="80" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<text x="771.0" y="168.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">Django + DRF</text>
+<text x="771.0" y="188.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">gunicorn · JWT</text>
+<rect x="950" y="130" width="190" height="80" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<text x="1045.0" y="168.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">PostgreSQL 17</text>
+<text x="1045.0" y="188.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">data + antrean job</text>
+<rect x="676" y="270" width="190" height="80" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<text x="771.0" y="308.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">Worker analisis</text>
+<text x="771.0" y="328.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">run_analysis_worker</text>
+<line x1="190" y1="170" x2="250" y2="170" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<line x1="420" y1="170" x2="496" y2="170" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<line x1="626" y1="170" x2="676" y2="170" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<line x1="866" y1="170" x2="950" y2="170" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<path d="M771 210 V270" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<path d="M866 310 H1045 V210" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<rect x="250" y="266" width="170" height="52" rx="14" fill="#fff" stroke="#5B7377" stroke-width="2" filter="url(#sh)"/>
+<text x="335.0" y="290.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">Winston AI</text>
+<text x="335.0" y="310.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">Kanada</text>
+<rect x="250" y="332" width="170" height="52" rx="14" fill="#fff" stroke="#5B7377" stroke-width="2" filter="url(#sh)"/>
+<text x="335.0" y="356.0" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="middle">Groq</text>
+<text x="335.0" y="376.0" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">Amerika Serikat</text>
+<path d="M676 300 H560 V292 H420" stroke="#5B7377" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arm)"/>
+<path d="M676 322 H560 V358 H420" stroke="#5B7377" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arm)"/>
+<text x="40" y="90" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Browser tidak pernah menyentuh database, semua lewat API Django.</text>
+<text x="40" y="110" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Layanan luar hanya menerima teks, tanpa nama atau email.</text>
+</svg>

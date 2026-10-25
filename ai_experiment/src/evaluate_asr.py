@@ -1,10 +1,7 @@
 """Membandingkan model ASR untuk Cek Paham: WER, CER, istilah kunci, latensi, halusinasi.
 
 Masukan: data/asr_clips/manifest.csv + berkas audio (lihat protocol/cekpaham_clip_recording.md).
-Keluaran: results/asr_report.md dan results/asr_clips.csv (per klip).
-
-    python -m src.evaluate_asr
-    python -m src.evaluate_asr --adapters groq-turbo,groq-large-v3 --limit 10
+Dipakai oleh notebooks/06_cekpaham_asr_dan_penilai.ipynb.
 
 Hasil per (model, klip) disimpan di cache JSONL dengan kunci yang memuat nama model
 dan isi berkas, jadi menjalankan ulang tidak membayar dua kali dan berhenti anggun
@@ -12,17 +9,14 @@ saat kuota Groq habis. Keputusan model ASR mengacu pada laporan ini, bukan angka
 """
 from __future__ import annotations
 
-import argparse
 import csv
 import hashlib
 import statistics
-from collections import defaultdict
 from pathlib import Path
 
 from .asr import wer
-from .asr.adapters import AsrResult, QuotaExhausted, build_adapter
-from .config import ASR_CLIPS_DIR, CACHE_DIR, RESULTS_DIR, ensure_dirs
-from .evaluate_baseline import bootstrap_backend
+from .asr.adapters import AsrResult, QuotaExhausted
+from .config import CACHE_DIR
 from .evaluation import JsonCache, ScoreCache
 
 CACHE = JsonCache(CACHE_DIR / "asr_results.jsonl")
@@ -159,32 +153,3 @@ def write_clip_csv(all_results: dict[str, list[dict]], path: Path) -> None:
             for r in rows:
                 errors, length = wer.word_errors(r["reference_text"], r["hyp"]) if r["style"] != SILENT_STYLE else ("", "")
                 out.writerow([name, r["clip_id"], r["language"], r["device"], r["noise"], r["style"], errors, length, f"{r['seconds']:.2f}", r["hyp"]])
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--clips-dir", type=Path, default=ASR_CLIPS_DIR)
-    parser.add_argument("--adapters", default=",".join(DEFAULT_ADAPTERS))
-    parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR, help="Tempat laporan ditulis.")
-    parser.add_argument("--limit", type=int, default=0, help="Batasi jumlah klip (0 = semua).")
-    parser.add_argument("--sleep", type=float, default=3.0, help="Jeda antar panggilan API, agar di bawah batas per menit.")
-    args = parser.parse_args()
-
-    ensure_dirs()
-    bootstrap_backend()
-    rows = read_manifest(args.clips_dir)
-    rows = rows[: args.limit] if args.limit else rows
-    all_results: dict[str, list[dict]] = {}
-    for name in args.adapters.split(","):
-        print(f"\n== {name} ({len(rows)} klip)")
-        all_results[name] = transcribe_all(build_adapter(name.strip()), rows, args.sleep)
-    report = build_report(all_results)
-    args.results_dir.mkdir(parents=True, exist_ok=True)
-    (args.results_dir / "asr_report.md").write_text(report, encoding="utf-8")
-    write_clip_csv(all_results, args.results_dir / "asr_clips.csv")
-    print("\n" + report)
-    print(f"Disimpan di {args.results_dir}/asr_report.md dan asr_clips.csv")
-
-
-if __name__ == "__main__":
-    main()

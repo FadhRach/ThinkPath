@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" width="1200" height="690" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="t">Lapisan analisis ThinkPath</title><desc id="d">Dua mesin analisis yang saling bebas: skor indikasi AI dengan tiga lapis cadangan dan level Bloom dengan dua lapis</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#086361"/></marker>
+<marker id="arm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5B7377"/></marker>
+<filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F2F33" flood-opacity="0.10"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="688" rx="24" fill="#FFFFFF" stroke="#CFE3E1" stroke-width="2"/>
+<text x="40" y="52" font-size="22" font-weight="800" fill="#0F2F33" text-anchor="start">Dua mesin analisis, saling tidak membaca</text>
+<text x="40" y="78" font-size="14" font-weight="400" fill="#5B7377" text-anchor="start">Level Bloom tidak pernah memengaruhi skor AI. Aturan ini dijaga uji otomatis yang membaca kode.</text>
+<rect x="40" y="270" width="170" height="110" rx="16" fill="#FFE3EC" stroke="#F2A6BC" stroke-width="2" filter="url(#sh)"/>
+<text x="125" y="318" font-size="17" font-weight="800" fill="#0F2F33" text-anchor="middle">Jawaban</text>
+<text x="125" y="342" font-size="17" font-weight="800" fill="#0F2F33" text-anchor="middle">mahasiswa</text>
+<path d="M210 325 C 240 325 235 210 262 210" stroke="#5B7377" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arm)"/>
+<path d="M210 325 C 240 325 235 430 262 430" stroke="#5B7377" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arm)"/>
+<rect x="264" y="104" width="896" height="220" rx="18" fill="#EEF7F6" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="284" y="134" font-size="17" font-weight="800" fill="#086361" text-anchor="start">E1  Indikasi AI</text>
+<text x="1140" y="134" font-size="13" font-weight="400" fill="#5B7377" text-anchor="end">skor 0-100</text>
+<rect x="284" y="160" width="200" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="306" cy="184" r="13" fill="#086361"/>
+<text x="306" y="189.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="330" y="190" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">Winston AI</text>
+<text x="302" y="218" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Detektor eksternal.<tspan x="302" dy="16.9">Skor manusia dibalik</tspan><tspan x="302" dy="16.9">satu kali.</tspan></text>
+<rect x="544" y="160" width="200" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="566" cy="184" r="13" fill="#086361"/>
+<text x="566" y="189.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="590" y="190" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">Groq</text>
+<text x="562" y="218" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Model bahasa menilai<tspan x="562" dy="16.9">probabilitas AI.</tspan></text>
+<rect x="804" y="160" width="200" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="826" cy="184" r="13" fill="#086361"/>
+<text x="826" y="189.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="850" y="190" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">Heuristik lokal</text>
+<text x="822" y="218" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">5 sinyal teks, tanpa<tspan x="822" dy="16.9">layanan luar.</tspan></text>
+<line x1="484" y1="212" x2="544" y2="212" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<line x1="744" y1="212" x2="804" y2="212" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<text x="514" y="196" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">bila gagal</text>
+<text x="774" y="196" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">bila gagal</text>
+<text x="284" y="300" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Layanan luar diam atau kunci kosong: lapis berikutnya mengambil alih, pengumpulan tidak pernah terblokir.</text>
+<rect x="1030" y="160" width="112" height="104" rx="14" fill="#fff" stroke="#CFE3E1" stroke-width="1.5"/>
+<circle cx="1048" cy="184" r="6" fill="#DD5C7A"/>
+<text x="1062" y="189" font-size="12" font-weight="600" fill="#0F2F33" text-anchor="start">tinggi  ≥ 70</text>
+<circle cx="1048" cy="212" r="6" fill="#CC9B14"/>
+<text x="1062" y="217" font-size="12" font-weight="600" fill="#0F2F33" text-anchor="start">sedang  42-69</text>
+<circle cx="1048" cy="240" r="6" fill="#2C9A62"/>
+<text x="1062" y="245" font-size="12" font-weight="600" fill="#0F2F33" text-anchor="start">rendah  &lt; 42</text>
+<rect x="264" y="350" width="896" height="150" rx="18" fill="#EEF7F6" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="284" y="380" font-size="17" font-weight="800" fill="#086361" text-anchor="start">E2  Level Bloom</text>
+<text x="1140" y="380" font-size="13" font-weight="400" fill="#5B7377" text-anchor="end">L1 sampai L6</text>
+<rect x="284" y="396" width="200" height="90" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="306" cy="420" r="13" fill="#086361"/>
+<text x="306" y="425.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="330" y="426" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">Groq</text>
+<text x="302" y="454" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Menaksir level + bukti.</text>
+<rect x="544" y="396" width="200" height="90" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="566" cy="420" r="13" fill="#086361"/>
+<text x="566" y="425.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="590" y="426" font-size="16" font-weight="800" fill="#0F2F33" text-anchor="start">Heuristik lokal</text>
+<text x="562" y="454" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Kata kerja dan struktur.</text>
+<line x1="484" y1="441" x2="544" y2="441" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<text x="514" y="428" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="middle">bila gagal</text>
+<rect x="804" y="396" width="338" height="90" rx="14" fill="#fff" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="824" y="426" font-size="13" font-weight="800" fill="#086361" text-anchor="start">Keluaran</text>
+<text x="824" y="450" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Level, tingkat keyakinan,<tspan x="824" dy="16.9">dan kutipan bukti.</tspan></text>
+<rect x="264" y="326" width="896" height="22" rx="11" fill="#fff" stroke="#DD5C7A" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="712" y="342" font-size="12" font-weight="700" fill="#DD5C7A" text-anchor="middle">tembok: E1 dan E2 tidak saling membaca hasil</text>
+<rect x="40" y="524" width="1120" height="140" rx="18" fill="#fff" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="62" y="554" font-size="16" font-weight="800" fill="#086361" text-anchor="start">Bukti pendukung untuk dosen (tidak menambah skor AI)</text>
+<rect x="62" y="574" width="345" height="70" rx="12" fill="#EEF7F6"/>
+<text x="78" y="602" font-size="14.5" font-weight="800" fill="#0F2F33" text-anchor="start">Pola pengerjaan</text>
+<text x="78" y="624" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">Kurva pertumbuhan kata, durasi,<tspan x="78" dy="16.2">revisi. Dilaporkan terpisah.</tspan></text>
+<rect x="427" y="574" width="345" height="70" rx="12" fill="#EEF7F6"/>
+<text x="443" y="602" font-size="14.5" font-weight="800" fill="#0F2F33" text-anchor="start">Penanda gaya teks</text>
+<text x="443" y="624" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">Sisa salinan obrolan: simbol poin,<tspan x="443" dy="16.2">markdown, kalimat penutup, emoji.</tspan></text>
+<rect x="792" y="574" width="345" height="70" rx="12" fill="#EEF7F6"/>
+<text x="808" y="602" font-size="14.5" font-weight="800" fill="#0F2F33" text-anchor="start">Kemiripan antar jawaban</text>
+<text x="808" y="624" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">Potongan 5 kata yang sama persis<tspan x="808" dy="16.2">pada tugas yang sama.</tspan></text>
+</svg>

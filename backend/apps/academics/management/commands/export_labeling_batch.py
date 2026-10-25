@@ -130,6 +130,6 @@ class Command(BaseCommand):
             "selesai:"
         )
         self.stdout.write(
-            "  python -m src.evaluate_bloom --raters "
-            "data/labels/penilai1.csv data/labels/penilai2.csv"
+            "  salin ke ai_experiment/data/labels/ sebagai penilai1.csv dan penilai2.csv, "
+            "lalu jalankan ai_experiment/notebooks/05_validasi_bloom.ipynb"
         )

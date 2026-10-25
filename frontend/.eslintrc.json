@@ -1,3 +1,71 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "overrides": [
+    {
+      "files": ["components/ui/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/components/shared/*",
+                  "@/components/layout/*",
+                  "@/components/charts/*",
+                  "@/features/*"
+                ],
+                "message": "components/ui hanya boleh bergantung pada lib/ dan sesama ui."
+              },
+              {
+                "group": ["@/app/*"],
+                "message": "Kode di luar app/ tidak boleh mengimpor dari app/."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["components/shared/**/*.{ts,tsx}", "components/charts/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/features/*", "@/components/layout/*"],
+                "message": "shared/charts adalah lapisan dasar: tidak boleh mengimpor features atau layout."
+              },
+              {
+                "group": ["@/app/*"],
+                "message": "Kode di luar app/ tidak boleh mengimpor dari app/."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "features/**/*.{ts,tsx}",
+        "components/layout/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx}",
+        "hooks/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/app/*"],
+                "message": "Kode di luar app/ tidak boleh mengimpor dari app/."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

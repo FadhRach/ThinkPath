@@ -29,7 +29,7 @@ flowchart TD
     VER --> ANT["/dashboard/cekpaham<br/>Daftar & hasil"]
 
     OV --> TGS["/dashboard/tugas<br/>Seluruh tugas lintas kelas"]
-    OV --> LAP["/dashboard/laporan<br/>Agregat prodi & semester"]
+    OV --> LAP["/dashboard/analitik<br/>Per kelas + lintas kelas (prodi, semester)"]
 
     classDef utama fill:#E8F4F5,stroke:#0E7C86,stroke-width:2px
     classDef biasa fill:#F4FAFA,stroke:#9AB8BB

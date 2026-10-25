@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="t">Cek Paham</title><desc id="d">Tes lisan singkat: dosen meminta, mahasiswa menjawab dengan suara, server membuat transkrip, penilai memberi level, dosen menerima saran skor</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#086361"/></marker>
+<marker id="arm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5B7377"/></marker>
+<filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F2F33" flood-opacity="0.10"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="498" rx="24" fill="#FFFFFF" stroke="#CFE3E1" stroke-width="2"/>
+<text x="40" y="52" font-size="22" font-weight="800" fill="#0F2F33" text-anchor="start">Cek Paham: tes lisan singkat</text>
+<text x="40" y="78" font-size="14" font-weight="400" fill="#5B7377" text-anchor="start">Mahasiswa menjelaskan jawabannya sendiri dengan suara. Hasilnya saran, bukan nilai.</text>
+<rect x="40" y="104" width="206" height="150" rx="16" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="64" cy="132" r="13" fill="#086361"/>
+<text x="64" y="137.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="86" y="138" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="start">Dosen minta</text>
+<text x="58" y="172" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Satu soal konfirmasi<tspan x="58" dy="16.9">dari jawaban tertulis,</tspan><tspan x="58" dy="16.9">plus jendela waktu.</tspan></text>
+<line x1="248" y1="179" x2="264" y2="179" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="266" y="104" width="206" height="150" rx="16" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="290" cy="132" r="13" fill="#086361"/>
+<text x="290" y="137.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="312" y="138" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="start">Mahasiswa jawab</text>
+<text x="284" y="172" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Hanya dengan suara,<tspan x="284" dy="16.9">ada batas waktu.</tspan><tspan x="284" dy="16.9">Tanpa mengetik.</tspan></text>
+<line x1="474" y1="179" x2="490" y2="179" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="492" y="104" width="206" height="150" rx="16" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="516" cy="132" r="13" fill="#086361"/>
+<text x="516" y="137.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="538" y="138" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="start">Server menyalin</text>
+<text x="510" y="172" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Whisper (Groq) membuat<tspan x="510" dy="16.9">transkrip resmi dari</tspan><tspan x="510" dy="16.9">rekaman penuh.</tspan></text>
+<line x1="700" y1="179" x2="716" y2="179" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="718" y="104" width="206" height="150" rx="16" fill="#fff" stroke="#CC9B14" stroke-width="2" filter="url(#sh)"/>
+<circle cx="742" cy="132" r="13" fill="#CC9B14"/>
+<text x="742" y="137.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="764" y="138" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="start">Penilai memberi level</text>
+<text x="736" y="172" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Model menilai 4 dimensi,<tspan x="736" dy="16.9">level 0-3. Skor dihitung</tspan><tspan x="736" dy="16.9">oleh kode.</tspan></text>
+<line x1="926" y1="179" x2="942" y2="179" stroke="#086361" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="944" y="104" width="206" height="150" rx="16" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="968" cy="132" r="13" fill="#086361"/>
+<text x="968" y="137.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="990" y="138" font-size="15" font-weight="800" fill="#0F2F33" text-anchor="start">Dosen terima</text>
+<text x="962" y="172" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Audio, transkrip, skor<tspan x="962" dy="16.9">saran, dan kutipan</tspan><tspan x="962" dy="16.9">bukti.</tspan></text>
+<rect x="40" y="284" width="690" height="190" rx="18" fill="#EEF7F6" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="62" y="314" font-size="16" font-weight="800" fill="#086361" text-anchor="start">Empat dimensi penilaian</text>
+<text x="62" y="353" font-size="13.5" font-weight="600" fill="#0F2F33" text-anchor="start">Ketepatan konsep</text>
+<rect x="380" y="338" width="270" height="20" rx="10" fill="#fff"/>
+<rect x="380" y="338" width="252.0" height="20" rx="10" fill="#086361"/>
+<text x="662" y="354" font-size="14" font-weight="800" fill="#0F2F33" text-anchor="start">35%</text>
+<text x="62" y="386" font-size="13.5" font-weight="600" fill="#0F2F33" text-anchor="start">Konsistensi dengan jawaban tertulis</text>
+<rect x="380" y="371" width="270" height="20" rx="10" fill="#fff"/>
+<rect x="380" y="371" width="180.0" height="20" rx="10" fill="#0ABAB5"/>
+<text x="662" y="387" font-size="14" font-weight="800" fill="#0F2F33" text-anchor="start">25%</text>
+<text x="62" y="419" font-size="13.5" font-weight="600" fill="#0F2F33" text-anchor="start">Kedalaman penjelasan</text>
+<rect x="380" y="404" width="270" height="20" rx="10" fill="#fff"/>
+<rect x="380" y="404" width="180.0" height="20" rx="10" fill="#0ABAB5"/>
+<text x="662" y="420" font-size="14" font-weight="800" fill="#0F2F33" text-anchor="start">25%</text>
+<text x="62" y="452" font-size="13.5" font-weight="600" fill="#0F2F33" text-anchor="start">Keakraban dengan isi jawaban</text>
+<rect x="380" y="437" width="270" height="20" rx="10" fill="#fff"/>
+<rect x="380" y="437" width="108.0" height="20" rx="10" fill="#0ABAB5"/>
+<text x="662" y="453" font-size="14" font-weight="800" fill="#0F2F33" text-anchor="start">15%</text>
+<rect x="760" y="284" width="400" height="190" rx="18" fill="#fff" stroke="#CC9B14" stroke-width="2"/>
+<text x="782" y="314" font-size="16" font-weight="800" fill="#CC9B14" text-anchor="start">Pita skor saran</text>
+<circle cx="792" cy="333" r="7" fill="#2C9A62"/>
+<text x="810" y="338" font-size="13.5" font-weight="700" fill="#0F2F33" text-anchor="start">Terlihat paham</text>
+<text x="1138" y="338" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="end">70 ke atas</text>
+<circle cx="792" cy="363" r="7" fill="#CC9B14"/>
+<text x="810" y="368" font-size="13.5" font-weight="700" fill="#0F2F33" text-anchor="start">Paham sebagian</text>
+<text x="1138" y="368" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="end">40 sampai 69</text>
+<circle cx="792" cy="393" r="7" fill="#DD5C7A"/>
+<text x="810" y="398" font-size="13.5" font-weight="700" fill="#0F2F33" text-anchor="start">Perlu ditinjau dosen</text>
+<text x="1138" y="398" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="end">di bawah 40</text>
+<text x="782" y="436" font-size="12" font-weight="600" fill="#CC9B14" text-anchor="start">Belum dikalibrasi. Tidak mengubah skor AI<tspan x="782" dy="16.2">atau nilai. Keputusan tetap di dosen.</tspan></text>
+</svg>

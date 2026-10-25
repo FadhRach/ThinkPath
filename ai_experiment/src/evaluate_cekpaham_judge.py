@@ -20,11 +20,10 @@ Urutannya penting, jangan dibalik:
 Bila kriteria gagal, perbaiki rubrik atau prompt. JANGAN menggeser ambang band sampai terlihat
 bagus; ambang diisi dan label "belum dikalibrasi" dicabut hanya bila hasil ini mendukung.
 
-    python -m src.evaluate_cekpaham_judge [--limit N] [--sleep 20]
+Dipakai oleh notebooks/06_cekpaham_asr_dan_penilai.ipynb.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import random
 import statistics
@@ -33,8 +32,7 @@ from pathlib import Path
 from typing import Callable
 
 from .agreement import compare_raters
-from .config import CACHE_DIR, JUDGE_GOLD_DIR, RESULTS_DIR, ensure_dirs
-from .evaluate_baseline import bootstrap_backend
+from .config import CACHE_DIR
 from .evaluation import JsonCache, ScoreCache
 from .metrics import pearson
 
@@ -208,38 +206,3 @@ def build_report(humans: dict, machine: dict, corr: float, stab: dict, inj: dict
         "", "Keterbatasan: puluhan sesi saja, penilai manusia sedikit, dan sesi berasal dari tim sendiri.",
     ]
     return "\n".join(lines) + "\n"
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--sessions", type=Path, default=JUDGE_GOLD_DIR / "sessions.jsonl")
-    parser.add_argument("--limit", type=int, default=0)
-    # Satu sesi ≈ 4.100 token dari jatah 8.000/menit Groq yang dipakai bersama: jeda ~20 dtk aman.
-    parser.add_argument("--sleep", type=float, default=20.0)
-    args = parser.parse_args()
-
-    ensure_dirs()
-    bootstrap_backend()
-    from apps.cekpaham import rubric
-
-    sessions = read_sessions(args.sessions)
-    sessions = sessions[: args.limit] if args.limit else sessions
-    judge_fn = production_judge()
-    base = run_variant(sessions, "base", judge_fn, lambda s: s["transcript"], args.sleep)
-    injected = run_variant(sessions, "injection", judge_fn, lambda s: inject(s["transcript"]), args.sleep)
-    noisy = run_variant(sessions, "asr-noise", judge_fn, lambda s: asr_noise(s["transcript"], s["id"]), args.sleep)
-
-    report = build_report(
-        human_agreement(sessions),
-        judge_vs_consensus(sessions, base),
-        score_correlation(sessions, base, rubric.score_from_levels),
-        stability(base),
-        shift_report(base, injected),
-        shift_report(base, noisy),
-    )
-    (RESULTS_DIR / "cekpaham_judge_report.md").write_text(report, encoding="utf-8")
-    print(report)
-
-
-if __name__ == "__main__":
-    main()

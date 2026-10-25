@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650" width="1200" height="650" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="t">Alur kerja ThinkPath</title><desc id="d">Dosen membuat tugas, mahasiswa mengerjakan dengan proses terekam, sistem menganalisis, dosen meninjau bukti, Cek Paham opsional, lalu menilai</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#086361"/></marker>
+<marker id="arm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5B7377"/></marker>
+<filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F2F33" flood-opacity="0.10"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="648" rx="24" fill="#FFFFFF" stroke="#CFE3E1" stroke-width="2"/>
+<text x="40" y="48" font-size="22" font-weight="800" fill="#0F2F33" text-anchor="start">Alur kerja ThinkPath</text>
+<text x="1160" y="48" font-size="13" font-weight="400" fill="#5B7377" text-anchor="end">garis putus-putus = opsional</text>
+<rect x="24" y="70" width="1152" height="160" rx="16" fill="#EEF7F6" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="44" y="100" font-size="15" font-weight="800" fill="#086361" text-anchor="start">Dosen</text>
+<rect x="24" y="240" width="1152" height="160" rx="16" fill="#FFF7FA" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="44" y="270" font-size="15" font-weight="800" fill="#086361" text-anchor="start">Mahasiswa</text>
+<rect x="24" y="410" width="1152" height="160" rx="16" fill="#F3F7FF" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="44" y="440" font-size="15" font-weight="800" fill="#086361" text-anchor="start">Sistem ThinkPath</text>
+<rect x="180" y="106" width="176" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="200" cy="128" r="13" fill="#086361"/>
+<text x="200" y="133.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="222" y="134" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Buat tugas</text>
+<text x="196" y="162" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Tulis instruksi,<tspan x="196" dy="16.9">pilih target L1-L6</tspan></text>
+<rect x="384" y="276" width="176" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="404" cy="298" r="13" fill="#086361"/>
+<text x="404" y="303.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="426" y="304" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Kerjakan</text>
+<text x="400" y="332" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Ketik di editor atau<tspan x="400" dy="16.9">unggah dokumen</tspan></text>
+<text x="400" y="370" font-size="11.5" font-weight="700" fill="#086361" text-anchor="start">kata dicatat tiap 30 dtk</text>
+<rect x="384" y="446" width="176" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="404" cy="468" r="13" fill="#086361"/>
+<text x="404" y="473.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="426" y="474" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Simpan</text>
+<text x="400" y="502" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Jawaban tersimpan,<tspan x="400" dy="16.9">analisis masuk antrean</tspan></text>
+<rect x="588" y="446" width="176" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="608" cy="468" r="13" fill="#086361"/>
+<text x="608" y="473.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="630" y="474" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Analisis otomatis</text>
+<text x="604" y="502" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Indikasi AI, level Bloom,<tspan x="604" dy="16.9">penanda gaya, kemiripan</tspan></text>
+<rect x="588" y="106" width="176" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="608" cy="128" r="13" fill="#086361"/>
+<text x="608" y="133.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="630" y="134" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Tinjau bukti</text>
+<text x="604" y="162" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Jawaban, proses, bukti,<tspan x="604" dy="16.9">saran satu klik</tspan></text>
+<rect x="792" y="106" width="176" height="104" rx="14" fill="#fff" stroke="#CC9B14" stroke-width="2" filter="url(#sh)"/>
+<circle cx="812" cy="128" r="13" fill="#CC9B14"/>
+<text x="812" y="133.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="834" y="134" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Cek Paham</text>
+<text x="808" y="162" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Soal lisan singkat<tspan x="808" dy="16.9">dari dosen</tspan></text>
+<text x="808" y="200" font-size="11.5" font-weight="700" fill="#CC9B14" text-anchor="start">opsional</text>
+<rect x="792" y="276" width="176" height="104" rx="14" fill="#fff" stroke="#CC9B14" stroke-width="2" filter="url(#sh)"/>
+<circle cx="812" cy="298" r="13" fill="#CC9B14"/>
+<text x="812" y="303.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<text x="834" y="304" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Jawab lisan</text>
+<text x="808" y="332" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Hanya dengan suara,<tspan x="808" dy="16.9">ada batas waktu</tspan></text>
+<text x="808" y="370" font-size="11.5" font-weight="700" fill="#CC9B14" text-anchor="start">opsional</text>
+<rect x="792" y="446" width="176" height="104" rx="14" fill="#fff" stroke="#CC9B14" stroke-width="2" filter="url(#sh)"/>
+<circle cx="812" cy="468" r="13" fill="#CC9B14"/>
+<text x="812" y="473.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">8</text>
+<text x="834" y="474" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Transkrip + saran</text>
+<text x="808" y="502" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Whisper menulis ulang,<tspan x="808" dy="16.9">penilai beri level 0-3</tspan></text>
+<text x="808" y="540" font-size="11.5" font-weight="700" fill="#CC9B14" text-anchor="start">opsional</text>
+<rect x="996" y="106" width="176" height="104" rx="14" fill="#fff" stroke="#086361" stroke-width="2" filter="url(#sh)"/>
+<circle cx="1016" cy="128" r="13" fill="#086361"/>
+<text x="1016" y="133.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">9</text>
+<text x="1038" y="134" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Beri nilai</text>
+<text x="1012" y="162" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Dosen memutuskan,<tspan x="1012" dy="16.9">menulis umpan balik</tspan></text>
+<rect x="996" y="276" width="176" height="104" rx="14" fill="#fff" stroke="#2C9A62" stroke-width="2" filter="url(#sh)"/>
+<circle cx="1016" cy="298" r="13" fill="#2C9A62"/>
+<text x="1016" y="303.5" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">10</text>
+<text x="1038" y="304" font-size="15.5" font-weight="800" fill="#0F2F33" text-anchor="start">Lihat hasil</text>
+<text x="1012" y="332" font-size="12.5" font-weight="400" fill="#5B7377" text-anchor="start">Nilai, umpan balik,<tspan x="1012" dy="16.9">perkembangan Bloom</tspan></text>
+<path d="M356 158.0 H368 V328.0 H384" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<path d="M472.0 380 V446" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<path d="M560 498.0 H588" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<path d="M676.0 446 V210" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<path d="M764 158.0 H792" stroke="#CC9B14" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6" marker-end="url(#ar)"/>
+<path d="M880.0 210 V276" stroke="#CC9B14" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6" marker-end="url(#ar)"/>
+<path d="M880.0 380 V446" stroke="#CC9B14" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6" marker-end="url(#ar)"/>
+<path d="M968 498.0 H980 V158.0 H996" stroke="#CC9B14" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6" marker-end="url(#ar)"/>
+<path d="M1084.0 210 V276" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<path d="M676.0 106 V86 H1084.0 V106" stroke="#086361" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<text x="880.0" y="78" font-size="12.5" font-weight="600" fill="#086361" text-anchor="middle">bukti cukup: langsung beri nilai</text>
+<rect x="24" y="590" width="1152" height="44" rx="12" fill="#DDF3E7" stroke="none" stroke-width="2"/>
+<text x="600" y="618" font-size="14.5" font-weight="600" fill="#2C9A62" text-anchor="middle">Skor AI hanya terlihat oleh dosen. ThinkPath menyajikan bukti untuk ditinjau, bukan vonis, dan tidak menjatuhkan sanksi.</text>
+</svg>

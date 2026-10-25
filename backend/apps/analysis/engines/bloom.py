@@ -53,6 +53,12 @@ LENGTH_CAPS = (
     (280, 5),
 )
 
+# Daftar kata kunci tanpa uraian (uji: 450 kata konektor berturut-turut menghasilkan
+# L6) dan teks bukan bahasa Indonesia sama-sama tidak bisa dinilai penanda ini.
+STUFFING_DENSITY = 0.25
+STUFFED_LEVEL_CAP = 2
+MIN_INDONESIAN_RATIO = 0.12
+
 # Ambang bukti minimum agar sebuah level dianggap benar benar ditunjukkan.
 EVIDENCE_THRESHOLD = 2.0
 
@@ -196,9 +202,20 @@ def estimate_bloom_level(features: TextFeatures) -> BloomResult:
             break
 
     level = min(level, cap)
+    confidence = _confidence(level, scores, features)
+    evidence = _evidence_lines(level, scores, features)
+
+    if not features.is_too_short:
+        if features.marker_density > STUFFING_DENSITY:
+            level = min(level, STUFFED_LEVEL_CAP)
+            confidence = Confidence.LOW
+            evidence = ["Penanda penalaran terlalu rapat untuk panjang teks; tampak daftar kata kunci, bukan uraian"]
+        elif features.indonesian_ratio < MIN_INDONESIAN_RATIO:
+            confidence = Confidence.LOW
+            evidence = ["Teks tampak bukan bahasa Indonesia; penanda E2 hanya mengenal bahasa Indonesia, level ini perkiraan kasar"]
     return BloomResult(
         level=level,
-        confidence=_confidence(level, scores, features),
-        evidence=_evidence_lines(level, scores, features),
+        confidence=confidence,
+        evidence=evidence,
         level_scores=scores,
     )

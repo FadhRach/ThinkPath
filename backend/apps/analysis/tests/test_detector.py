@@ -266,6 +266,8 @@ class HeuristicContextRowsTest(TestCase):
             result = _analyse()
         self.assertEqual(result["analysis_source"], AnalysisSource.HEURISTIC)
         for row in result["signal_breakdown"]:
+            if row["key"] == "process_forensics":
+                continue  # sengaja berbobot nol: ditampilkan, tidak diskor
             with self.subTest(key=row["key"]):
                 self.assertGreater(row["weight"], 0.0)
 

@@ -17,17 +17,7 @@
  * membaca jam yang sama persis ketika membicarakan satu submission. Kampus di
  * WITA atau WIT dapat menggantinya lewat NEXT_PUBLIC_DISPLAY_TIME_ZONE.
  */
-export const DISPLAY_TIME_ZONE =
-  process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE || "Asia/Jakarta";
-
-export const BLOOM_LABELS: Record<number, string> = {
-  1: "Mengingat",
-  2: "Memahami",
-  3: "Mengaplikasikan",
-  4: "Menganalisis",
-  5: "Mengevaluasi",
-  6: "Mencipta",
-};
+export const DISPLAY_TIME_ZONE = process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE || "Asia/Jakarta";
 
 export function formatDurationSeconds(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return "-";
@@ -64,6 +54,18 @@ export function formatRelativeTime(iso: string | null): string {
   return formatter.format(-Math.round(duration), unit);
 }
 
+/** Sisa waktu singkat: "2 hari 3 jam", "5 jam 12 menit", "8 menit", atau "kurang dari semenit". */
+export function formatCountdown(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "kurang dari semenit";
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const rest = minutes % 60;
+  if (days > 0) return hours ? `${days} hari ${hours} jam` : `${days} hari`;
+  if (hours > 0) return rest ? `${hours} jam ${rest} menit` : `${hours} jam`;
+  return `${rest} menit`;
+}
+
 export function formatClockHHMM(iso: string | null): string {
   if (!iso) return "-";
   return new Date(iso).toLocaleTimeString("id-ID", {
@@ -92,23 +94,6 @@ export function dayKey(iso: string): string {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(iso));
-}
-
-/**
- * Judul kelompok hari untuk agenda: "Hari ini", "Besok", atau nama hari dan
- * tanggalnya. Dihitung pada zona tampilan, bukan zona mesin yang merender.
- */
-export function formatDayHeading(iso: string, now: Date = new Date()): string {
-  const key = dayKey(iso);
-  if (key === dayKey(now.toISOString())) return "Hari ini";
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  if (key === dayKey(tomorrow.toISOString())) return "Besok";
-  return new Date(iso).toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: DISPLAY_TIME_ZONE,
-  });
 }
 
 /** Tanggal panjang untuk sapaan, misalnya "Kamis, 13 Agustus 2026". */
@@ -147,14 +132,7 @@ function zoneOffsetMs(instant: Date): number {
     if (part.type !== "literal") at[part.type] = Number(part.value);
   }
   // Sebagian mesin menuliskan tengah malam sebagai jam 24.
-  const asIfUtc = Date.UTC(
-    at.year,
-    at.month - 1,
-    at.day,
-    at.hour % 24,
-    at.minute,
-    at.second,
-  );
+  const asIfUtc = Date.UTC(at.year, at.month - 1, at.day, at.hour % 24, at.minute, at.second);
   // Milidetik dibuang dari kedua sisi. Date.UTC selalu menghasilkan milidetik
   // nol, jadi membandingkannya langsung dengan getTime() akan meleset sebesar
   // komponen milidetik masukan.

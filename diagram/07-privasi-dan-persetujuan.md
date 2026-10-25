@@ -9,7 +9,7 @@ Pelindungan Data Pribadi (UU PDP) di JDIH BPK, bukan dari ringkasan pihak ketiga
 Fakta penyedia layanan diambil dari dokumen resmi masing-masing penyedia, yang
 dicantumkan di bagian 7.7.
 
-Versi kebijakan yang dibahas: **2026-10-22**.
+Versi kebijakan yang dibahas: **2026-10-26** (instruksi tugas berformat, penanda gaya dan kemiripan jawaban untuk dosen, saran satu klik, ketikan digabung dengan dokumen, dokumen disimpan selama akun ada; sebelumnya 2026-10-25: forum kelas dan daftar anggota yang terlihat teman sekelas, to-do pribadi, jawaban berformat kaya; sebelumnya 2026-10-23: penghapusan akun mandiri, kelas dosen menjadi arsip, atur ulang sandi lewat email, skor AI dari teks saja dan pola pengerjaan terpisah, cookie HttpOnly).
 
 ---
 
@@ -105,8 +105,8 @@ dengan cara yang sama.
 | 20 ayat (2) | Dasar pemrosesan | Tabel tujuan dan dasar | `page.tsx` bagian 5 |
 | 21 ayat (2) | Perubahan diberitahukan sebelum terjadi | Versi kebijakan; persetujuan versi lama tidak berlaku sehingga layar persetujuan ramping muncul lagi | `backend/apps/accounts/privacy.py`, `frontend/lib/privacy.ts`, layout dosen dan mahasiswa |
 | 22 ayat (1) sampai (3) | Persetujuan tertulis atau terekam, boleh elektronik | Model `ConsentRecord`, dicatat di transaksi pembuatan akun | `backend/apps/accounts/models.py`, `services.py` (`register_profile`) |
-| 22 ayat (4), (5) | Tujuan lain harus dapat dibedakan, format mudah, bahasa sederhana | Satu centang yang tidak terisi dari awal; tujuan ditulis terpisah di atasnya, dijelaskan di bagian kebijakan masing-masing, dan dicatat sebagai butir per tujuan oleh server | `components/privacy/PolicyConsent.tsx`, `PolicyArticle.tsx`, `backend/apps/accounts/privacy.py` (`REQUIRED_ITEMS`) |
-| 24 | Bukti persetujuan wajib dapat ditunjukkan | Baris hanya ditambah, tidak pernah diubah; memuat versi, butir, waktu, asal (`source`), dan nomor bukti; tanpa IP; tampil di Pengaturan | `apps/accounts/privacy.py` (`record_consent`), `components/settings/ConsentProof.tsx` |
+| 22 ayat (4), (5) | Tujuan lain harus dapat dibedakan, format mudah, bahasa sederhana | Satu centang yang tidak terisi dari awal; tujuan ditulis terpisah di atasnya, dijelaskan di bagian kebijakan masing-masing, dan dicatat sebagai butir per tujuan oleh server | `features/privacy/components/PolicyConsent.tsx`, `PolicyArticle.tsx`, `backend/apps/accounts/privacy.py` (`REQUIRED_ITEMS`) |
+| 24 | Bukti persetujuan wajib dapat ditunjukkan | Baris hanya ditambah, tidak pernah diubah; memuat versi, butir, waktu, asal (`source`), dan nomor bukti; tanpa IP; tampil di Pengaturan | `apps/accounts/privacy.py` (`record_consent`), `features/settings/components/ConsentProof.tsx` |
 | 25 | Data anak wajib persetujuan orang tua/wali | Butir `usia_atau_izin_wali` | `frontend/lib/privacy.ts` |
 | 9, 40 | Penarikan persetujuan; pemrosesan berhenti paling lambat 3 × 24 jam | Endpoint tarik; pengumpulan dan analisis ulang memeriksa basis data, jadi berhenti seketika | `apps/accounts/views.py` (`ConsentWithdrawView`), `apps/academics/services/submissions.py` (`require_student_consent`) |
 | 10, 34 | Keberatan atas keputusan otomatis; penilaian dampak untuk penskoran sistematis | Tidak ada keputusan otomatis; hasil hanya bahan tinjau dosen; penilaian dampak awal di 7.4 | `page.tsx` bagian 6 |

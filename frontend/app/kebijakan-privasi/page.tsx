@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { Footer } from "@/components/common/Footer";
-import { POLICY_SECTIONS, PolicyArticle } from "@/components/privacy/PolicyArticle";
-import { ConsentBanner } from "@/components/privacy/ConsentBanner";
-import { PublicHeader } from "@/components/privacy/PublicHeader";
+import { Footer } from "@/components/layout/Footer";
+import { POLICY_SECTIONS, PolicyArticle } from "@/features/privacy/components/PolicyArticle";
+import { ConsentBanner } from "@/features/privacy/components/ConsentBanner";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PRIVACY_POLICY_EFFECTIVE_LABEL, PRIVACY_POLICY_VERSION } from "@/lib/privacy";
 
 export const metadata: Metadata = {
@@ -19,12 +19,14 @@ export default function PrivacyPolicyPage() {
 
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-10 sm:px-6">
         <div className="max-w-3xl space-y-3">
-          <p className="caption-eyebrow text-primary">Pelindungan data pribadi</p>
-          <h1 className="text-display-2 font-extrabold tracking-tight">Kebijakan Privasi ThinkPath</h1>
+          <p className="caption-eyebrow text-brand-ink">Pelindungan data pribadi</p>
+          <h1 className="text-display-2 font-extrabold tracking-tight">
+            Kebijakan Privasi ThinkPath
+          </h1>
           <p className="text-body-lg text-muted-foreground">
-            Dokumen ini menjelaskan data apa yang diproses ThinkPath, untuk apa, siapa yang
-            dapat melihatnya, di mana data disimpan, dan apa hak Anda menurut Undang-Undang
-            Nomor 27 Tahun 2022 tentang Pelindungan Data Pribadi (UU PDP).
+            Dokumen ini menjelaskan data apa yang diproses ThinkPath, untuk apa, siapa yang dapat
+            melihatnya, di mana data disimpan, dan apa hak Anda menurut Undang-Undang Nomor 27 Tahun
+            2022 tentang Pelindungan Data Pribadi (UU PDP).
           </p>
           <p className="text-body-sm text-muted-foreground">
             Versi {PRIVACY_POLICY_VERSION} · Berlaku sejak {PRIVACY_POLICY_EFFECTIVE_LABEL}

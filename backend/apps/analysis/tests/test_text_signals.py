@@ -63,3 +63,40 @@ class ShortAnswerLexicalTest(SimpleTestCase):
         """Fixture jujur 61 kata dulu berskor 50 (sedang) hanya karena pendek."""
         score = score_ai_probability(extract_features(SHALLOW_HUMAN)).score
         self.assertEqual(score_to_band(score), AiBand.LOW)
+
+
+class BloomManipulationTest(SimpleTestCase):
+    """M11: daftar konektor dan teks bahasa lain tidak boleh tampak sebagai penalaran tinggi."""
+
+    def test_connector_stuffing_is_capped_and_low_confidence(self):
+        from apps.analysis.engines.bloom import STUFFED_LEVEL_CAP, estimate_bloom_level
+        from apps.analysis.engines.text_features import extract_features
+
+        stuffed = ("oleh karena itu karena sehingga namun menilai merancang langkah pertama kemudian " * 45)
+        result = estimate_bloom_level(extract_features(stuffed))
+        self.assertLessEqual(result.level, STUFFED_LEVEL_CAP)
+        self.assertEqual(result.confidence, "low")
+
+    def test_english_text_is_flagged_as_rough(self):
+        from apps.analysis.engines.bloom import estimate_bloom_level
+        from apps.analysis.engines.text_features import extract_features
+
+        english = ("The main reason the city grew quickly was the harbour, which brought merchants and workers from "
+                   "many regions, and over time the market expanded into neighbouring towns as well. ") * 4
+        result = estimate_bloom_level(extract_features(english))
+        self.assertEqual(result.confidence, "low")
+        self.assertIn("bukan bahasa Indonesia", result.evidence[0])
+
+    def test_ordinary_indonesian_reasoning_is_untouched(self):
+        from apps.analysis.engines.bloom import estimate_bloom_level
+        from apps.analysis.engines.text_features import extract_features
+
+        essay = (
+            "Pertumbuhan kota ini dipengaruhi oleh pelabuhan karena pelabuhan menarik pedagang dari banyak daerah. "
+            "Namun, pertumbuhan yang cepat juga menimbulkan masalah, sehingga pemerintah perlu menilai ulang kebijakan tata ruang. "
+            "Menurut saya, pendekatan yang paling tepat adalah memperbaiki transportasi umum terlebih dahulu, "
+            "kemudian menata permukiman di sekitar pelabuhan agar tidak padat. "
+        ) * 3
+        result = estimate_bloom_level(extract_features(essay))
+        self.assertNotIn("bukan bahasa Indonesia", " ".join(result.evidence))
+        self.assertNotIn("terlalu rapat", " ".join(result.evidence))

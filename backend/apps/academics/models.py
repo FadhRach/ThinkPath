@@ -30,6 +30,15 @@ class EventType(models.TextChoices):
     PROGRESS = "progress", "Progress"
 
 
+class AnalysisState(models.TextChoices):
+    """Keadaan analisis sebuah pengumpulan, dibaca daftar dosen tanpa join ke antrean."""
+
+    PENDING = "pending", "Antre"
+    RUNNING = "running", "Dianalisis"
+    DONE = "done", "Selesai"
+    FAILED = "failed", "Gagal"
+
+
 class SubmissionStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     SUBMITTED = "submitted", "Submitted"
@@ -38,11 +47,16 @@ class SubmissionStatus(models.TextChoices):
 
 class Class(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Kosong bila dosen menghapus akunnya: kelas, tugas, dan jawaban mahasiswa
+    # tetap tersimpan sebagai arsip yang hanya bisa dibaca (lihat is_archived).
     owner = models.ForeignKey(
         Profile,
-        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="classes",
     )
+    owner_left_at = models.DateTimeField(null=True, blank=True)
     name = models.CharField(max_length=120)
     subject = models.CharField(max_length=80)
     # Jenjang studi. Melekat di kelas, bukan di profil, karena satu mahasiswa
@@ -67,6 +81,10 @@ class Class(models.Model):
     )
     join_code = models.CharField(max_length=8, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_archived(self) -> bool:
+        return self.owner_id is None
 
     class Meta:
         db_table = "classes"
@@ -119,6 +137,9 @@ class Assignment(models.Model):
     )
     title = models.CharField(max_length=160)
     instructions = models.TextField(blank=True, default="")
+    # Instruksi berformat (editor TipTap; gambar, tautan, tabel, rumus) yang sudah dibersihkan server.
+    # `instructions` selalu teks polos turunannya, dipakai daftar, notifikasi, dan analisis.
+    instructions_rich = models.JSONField(null=True, blank=True, default=None)
     deadline = models.DateTimeField(null=True, blank=True)
     expected_bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],
@@ -188,22 +209,6 @@ class Material(models.Model):
         return self.title
 
 
-class Announcement(models.Model):
-    """Pengumuman dosen untuk anggota satu kelas."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    class_ref = models.ForeignKey(
-        Class, on_delete=models.CASCADE, related_name="announcements", db_column="class_id"
-    )
-    title = models.CharField(max_length=160)
-    body = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "announcements"
-        indexes = [models.Index(fields=["class_ref", "-created_at"], name="announcement_class_recent_idx")]
-
-
 class Submission(models.Model):
     """Jawaban satu mahasiswa untuk satu tugas.
 
@@ -224,6 +229,9 @@ class Submission(models.Model):
         related_name="submissions",
     )
     text_answer = models.TextField(blank=True, default="")
+    # Dokumen editor kaya (TipTap) yang sudah dibersihkan server; `text_answer` selalu
+    # diturunkan darinya. Null untuk jawaban teks polos (lama atau dari klien lama).
+    rich_answer = models.JSONField(null=True, blank=True, default=None)
     # Dokumen unggahan yang menjadi sumber jawaban (documents/<mahasiswa>/<id>.*
     # di MEDIA_ROOT), hanya bila teks jawaban terbukti berasal darinya. Jawaban
     # begini tidak punya jejak mengetik, jadi forensik prosesnya dilewati.
@@ -250,6 +258,11 @@ class Submission(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     teacher_feedback = models.TextField(blank=True, default="")
+    # Bawaan "done" supaya baris lama dan seed (yang menulis hasil analisis
+    # langsung) tidak tampak menunggu; jalur pengumpulan mengisinya "pending".
+    analysis_state = models.CharField(
+        max_length=8, choices=AnalysisState.choices, default=AnalysisState.DONE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
@@ -298,4 +311,46 @@ class ReasoningEvent(models.Model):
         db_table = "reasoning_events"
         indexes = [
             models.Index(fields=["submission", "occurred_at"], name="reason_sub_time_idx"),
+        ]
+
+
+class SubmissionDraft(models.Model):
+    """Draf jawaban yang ditulis mahasiswa sebelum dikumpulkan.
+
+    Inilah sumber kebenaran bukti proses. Dulu `started_at` dan kurva
+    pertumbuhan kata dikirim klien saat submit, sehingga satu request palsu
+    cukup untuk membuat jejak yang mulus. Sekarang server yang mencatat: waktu
+    mulai adalah jam server saat simpan pertama yang berisi teks, dan jumlah
+    kata dihitung dari teks yang dikirim, bukan dari angka kiriman klien.
+
+    Baris dibuat pada penyimpanan pertama yang berisi teks, bukan saat halaman
+    dibuka: bukti proses baru mulai ketika mahasiswa mulai menulis. Draf
+    dihapus dalam transaksi yang sama dengan pengumpulan jawaban.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assignment = models.ForeignKey(
+        Assignment, on_delete=models.CASCADE, related_name="drafts"
+    )
+    student_profile = models.ForeignKey(
+        Profile, on_delete=models.CASCADE, related_name="drafts"
+    )
+    text_answer = models.TextField(blank=True, default="")
+    rich_answer = models.JSONField(null=True, blank=True, default=None)
+    # Dokumen unggahan yang menjadi sumber teks draf (opsional).
+    document_id = models.UUIDField(null=True, blank=True, default=None)
+    started_at = models.DateTimeField()
+    # [{"t": detik sejak started_at, "w": jumlah kata}], maksimal 240, dicatat
+    # server paling sering tiap 20 detik.
+    samples = models.JSONField(default=list, blank=True)
+    last_saved_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "submission_drafts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["assignment", "student_profile"],
+                name="draft_unique_per_student",
+            ),
         ]

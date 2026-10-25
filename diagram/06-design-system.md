@@ -1,7 +1,8 @@
 # 06 · Design System
 
-Seluruh token di berkas ini diambil dari `frontend/app/globals.css` dan
+Seluruh token di berkas ini diambil dari `frontend/styles/tokens.css` dan
 `frontend/tailwind.config.ts`. Bila keduanya berubah, berkas ini harus menyusul.
+Aturan lapisan komponen dan cara menambah komponen ada di `frontend/README.md`.
 
 ---
 
@@ -14,7 +15,7 @@ Tailwind bisa menambahkan alpha sendiri lewat `hsl(var(--token) / 0.5)`.
 
 | Token | HSL | Peran |
 |---|---|---|
-| `--brand-teal` | `178 90% 38%` | Warna utama, aksi, garis grafik |
+| `--brand-teal` | `178 90% 38%` | Dekorasi dan garis grafik (terlalu terang untuk teks putih) |
 | `--brand-teal-light` | `173 68% 61%` | Gradasi dan aksen kedua |
 | `--brand-mint` | `161 66% 81%` | Latar sekunder, sorotan lembut |
 | `--brand-pink` | `340 100% 96%` | Latar avatar |
@@ -26,12 +27,18 @@ Tailwind bisa menambahkan alpha sendiri lewat `hsl(var(--token) / 0.5)`.
 | `--background` | `164 36% 96%` | Latar halaman |
 | `--foreground` | `176 51% 12%` | Teks utama |
 | `--card` | `0 0% 100%` | Permukaan kartu |
-| `--primary` | `178 90% 38%` | Tombol utama, tautan |
+| `--primary` / `--primary-foreground` | `178 86% 21%` / putih | Tombol utama (kontras ±7:1) |
+| `--brand-ink` | `178 86% 21%` | Teks aksen dan tautan (`text-brand-ink`) |
 | `--secondary` | `161 66% 81%` | Lencana, sorotan |
 | `--muted` | `164 40% 94%` | Latar tenang |
 | `--muted-foreground` | `169 11% 40%` | Teks penjelas |
 | `--border` / `--input` | `160 27% 89%` | Garis pemisah dan tepi isian |
 | `--ring` | `178 90% 38%` | Cincin fokus |
+
+Token gelap ditulis sebagai `[data-theme="dark"]` di `styles/tokens.css` dan baru
+aktif di landing (mengikuti sistem, atau `?tema=gelap|terang`). Aplikasi belum
+mengaktifkannya: tema yang tersimpan butuh cookie atau localStorage, yang
+bertentangan dengan kebijakan privasi (satu cookie, tanpa penyimpanan peramban).
 
 ### Token status
 
@@ -58,17 +65,24 @@ ketertinggalan, karena sendirian ia masih dugaan.
 
 ## 6.2 Skala tipografi
 
+Seluruh antarmuka memakai satu keluarga huruf, **Plus Jakarta Sans**, dimuat
+self-hosted lewat `next/font` di `app/layout.tsx`. Tidak ada serif atau
+monospace; hierarki dibangun dari ukuran dan bobot, bukan dari ganti huruf.
+
 | Kelas | Ukuran | Tinggi baris | Pemakaian |
 |---|---|---|---|
-| `text-display-1` | 2.5rem | 1.1 | Judul halaman depan |
-| `text-display-2` | 1.875rem | 1.2 | Judul halaman dalam |
+| `text-title` | 1.6 sampai 2.1rem (fluid) | 1.15 | Judul halaman |
+| `text-display-2` | 1.875rem | 1.2 | Judul besar |
+| `text-heading` | 1.25rem | 1.3 | Judul bagian dan kartu |
 | `text-body-lg` | 1.0625rem | 1.65 | Paragraf penting |
 | `text-body` | 0.9375rem | 1.6 | Teks umum |
 | `text-body-sm` | 0.8125rem | 1.55 | Penjelasan, isi tabel |
 | `text-caption` | 0.75rem | 1.4 | Keterangan, satuan |
+| `text-micro` | 0.6875rem | 1.35 | Lencana kecil |
 
 Kelas tambahan `caption-eyebrow` dipakai sebagai label kecil di atas judul
-kartu, selalu berpasangan dengan `text-primary`.
+kartu, selalu berpasangan dengan `text-brand-ink`. Ukuran arbitrer seperti
+`text-[0.65rem]` tidak dipakai lagi.
 
 ---
 
@@ -77,7 +91,7 @@ kartu, selalu berpasangan dengan `text-primary`.
 | Token | Nilai | Pemakaian |
 |---|---|---|
 | `--radius` | `0.75rem` | Dasar; `rounded-lg`, `md`, `sm` diturunkan darinya |
-| `rounded-card` | `1rem` | Kartu |
+| `rounded-xl` | `0.75rem` | Kartu dan kontrol; satu-satunya radius kartu |
 | `shadow-soft` | dua lapis, opasitas rendah | Kartu diam |
 | `shadow-soft-lg` | lebih menyebar | Kartu saat disentuh kursor |
 
@@ -90,42 +104,50 @@ nama orang, dan bayangan tebal membuat setiap kartu terasa seperti peringatan.
 
 ```mermaid
 flowchart TB
-    subgraph P["Primitif · shadcn/ui + Radix · 19 komponen"]
+    subgraph P["components/ui · primitif shadcn + Radix"]
         direction LR
-        P1["button · input · label · textarea · select"]
-        P2["card · badge · table · separator · skeleton"]
-        P3["dialog · sheet · dropdown-menu · tooltip"]
-        P4["avatar · progress · switch · tabs · sonner"]
+        P1["Button · Badge · Card · Alert · IconTile"]
+        P2["Input · NativeSelect · Select · Textarea · Label · Switch"]
+        P3["Dialog · Sheet · Tabs · DropdownMenu · Progress · Skeleton · Toaster"]
     end
 
-    subgraph C["Bersama · components/common"]
-        C1["PageHeader · StatCard · Callout · EmptyState"]
-        C2["BloomBadge · StatusBadge · AvatarInitials"]
-        C3["TopNav · AppShell · Footer · Brandmark"]
-        C4["BloomTrendChart · GradeBarChart · AiScoreRing"]
+    subgraph C["components/shared · komposisi lintas fitur"]
+        C1["SectionCard · StatCard · SectionHeading"]
+        C2["EmptyState · StatusPage · ErrorBoundaryPage · ConfirmDialog"]
+        C3["FormField · IconInput · SearchInput · FilterPills · DataTable"]
     end
 
-    subgraph D["Domain"]
-        D1["overview/ · peta kelas, sebaran, tren kohort"]
-        D2["submission/ · linimasa, ritme kalimat, rincian sinyal"]
-        D3["cognitive/ · kartu tren per kelas"]
-        D4["report/ · bilah distribusi, tabel kelompok"]
-        D5["student/ · form kerja, kartu kelas, gabung"]
+    subgraph L["components/layout · kerangka"]
+        L1["AppShell · RoleLayout · SidebarShell + SidebarNav (mahasiswa dan dosen, menu beda) · NavUser · Footer · Brandmark"]
+    end
+
+    subgraph D["features/&lt;domain&gt; · komponen, lib, hooks per domain"]
+        D1["classes · assignments · submissions · cekpaham"]
+        D2["materials · schedule · overview · reports · notifications"]
+        D3["auth · privacy · settings · bloom · landing"]
     end
 
     P --> C --> D
+    P --> L --> D
 
     classDef prim fill:#F4FAFA,stroke:#9AB8BB
     classDef com fill:#E8F4F5,stroke:#0E7C86
     classDef dom fill:#D9F2E6,stroke:#2E7D5B
-    class P1,P2,P3,P4 prim
-    class C1,C2,C3,C4 com
-    class D1,D2,D3,D4,D5 dom
+    class P1,P2,P3 prim
+    class C1,C2,C3,L1 com
+    class D1,D2,D3 dom
 ```
 
-Komponen domain **tidak pernah** memanggil primitif Radix langsung untuk hal
-yang sudah punya pembungkus bersama. Itu menjaga agar perubahan gaya cukup
-dilakukan di satu tempat.
+Aturan arah impor dijaga ESLint (`.eslintrc.json`): `ui` tidak mengimpor
+`shared`, `layout`, atau `features`; `shared` dan `charts` tidak mengimpor
+`features` atau `layout`; kode di luar `app/` tidak mengimpor dari `app/`.
+Komponen fitur tidak memanggil primitif Radix langsung untuk hal yang sudah
+punya pembungkus bersama, supaya perubahan gaya cukup dilakukan di satu tempat.
+
+Umpan balik kepada pengguna punya tiga jalur tetap: **toast** (`lib/notify.ts`)
+untuk hasil aksi, **`Alert`** untuk pesan yang harus tetap terlihat di halaman,
+dan **`ConfirmDialog`** sebelum aksi berisiko. Halaman 404, 403, dan galat memakai
+satu `StatusPage`.
 
 ---
 
@@ -137,7 +159,6 @@ dilakukan di satu tempat.
 | `BloomDistributionChart` | Histogram + garis target | Overview | Gradasi teal; di bawah target jadi `warning` |
 | `CohortTrendChart` | Area + garis target berundak | Overview | Teal untuk kelas, `warning` untuk target |
 | `BloomTrendChart` | Area + garis acuan | Profil kognitif, progres | Teal, gradasi id unik per instans |
-| `GradeBarChart` | Batang | Beranda mahasiswa | Nilai tertinggi penuh, sisanya mint |
 | `AiScoreRing` | Cincin SVG | Detail submission | Mengikuti band |
 | Kurva pertumbuhan | Area SVG polos | Linimasa submission | Teal |
 | Bilah ritme kalimat | Batang per kalimat | Teks jawaban | Teal seragam |
@@ -235,7 +256,7 @@ flowchart LR
 | Rujukan pola | Google Calendar, kalender Google Classroom | "Tugas Kelas" Google Classroom, daftar sesi LMS kampus |
 | Susunan | Kotak tanggal; di ponsel titik penanda + daftar agenda | Folder per kelas, lalu kelompok per topik atau pertemuan |
 | Navigasi | Hari ini, mundur-maju, bulan/pekan, saringan kelas | Indeks topik menempel di samping; di ponsel chip menempel di atas |
-| Alamat | `/student/jadwal?tampilan=minggu&tanggal=…&kelas=…` | `/student/materi/<kelas>#topik-…` atau `#materi-…` |
+| Alamat | `/student/jadwal?tampilan=minggu&tanggal=…&kelas=…` | `/student/kelas/<kelas>?tab=materi#topik-…` atau `#materi-…` |
 | Warna | Status agenda: kuning belum dikerjakan, hijau dinilai, abu terlewat, sesi sebagai kartu teal | Jenis sumber: slide, dokumen, video, bacaan web, catatan dosen |
 
 Tenggat yang terlewat berwarna abu, bukan merah. Pengumpulan sudah ditutup,

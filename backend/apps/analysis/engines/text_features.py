@@ -279,11 +279,36 @@ class TextFeatures:
     ordinal_count: int
     explanatory_count: int
     bloom_verb_hits: dict[int, int] = field(default_factory=dict)
+    # Porsi kata fungsi bahasa Indonesia. Penanda bloom/E1 hanya berbahasa
+    # Indonesia, jadi teks lain tidak bisa dinilai olehnya.
+    indonesian_ratio: float = 1.0
+
+    @property
+    def marker_density(self) -> float:
+        """Penanda penalaran per kata. Esai wajar jauh di bawah 0,25; daftar kata kunci jauh di atasnya."""
+        markers = (
+            self.causal_count + self.contrast_count + self.evaluative_count
+            + self.creative_count + self.procedural_count + self.ordinal_count
+            + self.explanatory_count + sum(self.bloom_verb_hits.values())
+        )
+        return markers / self.word_count if self.word_count else 0.0
 
     @property
     def is_too_short(self) -> bool:
         """Di bawah ambang ini tidak ada sinyal yang layak dipercaya."""
         return self.word_count < 40
+
+
+_INDONESIAN_FUNCTION_WORDS = frozenset(
+    "yang dan di ke dari untuk dengan pada adalah ini itu dalam tidak akan atau juga "
+    "sebagai dapat oleh karena sehingga bahwa ada lebih para saat".split()
+)
+
+
+def _indonesian_ratio(words: list[str]) -> float:
+    if not words:
+        return 0.0
+    return sum(word in _INDONESIAN_FUNCTION_WORDS for word in words) / len(words)
 
 
 def _split_sentences(text: str) -> list[str]:
@@ -397,4 +422,5 @@ def extract_features(text: str) -> TextFeatures:
         ordinal_count=_count_distinct_markers(text_lower, ORDINAL_MARKERS),
         explanatory_count=_count_distinct_markers(text_lower, EXPLANATORY_MARKERS),
         bloom_verb_hits=bloom_verb_hits,
+        indonesian_ratio=_indonesian_ratio(words),
     )

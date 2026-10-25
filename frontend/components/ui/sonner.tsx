@@ -1,31 +1,24 @@
-"use client"
+"use client";
 
-import { useTheme } from "next-themes"
-import { Toaster as Sonner } from "sonner"
+import { Toaster as Sonner } from "sonner";
 
-type ToasterProps = React.ComponentProps<typeof Sonner>
-
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
-
+/**
+ * Wadah toast untuk seluruh aplikasi, dipasang sekali di app/layout.tsx.
+ * Kirim toast lewat `notify` (lib/notify.ts), bukan memanggil sonner langsung.
+ */
+export function Toaster() {
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
+      position="top-right"
+      closeButton
       toastOptions={{
         classNames: {
-          toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+          toast: "rounded-xl border border-border bg-card text-foreground shadow-soft-lg",
+          description: "text-muted-foreground",
+          actionButton: "bg-primary text-primary-foreground",
+          cancelButton: "bg-muted text-muted-foreground",
         },
       }}
-      {...props}
     />
-  )
+  );
 }
-
-export { Toaster }

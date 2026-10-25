@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="t">ThinkPath</title><desc id="d">Banner ThinkPath: rekam proses, ukur level berpikir, sajikan sebagai bukti untuk dosen</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#086361"/></marker>
+<marker id="arm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5B7377"/></marker>
+<filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F2F33" flood-opacity="0.10"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="438" rx="24" fill="#F3FAF9" stroke="#CFE3E1" stroke-width="2"/>
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B5F0DB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0ABAB5" stop-opacity="0.35"/><stop offset="1" stop-color="#0ABAB5" stop-opacity="0.02"/></linearGradient></defs>
+<rect x="1" y="1" width="1198" height="438" rx="24" fill="url(#g)"/>
+<line x1="26" y1="70" x2="1174" y2="70" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="106" x2="1174" y2="106" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="142" x2="1174" y2="142" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="178" x2="1174" y2="178" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="214" x2="1174" y2="214" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="250" x2="1174" y2="250" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="286" x2="1174" y2="286" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="322" x2="1174" y2="322" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="358" x2="1174" y2="358" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<line x1="26" y1="394" x2="1174" y2="394" stroke="#CFE3E1" stroke-width="1" opacity="0.6"/>
+<g transform="translate(52 44) scale(2.3)" fill="none" stroke="#086361" stroke-linecap="round" stroke-linejoin="round"><path d="M16 9 H12.5 A3.5 3.5 0 0 0 12.5 16 H19.5 A3.5 3.5 0 0 1 19.5 23 H16" stroke-width="3.4"/><circle cx="22.3" cy="9" r="2.7" stroke-width="2.2"/><circle cx="9.7" cy="23" r="2.7" stroke-width="2.2"/></g>
+<text x="132" y="92" font-size="34" font-weight="800" fill="#0F2F33" text-anchor="start">ThinkPath</text>
+<text x="56" y="170" font-size="40" font-weight="800" fill="#0F2F33" text-anchor="start">Nilainya bisa sama.<tspan x="56" dy="54.0">Cara mengerjakannya</tspan><tspan x="56" dy="54.0">belum tentu sama.</tspan></text>
+<text x="56" y="322" font-size="17" font-weight="400" fill="#5B7377" text-anchor="start">Rekam proses menulis, ukur level berpikir (Bloom L1-L6),<tspan x="56" dy="23.0">lalu sajikan keduanya sebagai bukti untuk dosen. Bukan vonis.</tspan></text>
+<rect x="56" y="372" width="150.79999999999998" height="34" rx="17" fill="#fff" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="131.39999999999998" y="394" font-size="14" font-weight="600" fill="#086361" text-anchor="middle">Proses terekam</text>
+<rect x="218.79999999999998" y="372" width="123.19999999999999" height="34" rx="17" fill="#fff" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="280.4" y="394" font-size="14" font-weight="600" fill="#086361" text-anchor="middle">Level Bloom</text>
+<rect x="354.0" y="372" width="104.8" height="34" rx="17" fill="#fff" stroke="#CFE3E1" stroke-width="1.5"/>
+<text x="406.4" y="394" font-size="14" font-weight="600" fill="#086361" text-anchor="middle">Cek Paham</text>
+<rect x="640" y="44" width="330" height="214" rx="18" fill="#fff" stroke="#CFE3E1" stroke-width="2" filter="url(#sh)"/>
+<text x="662" y="78" font-size="14" font-weight="700" fill="#0F2F33" text-anchor="start">Esai Lingkungan Alam, draf 3</text>
+<line x1="640" y1="92" x2="970" y2="92" stroke="#CFE3E1" stroke-width="1.5" stroke-linecap="round"/>
+<text x="662" y="114" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="start">Jumlah kata dari waktu ke waktu</text>
+<path d="M662 226 C 720 226 735 204 775 196 S 840 168 868 166 S 920 128 948 122 L 948 232 L 662 232 Z" stroke="none" stroke-width="0" fill="url(#gc)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M662 226 C 720 226 735 204 775 196 S 840 168 868 166 S 920 128 948 122" stroke="#086361" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="948" cy="122" r="6" fill="#086361"/>
+<circle cx="775" cy="196" r="4.5" fill="#fff" stroke="#086361" stroke-width="2.5"/>
+<circle cx="868" cy="166" r="4.5" fill="#fff" stroke="#086361" stroke-width="2.5"/>
+<text x="662" y="250" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="start">47 menit  ·  6 revisi  ·  kata tumbuh bertahap</text>
+<rect x="900" y="150" width="262" height="138" rx="18" fill="#fff" stroke="#CFE3E1" stroke-width="2" filter="url(#sh)"/>
+<text x="920" y="182" font-size="16" font-weight="700" fill="#0F2F33" text-anchor="start">Mahasiswa 08</text>
+<text x="920" y="203" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">Ketimpangan antarwilayah</text>
+<circle cx="960" cy="246" r="28" fill="none" stroke="#EEF7F6" stroke-width="8"/>
+<circle cx="960" cy="246" r="28" fill="none" stroke="#CC9B14" stroke-width="8" stroke-linecap="round" stroke-dasharray="121.4 175.9" transform="rotate(-90 960 246)"/>
+<text x="960" y="252" font-size="17" font-weight="800" fill="#CC9B14" text-anchor="middle">69</text>
+<text x="1006" y="240" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">Indikasi AI</text>
+<text x="1006" y="261" font-size="17" font-weight="800" fill="#CC9B14" text-anchor="start">Sedang</text>
+<rect x="660" y="304" width="470" height="100" rx="18" fill="#fff" stroke="#CFE3E1" stroke-width="2" filter="url(#sh)"/>
+<text x="684" y="336" font-size="14" font-weight="700" fill="#0F2F33" text-anchor="start">Level penalaran jawaban</text>
+<text x="1106" y="336" font-size="12" font-weight="400" fill="#5B7377" text-anchor="end">target L5</text>
+<circle cx="700" cy="374" r="17" fill="#086361" stroke="#086361" stroke-width="2.5"/>
+<text x="700" y="379.5" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">L1</text>
+<line x1="719" y1="374" x2="757" y2="374" stroke="#086361" stroke-width="3" stroke-linecap="round"/>
+<circle cx="776" cy="374" r="17" fill="#086361" stroke="#086361" stroke-width="2.5"/>
+<text x="776" y="379.5" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">L2</text>
+<line x1="795" y1="374" x2="833" y2="374" stroke="#086361" stroke-width="3" stroke-linecap="round"/>
+<circle cx="852" cy="374" r="17" fill="#086361" stroke="#086361" stroke-width="2.5"/>
+<text x="852" y="379.5" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">L3</text>
+<line x1="871" y1="374" x2="909" y2="374" stroke="#086361" stroke-width="3" stroke-linecap="round"/>
+<circle cx="928" cy="374" r="17" fill="#086361" stroke="#086361" stroke-width="2.5"/>
+<text x="928" y="379.5" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">L4</text>
+<line x1="947" y1="374" x2="985" y2="374" stroke="#CFE3E1" stroke-width="3" stroke-linecap="round"/>
+<circle cx="1004" cy="374" r="17" fill="#fff" stroke="#CFE3E1" stroke-width="2.5"/>
+<text x="1004" y="379.5" font-size="13" font-weight="700" fill="#5B7377" text-anchor="middle">L5</text>
+<line x1="1023" y1="374" x2="1061" y2="374" stroke="#CFE3E1" stroke-width="3" stroke-linecap="round"/>
+<circle cx="1080" cy="374" r="17" fill="#fff" stroke="#CFE3E1" stroke-width="2.5"/>
+<text x="1080" y="379.5" font-size="13" font-weight="700" fill="#5B7377" text-anchor="middle">L6</text>
+</svg>

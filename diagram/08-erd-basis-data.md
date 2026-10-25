@@ -27,12 +27,14 @@ Konvensi yang berlaku di semua tabel:
 ```mermaid
 erDiagram
     profiles ||--o{ consent_records : "memberi persetujuan"
-    profiles ||--o{ classes : "dosen pemilik"
+    profiles |o--o{ classes : "dosen pemilik (kosong = arsip)"
     profiles ||--o{ class_memberships : "mahasiswa anggota"
     classes ||--o{ class_memberships : "beranggotakan"
     classes ||--o{ assignments : "memuat"
     classes ||--o{ materials : "memuat"
-    classes ||--o{ announcements : "memuat"
+    classes ||--o{ forum_posts : "memuat"
+    forum_posts ||--o{ forum_replies : "dibalas"
+    profiles ||--o{ student_todos : "mencatat"
     assignments ||--o{ submissions : "dijawab lewat"
     profiles ||--o{ submissions : "mahasiswa penjawab"
     submissions ||--o{ reasoning_events : "jejak proses"
@@ -62,7 +64,7 @@ erDiagram
     }
     classes {
         uuid id PK
-        uuid owner_id FK "dosen"
+        uuid owner_id FK "dosen; NULL bila akunnya dihapus"
         varchar name
         varchar subject
         varchar education_level
@@ -82,6 +84,7 @@ erDiagram
         uuid class_id FK
         varchar title
         text instructions
+        jsonb instructions_rich "dokumen editor kaya; instructions diturunkan server"
         timestamptz deadline "null = tanpa tenggat"
         boolean allow_file_upload "dosen mengizinkan jawaban dari berkas"
         smallint expected_bloom_level "1-6"
@@ -96,18 +99,38 @@ erDiagram
         varchar url "http/https saja"
         timestamptz created_at
     }
-    announcements {
+    forum_posts {
         uuid id PK
         uuid class_id FK
+        uuid author_id FK "SET NULL"
+        varchar kind "announcement | discussion"
         varchar title
         text body
         timestamptz created_at
+        timestamptz last_activity_at
+    }
+    forum_replies {
+        uuid id PK
+        uuid post_id FK
+        uuid author_id FK "SET NULL"
+        text body
+        timestamptz created_at
+    }
+    student_todos {
+        uuid id PK
+        uuid owner_id FK
+        varchar title
+        date due_on
+        boolean done
+        timestamptz created_at
+        timestamptz done_at
     }
     submissions {
         uuid id PK
         uuid assignment_id FK
         uuid student_profile_id FK
-        text text_answer
+        text text_answer "teks polos, selalu diturunkan server dari rich_answer bila ada"
+        jsonb rich_answer "dokumen editor TipTap yang sudah dibersihkan, atau null"
         uuid source_document "dokumen unggahan di MEDIA_ROOT, atau null"
         timestamptz started_at
         timestamptz submitted_at
@@ -213,8 +236,10 @@ sana.
 | App | Tabel | Tanggung jawab |
 |---|---|---|
 | `apps.accounts` | `profiles`, `consent_records` | Identitas, JWT, persetujuan UU PDP |
-| `apps.academics` | `classes`, `class_memberships`, `assignments`, `materials`, `announcements`, `submissions`, `reasoning_events` | Perkuliahan dan pengumpulan |
-| `apps.analysis` | `analysis_results`, `detector_scores` | Hasil analisis dan cache detektor |
+| `apps.academics` | `classes`, `class_memberships`, `assignments`, `materials`, `submissions`, `submission_drafts`, `reasoning_events` | Perkuliahan dan pengumpulan |
+| `apps.analysis` | `analysis_results`, `analysis_runs`, `analysis_jobs`, `detector_scores` | Hasil analisis terkini, riwayatnya, antrean worker, dan cache detektor |
+| `apps.forum` | `forum_posts`, `forum_replies` | Pengumuman dan diskusi kelas (menggantikan tabel `announcements`; datanya disalin saat migrasi) |
+| `apps.todos` | `student_todos` | Checklist pribadi mahasiswa |
 | `apps.notifications` | `notifications` | Notifikasi per penerima |
 | `apps.cekpaham` | `cekpaham_requests`, `cekpaham_attempts`, `cekpaham_reports` | Tes lisan singkat dan saran skornya |
 
@@ -245,6 +270,11 @@ Identitas dikelola sendiri lewat `profiles`, dan app bawaan itu dilepas dari
 | `cekpaham_attempts` | `cekpaham_attempt_number`, `cekpaham_one_live_attempt` | UNIQUE, UNIQUE parsial `WHERE status<>'voided'` | Satu sesi berlaku per Cek Paham; sesi baru hanya setelah dosen membatalkan yang lama |
 | `cekpaham_attempts` | `cekpaham_attempt_score_range` | CHECK | Skor saran ≤ 100 atau kosong |
 | `cekpaham_reports` | `cekpaham_report_resolved_matches_status` | CHECK | Laporan terbuka belum punya waktu penyelesaian, dan sebaliknya |
+| `submission_drafts` | `draft_unique_per_student` | UNIQUE `(assignment, student)` | Satu draf per mahasiswa per tugas; `started_at` dan `samples` dicatat **server**, dihapus saat dikumpulkan |
+| `analysis_jobs` | `analysis_job_open_idx` | INDEX parsial `status IN (queued, running)` | Klaim job tetap cepat walau riwayat job menumpuk |
+| `analysis_runs` | `analysis_run_sub_recent_idx` | INDEX `(submission, -created_at)` | Riwayat analisis per pengumpulan; baris tidak pernah diubah |
+| `password_reset_tokens` | `pwreset_profile_recent_idx` | INDEX | Menemukan tautan terbaru satu akun (jeda 60 detik, pencabutan tautan lama) |
+| `auth_sessions` | `auth_session_profile_idx` | INDEX | Mencabut semua sesi satu akun |
 | `analysis_results` | `analysis_ai_score_range`, `analysis_bloom_level_range` | CHECK | Skor 0–100, Bloom 1–6 |
 | `detector_scores` | `detector_score_unique_key` | UNIQUE `(text_hash, provider, model_version, language)` | Teks yang sama tidak dibayar dua kali; menaikkan versi model otomatis membatalkan cache lama |
 | `detector_scores` | `detector_probability_range` | CHECK | Probabilitas 0–1 |
@@ -296,3 +326,16 @@ stateDiagram-v2
 
 `draft` ada di pilihan status untuk kompatibilitas tipe frontend, tetapi tidak
 pernah ditulis backend.
+
+
+## 8.x Tambahan Oktober 2026 (perbaikan temuan tinggi)
+
+- `submissions.analysis_state` (`pending`/`running`/`done`/`failed`): keadaan analisis, diisi `pending` oleh jalur pengumpulan dan `done` oleh worker. Bawaan `done` agar baris lama/seed tidak tampak menunggu.
+- `submission_drafts`: draf dengan jejak pengerjaan yang dicatat server (lihat README backend, "Draf, submit, dan revisi").
+- `analysis_results.process_band` / `process_evidence`: pola pengerjaan, bukti tersendiri yang tidak menjumlah ke `ai_score`.
+- `analysis_runs`: setiap analisis disimpan permanen (payload lengkap, masukan proses, SHA-256 teks, pemohon). `analysis_results` tetap satu baris terkini.
+- `analysis_jobs`: antrean untuk `run_analysis_worker`.
+- `auth_sessions`: sesi login yang bisa dicabut; token memuat `sid`.
+- `password_reset_tokens`: tautan atur ulang sandi sekali pakai; hanya hash token (`token_hash`) yang disimpan, berlaku 30 menit, `used_at` terisi saat dipakai atau digantikan tautan baru.
+- `classes.owner_id` boleh kosong (`ON DELETE SET NULL`): dosen yang menghapus akun meninggalkan kelas sebagai arsip (`owner_left_at`). `cekpaham.created_by_id` juga boleh kosong dengan alasan yang sama.
+- `account_deletions`: catatan anonim bahwa sebuah akun dihapus (tanpa id profil, tanpa email).

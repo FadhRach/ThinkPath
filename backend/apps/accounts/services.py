@@ -5,8 +5,10 @@ Diisolasi dari views agar logika akun bisa dipakai ulang
 """
 from __future__ import annotations
 
+from functools import cache
 from uuid import UUID
 
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import IntegrityError, transaction
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 
@@ -49,9 +51,20 @@ def register_profile(
     return profile
 
 
+@cache
+def _dummy_hash() -> str:
+    # Dibuat dengan hasher yang sama dengan sandi asli supaya biayanya setara.
+    return make_password("kata-sandi-pengganti")
+
+
 def authenticate_credentials(email: str, password: str) -> Profile | None:
     profile = Profile.objects.filter(email=normalize_email(email)).first()
-    if profile is None or not profile.check_password(password):
+    if profile is None:
+        # Tanpa ini, email yang tidak terdaftar dijawab ±12 ms sedangkan yang
+        # terdaftar ±138 ms (diukur), sehingga waktu membocorkan keberadaan akun.
+        check_password(password, _dummy_hash())
+        return None
+    if not profile.check_password(password):
         return None
     return profile
 

@@ -18,6 +18,8 @@ npm run dev                        # http://localhost:3000
 
 Windows PowerShell: `Copy-Item .env.local.example .env.local`, lalu `npm install` dan `npm run dev`.
 
+**Untuk demo atau penjurian, jangan pakai `npm run dev`.** Mode dev mengompilasi tiap rute saat pertama dibuka (2–3 detik) dan jauh lebih lambat. Pakai build produksi: hentikan dev server, lalu `npm run build && npm start`. Diukur lokal: halaman mahasiswa 60–150 ms, pindah menu lewat sidebar 30 ms (rute pertama yang dibuka setelah server menyala sekitar 1–3 detik). Buka tiap halaman utama sekali sebelum demo untuk menghangatkan server.
+
 Login dengan akun demo (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`. Setelah mengubah `NEXT_PUBLIC_BACKEND_URL`, jalankan ulang `npm run dev`.
 
 URL API lokal memakai `127.0.0.1` supaya browser tidak memilih alamat IPv6
@@ -28,10 +30,14 @@ melakukan hydration. Kontrol form login dan pendaftaran memakai
 `suppressHydrationWarning` secara lokal untuk menoleransi atribut tambahan ini.
 
 ```bash
-npm run build    # production build
-npm run lint     # ESLint
-npx tsc --noEmit # type check (strict, tanpa any)
+npm run build         # production build (jangan dijalankan di folder ini saat `npm run dev` hidup)
+npm run lint          # ESLint, termasuk aturan arah impor antar lapisan
+npm run typecheck     # tsc --noEmit (strict, tanpa any)
+npm run format        # Prettier ke seluruh kode; format:check untuk CI
 ```
+
+> Perubahan `tailwind.config.ts` **tidak dimuat ulang** oleh `npm run dev`. Setelah mengubahnya,
+> hentikan server, hapus `.next`, lalu jalankan lagi.
 
 ---
 
@@ -39,24 +45,65 @@ npx tsc --noEmit # type check (strict, tanpa any)
 
 ```
 frontend/
-├── app/                          Rute (App Router)
-│   ├── login/, register/         Auth — split-screen + pemilih peran
-│   ├── dashboard/                DOSEN — 8 loading.tsx tersebar sebagai skeleton
-│   └── student/                  MAHASISWA
-├── components/
-│   ├── charts/                   Semua chart Recharts, dimuat malas
-│   ├── common/                   Kit bersama: AppShell, TopNav, DataTable,
-│   │                             SectionCard, PageSkeleton, BackLink, StatCard
-│   ├── ui/                       Primitive shadcn
-│   └── dashboard/, student/, submission/, overview/, report/, cognitive/
-├── lib/
-│   ├── api.ts, api-browser.ts    Fetcher server & client (inti di api-shared.ts)
-│   ├── auth-claims.ts            Baca peran dari JWT cookie tanpa panggilan jaringan
-│   ├── use-action.ts             Hook mutasi: pending sampai data baru tampil
-│   ├── data.ts, mutations.ts     Getter data (server) & aksi tulis (client)
-│   └── types.ts                  Tipe bersama
-└── middleware.ts                 Guard rute /dashboard & /student
+├── app/                  Rute (App Router). Tipis: ambil data, susun komponen. Target < 120 baris per page.tsx
+│   ├── login/, register/, lupa-sandi/, reset-sandi/, kebijakan-privasi/, persetujuan/
+│   ├── dashboard/        DOSEN   (layout.tsx = RoleLayout, error.tsx, not-found.tsx, loading.tsx)
+│   ├── student/          MAHASISWA
+│   └── bff/              Jembatan same-origin ke API; menyisipkan token dari cookie HttpOnly
+├── components/           Komponen yang TIDAK terikat satu domain
+│   ├── ui/               Primitif shadcn + varian ThinkPath (Button, Badge, Card, Alert, IconTile, Toaster, ...)
+│   ├── shared/           Komposisi lintas fitur (StatCard, EmptyState, StatusPage, FormField, ...)
+│   ├── layout/           Kerangka aplikasi (AppShell, SidebarShell, RoleLayout, Footer, Brandmark, ...)
+│   └── charts/           Pembantu chart generik (ChartLegend, warna)
+├── features/<domain>/    Segala hal milik satu domain: components/, lib/ (logika murni), hooks/
+│   ├── classes, assignments, submissions, cekpaham, materials, schedule
+│   ├── overview (+ chart Recharts), reports, notifications, bloom
+│   └── auth, privacy, settings, landing
+├── hooks/                Hook lintas fitur (use-action)
+├── lib/                  Infrastruktur dan kontrak, tanpa tampilan
+│   ├── api/              errors, messages, request (inti), server, browser, direct (unggahan bertiket)
+│   ├── types/            Tipe payload API per domain (barrel: impor dari "@/lib/types")
+│   ├── data/             Getter server per domain (barrel: "@/lib/data")
+│   ├── mutations/        Aksi tulis dari browser per domain (barrel: "@/lib/mutations")
+│   └── formatting, privacy, notify, text, avatar, auth-claims, auth-token, utils
+├── styles/tokens.css     Token warna terang/gelap (satu-satunya sumber nilai warna dan radius)
+└── middleware.ts         Guard rute /dashboard, /student, /persetujuan
 ```
+
+### Aturan lapisan (dijaga ESLint)
+
+| Lapisan | Boleh mengimpor | Tidak boleh |
+|---|---|---|
+| `components/ui` | `lib/` dan sesama `ui` | `shared`, `layout`, `features`, `app` |
+| `components/shared`, `components/charts` | `ui`, `lib/`, `hooks/` | `features`, `layout`, `app` |
+| `components/layout` | `ui`, `shared`, `features`, `lib/` | `app` |
+| `features/*` | `ui`, `shared`, `lib/`, `hooks/`, fitur lain lewat `components/` atau `lib/` miliknya | `app` |
+| `app/*` | semuanya | |
+
+Selain itu: satu komponen satu berkas, **named export** (default export hanya untuk berkas yang
+diwajibkan Next.js), impor memakai alias `@/` saja, dan logika yang bukan tampilan
+(menghitung, menyusun kalimat, mengelompokkan) ditaruh di `features/<domain>/lib/` sehingga
+bisa diuji tanpa React.
+
+### Cara menambah sesuatu
+
+| Mau menambah | Taruh di | Catatan |
+|---|---|---|
+| Halaman baru | `app/<area>/<rute>/page.tsx` | Ambil data dengan `@/lib/data`, rakit dari komponen fitur. Tambah `loading.tsx` bila datanya berat. |
+| Komponen khusus satu domain | `features/<domain>/components/` | Gunakan `ui`/`shared`; jangan menulis kelas warna sendiri. |
+| Komponen yang dipakai banyak domain | `components/shared/` | Harus tidak tahu apa pun tentang domain. |
+| Badge untuk nilai domain | `features/<domain>/components/` | Petakan nilainya ke `tone` pada `Badge`; jangan menulis `rounded-full bg-...` tangan. |
+| Tombol, tautan berbentuk tombol | `Button` / `<Button asChild>` | `buttonVariants` (dari `ui/button-variants`) untuk server component. |
+| Endpoint baru | `lib/data/<domain>.ts` (baca) atau `lib/mutations/<domain>.ts` (tulis), tipe di `lib/types/<domain>.ts` | Daftarkan di barrel `index.ts` bila domainnya baru. |
+| Pesan ke pengguna | `notify.success/error` (toast), `Alert` (tetap di halaman), `ConfirmDialog` (sebelum aksi berisiko) | Jangan memakai `window.confirm`/`alert`. |
+| Halaman 404/403/galat | `StatusPage` / `ErrorBoundaryPage` | `not-found.tsx` dan `error.tsx` tiap area hanya memberi teks dan tujuan. |
+| Warna atau ukuran baru | `styles/tokens.css` + `tailwind.config.ts` | Tanpa `text-[..]`, `rounded-[..]`, atau hex di komponen. |
+
+### Kontrak yang tidak boleh patah
+
+- `lib/privacy.ts` harus tetap di jalur itu: tes backend membaca berkasnya untuk mencocokkan
+  `PRIVACY_POLICY_VERSION`.
+- Jangkar `kebijakan-privasi#...` yang dirujuk dari layar persetujuan dan butir persetujuan harus tetap ada di `PolicyArticle.tsx`.
 
 ---
 
@@ -64,23 +111,28 @@ frontend/
 
 | Peran | Rute | Isi |
 |---|---|---|
-| Dosen | `/dashboard` | Overview: peta kelas dua sumbu, sebaran Bloom, tren kohort |
-| Dosen | `/dashboard/classes` | Daftar kelas dan kode gabung |
-| Dosen | `/dashboard/classes/[id]` | Detail kelas: pemilih tugas + tabel submission |
+| Dosen | `/dashboard` | Beranda: antrean "Perlu diperiksa", kartu kelas (pintasan ikon ke Mahasiswa/Materi/Forum/Tugas), forum terbaru, ringkasan Cek Paham, tenggat terdekat |
+| Dosen | `/dashboard/forum` | Forum semua kelas: kartu kelas, pencarian, saringan kelas dan jenis, "Belum dibalas" |
+| Dosen | `/dashboard/classes` | Kartu kelas (pencarian, Buat kelas sebaris, pintasan ikon ke tab) |
+| Dosen | `/dashboard/classes/[id]` | Detail kelas, tab `?tab=`: **Analitik** (bawaan: angka ringkas, antrean periksa kelas ini, Cek Paham per mahasiswa, peta dan tren Bloom), Mahasiswa, Tugas, Materi, Forum |
 | Dosen | `/dashboard/tugas` | Seluruh tugas lintas kelas |
-| Dosen | `/dashboard/cekpaham` | Daftar Cek Paham, ringkasan, dan laporan menunggu |
-| Dosen | `/dashboard/cekpaham/[id]` | Hasil Cek Paham: audio, transkrip server vs caption, saran skor berlabel "belum dikalibrasi", bukti, laporan mahasiswa |
-| Dosen | `/dashboard/laporan` | Laporan agregat per kelas, prodi, semester |
+| Dosen | `/dashboard/cekpaham` | Daftar Cek Paham: saring kelas dan status (perlu ditinjau, belum selesai, dibatalkan), cari |
+| Dosen | `/dashboard/cekpaham/[id]` | Hasil Cek Paham: skor saran berlabel "belum dikalibrasi", transkrip server vs caption, laporan mahasiswa; kolom kanan soal dan analisis tulisan |
+| Dosen | `/dashboard/analitik` | Tab `?tab=kelas` (peta dan tren tiap kelas, `?kelas=`) dan `?tab=lintas` (agregat per kelas, prodi, semester) |
 | Dosen | `/dashboard/students/[id]` | Profil kognitif seorang mahasiswa |
-| Dosen | `/dashboard/submission/[id]` | Bukti lengkap satu jawaban + linimasa proses |
-| Mahasiswa | `/student` | Beranda: tugas aktif dan nilai |
-| Mahasiswa | `/student/tugas` | Daftar tugas dan tenggat |
-| Mahasiswa | `/student/submit/[id]` | Mengerjakan / merevisi jawaban |
+| Dosen | `/dashboard/pengumpulan?kelas=&tugas=` | Antrean periksa, dikelompokkan per tugas |
+| Dosen | `/dashboard/submission/[id]` | Kartu mahasiswa, dokumen/jawaban, ringkasan bukti, penanda gaya; kolom kanan: nilai, saran satu klik, Cek Paham, kemiripan |
+| Mahasiswa | `/student` | Beranda: peringatan tugas, kartu kelas (progres + rata-rata), to-do pribadi, jadwal terdekat, forum terbaru, nilai terbaru, gabung kelas |
+| Mahasiswa | `/student/tugas` | Tugas semua kelas, dikelompokkan: perlu dikerjakan / menunggu nilai / sudah dinilai; saringan kelas |
+| Mahasiswa | `/student/kelas`, `/student/kelas/[id]` | Daftar kartu kelas; detail dengan tab Ringkasan, Forum, Materi, Tugas, Gradebook (nilai, rata-rata, grafik Bloom kelas itu), Anggota (dosen dan teman sekelas) (`?tab=`; `?post=` membuka topik forum) |
+| Mahasiswa | `/student/forum` | Kartu kelas di atas membuka forum kelasnya; di bawahnya semua topik lintas kelas bisa dicari dan disaring per kelas dan jenis |
+| Mahasiswa | `/student/jadwal` | Kalender tenggat dan sesi Cek Paham |
+| Mahasiswa | `/student/submit/[id]` | Mengerjakan / merevisi jawaban: header (judul, instruksi, tenggat hidup, nilai dan target kognitif vs hasil), masukan dosen di atas, editor kaya (TipTap: format, daftar, tabel, kode, rumus KaTeX, tautan, gambar kecil, Tab menjorok), minimal 5 kata, terkunci otomatis saat tenggat lewat, kartu status perubahan |
 | Mahasiswa | `/student/cekpaham/[id]` | Cek Paham: persetujuan suara, tes mikrofon, menjawab dengan suara, transkrip sendiri, lapor (tanpa skor) |
-| Mahasiswa | `/student/progress` | Perkembangan penalaran dan rekap nilai tugas per kelas, **tanpa kolom indikasi AI** |
+| Mahasiswa | `/student/gradebook` (`?kelas=<id>` memilih kelas awal) | Satu halaman: kartu kelas yang bisa digeser di atas; rapor nilai, umpan balik dosen, dan grafik perkembangan penalaran kelas terpilih tampil di bawahnya, **tanpa kolom indikasi AI** |
 | Keduanya | `/dashboard/pengaturan`, `/student/pengaturan` | Ubah nama tampil dan jenjang |
 
-Menu **Materi** dan **Jadwal** sengaja dibiarkan nonaktif, bukan diisi halaman kosong. Keduanya butuh model backend yang belum ada, dan menu yang bisa diklik tetapi tidak melakukan apa pun lebih menyesatkan daripada menu yang jujur menyatakan dirinya belum jadi.
+Materi mahasiswa kini tab di halaman kelas. `/student/progress` dan `/student/materi/[id]` hanya mengalihkan ke Gradebook / tab Materi (tautan lama, termasuk notifikasi lama). Mahasiswa dan dosen memakai sidebar yang bisa dilipat (`components/layout/SidebarShell.tsx`, menu per peran di `nav-config.ts`; menu dikirim sebagai peran, bukan daftar berisi ikon, karena komponen tidak bisa diserialisasi dari server ke klien). Status lipat sidebar hanya di memori React, karena kebijakan privasi melarang cookie tambahan dan localStorage.
 
 ---
 
@@ -93,19 +145,20 @@ Menu **Materi** dan **Jadwal** sengaja dibiarkan nonaktif, bukan diisi halaman k
 | Komponen | shadcn/ui jalur `shadcn@2` | Tambah komponen: `npx shadcn@2 add <nama>`, **bukan** `@latest` |
 | Ikon | `lucide-react` **0.468.x** | Dipin; 1.x menargetkan React 19 dan merusak build |
 | Chart | Recharts, dimuat malas | Menyeret seluruh keluarga d3, jadi halaman tanpa grafik tidak ikut membayarnya |
-| Font | Plus Jakarta Sans via `next/font` | Self-hosted saat build, tanpa request jaringan pemblokir |
+| Font | Hanya Plus Jakarta Sans via `next/font` (tanpa serif atau monospace) | Self-hosted saat build, tanpa request jaringan pemblokir |
+| Tema | Terang di aplikasi; landing terang/gelap lewat `?tema=` | Tema tersimpan butuh cookie/localStorage, bertentangan dengan kebijakan privasi |
 
-Palet teal (`#0ABAB5 / #56DFCF / #ADEED9 / #FFEDF3`) dan seluruh design token hidup sebagai variabel HSL di `app/globals.css` `:root`, dipetakan di `tailwind.config.ts`. Ganti tema cukup di dua berkas itu.
+Seluruh design token (teal dalam `--primary`, teal terang `--brand-teal`, status, radius) hidup sebagai variabel HSL di `styles/tokens.css`, dipetakan di `tailwind.config.ts`. Ganti tema cukup di dua berkas itu; dokumentasinya ada di [diagram/06-design-system.md](../diagram/06-design-system.md).
 
-> `components/ui/button.tsx` sengaja diberi `"use client"`. Versi baru `@radix-ui/react-slot` memanggil `createContext` di top-level modul; tanpa directive itu setiap halaman yang memakai Button gagal saat build RSC.
+> `components/ui/button.tsx` sengaja diberi `"use client"`. Versi baru `@radix-ui/react-slot` memanggil `createContext` di top-level modul; tanpa directive itu setiap halaman yang memakai Button gagal saat build RSC. Karena itu `buttonVariants` dan gaya tab (`tab-styles.ts`) hidup di berkas tanpa `"use client"`: server component tidak boleh memanggil fungsi yang diekspor dari modul client.
 
 ### Performa
 
 Empat keputusan yang saling terkait — jangan dicabut sebagian:
 
-- **`loading.tsx` di seluruh area dasbor** (8 berkas, skeleton lewat `components/common/PageSkeleton`; yang di `dashboard/` dan `student/` sekaligus menjadi fallback rute anaknya). Selain menghilangkan layar beku saat navigasi, loading boundary inilah yang membuat prefetch `<Link>` bekerja pada rute dinamis.
-- **Layout tidak menunggu jaringan.** Peran dibaca dari klaim JWT di cookie (`lib/auth-claims.ts`, decode tanpa verifikasi — hanya untuk tampilan, backend tetap memverifikasi tanda tangan), nama pengguna di-stream lewat Suspense. Fetch halaman berjalan paralel dengan `/api/me`, bukan setelahnya.
-- **Semua tombol mutasi memakai `lib/use-action.ts`** — `router.refresh()` berjalan di dalam `useTransition`, jadi tombol tetap pending sampai data baru benar-benar tampil, bukan idle di atas data basi.
+- **`loading.tsx` di seluruh area dasbor** (skeleton lewat `components/shared/PageSkeleton`; yang di `dashboard/` dan `student/` sekaligus menjadi fallback rute anaknya). Selain menghilangkan layar beku saat navigasi, loading boundary inilah yang membuat prefetch `<Link>` bekerja pada rute dinamis.
+- **Layout tidak menunggu jaringan.** Peran dibaca dari klaim JWT di cookie (`lib/auth-claims.ts`, dibaca `RoleLayout`; decode tanpa verifikasi — hanya untuk tampilan, backend tetap memverifikasi tanda tangan), nama pengguna di-stream lewat Suspense. Fetch halaman berjalan paralel dengan `/api/me`, bukan setelahnya.
+- **Semua tombol mutasi memakai `hooks/use-action.ts`** — `router.refresh()` berjalan di dalam `useTransition`, jadi tombol tetap pending sampai data baru benar-benar tampil, bukan idle di atas data basi. Hook ini juga mengirim toast sukses (`successMessage`) dan toast galat.
 - **`next.config.mjs`**: `optimizePackageImports` untuk lucide-react/recharts, dan `staleTimes.dynamic: 30` sehingga navigasi ulang dalam 30 detik terasa instan — tetap aman karena setiap mutasi memanggil `router.refresh()` yang membatalkan cache.
 
 ---

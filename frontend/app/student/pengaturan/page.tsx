@@ -1,4 +1,4 @@
-import { ProfileSettings } from "@/components/settings/ProfileSettings";
+import { ProfileSettings } from "@/features/settings/components/ProfileSettings";
 import { getConsent, getMe } from "@/lib/data";
 
 export default async function PengaturanPage() {

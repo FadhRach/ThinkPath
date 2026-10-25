@@ -98,14 +98,23 @@ TEXT_WEIGHTS = {
     "lexical_uniformity": 0.25,
 }
 
-# Porsi sinyal forensik proses ketika metadata pengerjaan tersedia. Sisa bobot
-# dibagi ke sinyal teks secara proporsional, sehingga totalnya tetap 1.0.
+# Porsi sinyal forensik proses dalam skor AI: NOL, dan itu keputusan, bukan
+# kelalaian. Sebelumnya 0,25 (menyusutkan bobot teks menjadi ×0,75). Tiga alasan
+# melepasnya dari skor:
 #
-# Angkanya sengaja 0.25, lebih besar dari sinyal teks mana pun: sinyal proses
-# adalah satu satunya yang tidak bisa dihapus dengan parafrase. Tetapi tidak
-# dibuat dominan, karena ia juga kasar. Mahasiswa yang mengetik cepat atau menyusun
-# jawaban di aplikasi lain sebelum menempelkannya bukan penyontek.
-PROCESS_WEIGHT = 0.25
+# 1. MID_THRESHOLD 42 dan FPR 0,044 diukur pada bobot teks murni di gold set.
+#    Menyusutkan bobot teks dan menambah sinyal proses membuat sebaran skor
+#    produksi berbeda dari yang diukur, sehingga ambang itu tidak berlaku lagi.
+# 2. Tidak ada satu pun data berlabel untuk proses; 0,25 tidak punya dasar ukur.
+# 3. Lonjakan yang sama dihasilkan penyalin dan mahasiswa jujur yang menulis di
+#    Word lalu menempel. Dengan bobot 0,25 yang kedua bisa naik +25 poin dan
+#    melewati ambang (0,75×25 + 0,25×100 = 43,75 ≥ 42).
+#
+# Sinyal proses tetap dihitung dan tampil di panel sebagai baris berbobot nol,
+# plus kartu "pola pengerjaan" tersendiri (process_signals.assess_process).
+# Naikkan hanya bila ada data berlabel yang membuktikan nilainya, dan turunkan
+# ulang MID_THRESHOLD bersamanya.
+PROCESS_WEIGHT = 0.0
 
 
 def _clamp01(value: float) -> float:
@@ -298,7 +307,7 @@ def text_signal_scores(features: TextFeatures) -> list[SignalScore]:
 
 
 def build_process_signal(context: ProcessContext) -> SignalScore:  # noqa: D401
-    """Forensik proses pengerjaan. Satu satunya sinyal yang tidak membaca teks."""
+    """Forensik proses pengerjaan (berbobot nol di skor, lihat PROCESS_WEIGHT)."""
     value, evidence = evaluate_process(context)
     return SignalScore(
         key="process_forensics",

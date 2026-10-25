@@ -24,6 +24,9 @@ class DocumentImportView(APIView):
     mengumpulkan lewat endpoint submission dengan `document_id` dari balasan ini.
     """
 
+    # Berkas besar melewati batas badan fungsi Vercel; lihat UploadTicketView.
+    accepts_upload_ticket = True
+
     permission_classes = [IsStudent]
     throttle_classes = [PerUserScopedThrottle]
     throttle_scope = "document_import"
@@ -69,6 +72,9 @@ def _file_response(found) -> FileResponse:
 class DocumentFileView(APIView):
     """GET berkas yang baru diunggah mahasiswa, untuk diperiksa sebelum dikumpulkan."""
 
+    # Berkas besar melewati batas badan fungsi Vercel; lihat UploadTicketView.
+    accepts_upload_ticket = True
+
     permission_classes = [IsStudent]
 
     def get(self, request, assignment_id: str, document_id: str):
@@ -81,6 +87,9 @@ class DocumentFileView(APIView):
 
 class SubmissionDocumentView(APIView):
     """GET berkas asli sumber jawaban: dosen pemilik kelas atau mahasiswa penjawabnya."""
+
+    # Berkas besar melewati batas badan fungsi Vercel; lihat UploadTicketView.
+    accepts_upload_ticket = True
 
     def get(self, request, submission_id: str):
         if request.user.role == "teacher":

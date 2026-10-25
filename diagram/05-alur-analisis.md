@@ -331,13 +331,13 @@ flowchart TB
         O["OpenAlex<br/>abstrak Indonesia<br/>terbit < Nov 2022"] -->|"label manusia gratis"| GS[("gold set<br/>999 sampel")]
         GEN["Groq · 3 model"] -->|"label AI"| GS
         GS --> SPLIT["Split train / test"]
-        SPLIT --> TUNE["tune_weights.py<br/>grid search bobot"]
-        TUNE --> EV["evaluate_baseline.py"]
+        SPLIT --> TUNE["notebook 03<br/>grid search bobot"]
+        TUNE --> EV["notebook 02<br/>baseline"]
         EV --> RES["ROC-AUC 0,901<br/>ambang 42 · FPR 0,044"]
     end
 
     subgraph DETV["Validasi detektor eksternal · BELUM DIJALANKAN"]
-        GS2[("gold set yang sama")] --> ED["evaluate_detector.py"]
+        GS2[("gold set yang sama")] --> ED["notebook 04<br/>detektor + Groq"]
         ED --> RES3["Ambang detektor masih 35/70<br/>sementara, belum terukur"]
     end
 

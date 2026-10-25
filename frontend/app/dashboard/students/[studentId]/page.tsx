@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 
-import { CognitiveClassCard } from "@/components/cognitive/CognitiveClassCard";
-import { BackLink } from "@/components/common/BackLink";
-import { Callout } from "@/components/common/Callout";
-import { PageHeader } from "@/components/common/PageHeader";
-import { EmptyState } from "@/components/dashboard/EmptyState";
+import { CognitiveClassCard } from "@/features/overview/components/CognitiveClassCard";
+import { AvatarInitials } from "@/components/shared/AvatarInitials";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { getStudentProfile } from "@/lib/data";
 
 interface Props {
@@ -25,28 +26,38 @@ export default async function StudentProfilePage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <BackLink href="/dashboard" label="Kembali ke overview" />
-
-      <PageHeader
-        title={profile.student.display_name}
-        subtitle="Profil kognitif: perkembangan level penalaran lintas tugas, per kelas."
+      <Breadcrumb
+        items={[
+          { label: "Analitik", href: "/dashboard/analitik" },
+          { label: profile.student.display_name },
+        ]}
       />
 
-      <Callout variant="info" title="Cara membaca halaman ini">
-        Level dihitung dari teks jawaban, <strong>bukan</strong> dari nilai atau
-        skor AI. Angka level saat ini memakai rata-rata bergerak, sehingga tugas
-        terbaru berbobot lebih besar daripada tugas awal semester. Mahasiswa yang
-        naik dari L1 ke L4 tidak sedang berada di L2.
-      </Callout>
+      <Card className="flex items-center gap-3.5 px-4 py-3.5 sm:px-5">
+        <AvatarInitials name={profile.student.display_name} size="lg" />
+        <div className="min-w-0">
+          <h1 className="break-words text-heading font-bold text-foreground">
+            {profile.student.display_name}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Profil kognitif: perkembangan level penalaran lintas tugas, per kelas.
+          </p>
+        </div>
+      </Card>
+
+      <Alert variant="info" title="Cara membaca halaman ini">
+        Level dihitung dari teks jawaban, <strong>bukan</strong> dari nilai atau skor AI. Angka
+        level saat ini memakai rata-rata bergerak, sehingga tugas terbaru berbobot lebih besar
+        daripada tugas awal semester. Mahasiswa yang naik dari L1 ke L4 tidak sedang berada di L2.
+      </Alert>
 
       {belowTarget.length > 0 ? (
-        <Callout variant="warning" title="Perlu perhatian pengajaran">
-          Di {belowTarget.length} kelas, level penalaran mahasiswa ini tertinggal
-          minimal satu tingkat dari target tugas:{" "}
-          {belowTarget.map((series) => series.class_name).join(", ")}. Celah ini
-          layak ditangani lebih dulu daripada dugaan penggunaan AI, karena ia
-          terukur sedangkan dugaan masih harus diverifikasi.
-        </Callout>
+        <Alert variant="warning" title="Perlu perhatian pengajaran">
+          Di {belowTarget.length} kelas, level penalaran mahasiswa ini tertinggal minimal satu
+          tingkat dari target tugas: {belowTarget.map((series) => series.class_name).join(", ")}.
+          Celah ini layak ditangani lebih dulu daripada dugaan penggunaan AI, karena ia terukur
+          sedangkan dugaan masih harus diverifikasi.
+        </Alert>
       ) : null}
 
       {profile.classes.length === 0 ? (
@@ -56,12 +67,7 @@ export default async function StudentProfilePage({ params }: Props) {
         />
       ) : (
         profile.classes.map((series) => (
-          <CognitiveClassCard
-            key={series.class_id}
-            series={series}
-            showBand
-            linkSubmissions
-          />
+          <CognitiveClassCard key={series.class_id} series={series} showBand linkSubmissions />
         ))
       )}
     </div>

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { Brandmark } from "@/components/common/Brandmark";
-import { ConsentScreen } from "@/components/privacy/ConsentScreen";
-import { PolicyArticle } from "@/components/privacy/PolicyArticle";
+import { Brandmark } from "@/components/layout/Brandmark";
+import { ConsentScreen } from "@/features/privacy/components/ConsentScreen";
+import { PolicyArticle } from "@/features/privacy/components/PolicyArticle";
 import { readAuthClaims } from "@/lib/auth-claims";
 import { getConsent } from "@/lib/data";
 import { PRIVACY_POLICY_VERSION } from "@/lib/privacy";
@@ -36,7 +36,8 @@ export default async function ConsentPage() {
           <Link
             href="/kebijakan-privasi"
             target="_blank"
-            className="text-body-sm font-semibold text-primary hover:underline"
+            rel="noopener noreferrer"
+            className="text-body-sm font-semibold text-brand-ink hover:underline"
           >
             Kebijakan Privasi
           </Link>

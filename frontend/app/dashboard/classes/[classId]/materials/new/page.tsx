@@ -1,14 +1,12 @@
 import { BellRing } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { BackLink } from "@/components/common/BackLink";
-import { Callout } from "@/components/common/Callout";
-import { PageHeader } from "@/components/common/PageHeader";
-import { MaterialForm } from "@/components/dashboard/MaterialForm";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
+import { Alert } from "@/components/ui/alert";
+import { MaterialForm } from "@/features/materials/components/MaterialForm";
 import { Card } from "@/components/ui/card";
-import { distinctSubject } from "@/lib/academic";
 import { getClassMaterials, getClasses } from "@/lib/data";
-import { groupByTopic } from "@/lib/materials";
+import { groupByTopic } from "@/features/materials/lib/materials";
 
 export default async function NewMaterialPage({
   params,
@@ -29,25 +27,21 @@ export default async function NewMaterialPage({
 
   return (
     <div className="space-y-6">
-      <BackLink
-        href={`/dashboard/classes/${targetClass.id}?tab=materi`}
-        label="Kembali ke kelas"
-      />
-      <PageHeader
-        title="Bagikan Materi"
-        subtitle={[targetClass.name, distinctSubject(targetClass.name, targetClass.subject)]
-          .filter(Boolean)
-          .join(" · ")}
+      <Breadcrumb
+        items={[
+          { label: "Kelas", href: "/dashboard/classes" },
+          { label: targetClass.name, href: `/dashboard/classes/${targetClass.id}?tab=materi` },
+          { label: "Bagikan Materi" },
+        ]}
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="p-6 shadow-soft">
+        <Card variant="raised" className="p-6">
           <MaterialForm classId={targetClass.id} topics={topics} />
         </Card>
-        <Callout variant="info" title="Mahasiswa langsung diberi tahu" icon={BellRing}>
-          Materi muncul di halaman Materi setiap mahasiswa kelas ini, di bawah topik
-          yang Anda pilih, dan lonceng notifikasi mereka membawa langsung ke
-          materinya.
-        </Callout>
+        <Alert variant="info" title="Mahasiswa langsung diberi tahu" icon={BellRing}>
+          Materi muncul di halaman Materi setiap mahasiswa kelas ini, di bawah topik yang Anda
+          pilih, dan lonceng notifikasi mereka membawa langsung ke materinya.
+        </Alert>
       </div>
     </div>
   );

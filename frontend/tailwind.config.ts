@@ -5,6 +5,8 @@ const config: Config = {
   darkMode: ["class"],
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./features/**/*.{js,ts,jsx,tsx,mdx}",
+    "./hooks/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
@@ -52,6 +54,7 @@ const config: Config = {
         },
         // ThinkPath brand + status
         brand: {
+          ink: "hsl(var(--brand-ink))",
           teal: "hsl(var(--brand-teal))",
           "teal-light": "hsl(var(--brand-teal-light))",
           mint: "hsl(var(--brand-mint))",
@@ -69,19 +72,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--danger))",
           soft: "hsl(var(--danger-soft))",
         },
-        chart: {
-          1: "hsl(var(--chart-1))",
-          2: "hsl(var(--chart-2))",
-          3: "hsl(var(--chart-3))",
-          4: "hsl(var(--chart-4))",
-          5: "hsl(var(--chart-5))",
-        },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       fontSize: {
-        "display-1": ["2.5rem", { lineHeight: "1.1", letterSpacing: "-0.02em" }],
+        // Judul halaman fluid (menggantikan text-[1.6rem] sm:text-[2rem] dst.), judul bagian, dan teks mikro badge.
+        title: [
+          "clamp(1.6rem, 1.25rem + 1.2vw, 2.1rem)",
+          { lineHeight: "1.15", letterSpacing: "-0.02em" },
+        ],
+        heading: ["1.25rem", { lineHeight: "1.3", letterSpacing: "-0.01em" }],
+        micro: ["0.6875rem", { lineHeight: "1.35", letterSpacing: "0.01em" }],
         "display-2": ["1.875rem", { lineHeight: "1.2", letterSpacing: "-0.015em" }],
         "body-lg": ["1.0625rem", { lineHeight: "1.65" }],
         body: ["0.9375rem", { lineHeight: "1.6" }],
@@ -92,25 +94,10 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        card: "1rem",
       },
       boxShadow: {
         soft: "0 1px 2px 0 hsl(176 30% 20% / 0.04), 0 4px 16px -4px hsl(176 40% 20% / 0.08)",
         "soft-lg": "0 8px 32px -8px hsl(176 40% 20% / 0.12)",
-      },
-      keyframes: {
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
       },
     },
   },

@@ -159,7 +159,7 @@ make seed                                # opsional: akun demo
 curl https://api.thinkpath.id/health     # {"status":"ok"}
 ```
 
-**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-22`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
+**5. Frontend**: kode frontend di `main` harus memuat Kebijakan Privasi versi yang sama dengan backend (`2026-10-26`); bila belum, layar persetujuan menolak semua login. Jadi deploy backend dan frontend dari commit yang sama, berdekatan. Di proyek Vercel, set `NEXT_PUBLIC_BACKEND_URL=https://api.thinkpath.id` lalu **Redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build).
 
 **6. Backup harian**
 
@@ -169,7 +169,14 @@ crontab -e
 0 2 * * * /opt/thinkpath/backend/deploy/backup.sh >> /opt/thinkpath/backend/backups/backup.log 2>&1
 ```
 
-Backup disimpan 7 hari di `backups/`. Salin berkala ke luar VPS (mis. `scp` ke laptop), karena backup di disk yang sama tidak menolong bila VPS-nya rusak.
+Backup disimpan 7 hari di `backups/`. Backup di disk yang sama tidak menolong bila VPS-nya rusak, jadi isi di `.env` (lihat `.env.production.example`):
+
+- `BACKUP_AGE_RECIPIENT`: kunci publik [age](https://age-encryption.org) (`age-keygen`); backup dienkripsi sebelum ditulis. Simpan kunci privatnya di luar VPS.
+- `BACKUP_RCLONE_REMOTE`: tujuan [rclone](https://rclone.org) di luar VPS (mis. bucket R2/B2). Skrip menolak mengunggah bila kunci age kosong, karena backup berisi data pribadi.
+
+Uji pemulihan sebulan sekali: `deploy/restore-test.sh` memuat backup terbaru ke Postgres sementara dan menghitung baris tabel inti (berkas `.age` butuh `AGE_IDENTITY=<kunci privat>`). Jalur enkripsi dan unggah belum pernah dijalankan di VPS sungguhan.
+
+**7. Email reset sandi (opsional)**: isi `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` di `.env` (SMTP biasa, port 587 + STARTTLS). Kosong = tautan reset hanya tercetak di log container `api`, cukup untuk demo. Tautan mengarah ke origin pertama `CORS_ALLOWED_ORIGINS`.
 
 ### Sehari-hari di VPS
 
@@ -255,8 +262,10 @@ Diagram relasi, constraint, index, dan alasan normalisasi ada di [diagram/08-erd
 | App | Model → tabel |
 |---|---|
 | `accounts` | `Profile` → `profiles`, `ConsentRecord` → `consent_records` |
-| `academics` | `Class` → `classes`, `ClassMembership` → `class_memberships`, `Assignment` → `assignments`, `Material` → `materials`, `Announcement` → `announcements`, `Submission` → `submissions`, `ReasoningEvent` → `reasoning_events` |
+| `academics` | `Class` → `classes`, `ClassMembership` → `class_memberships`, `Assignment` → `assignments`, `Material` → `materials`, `Submission` → `submissions`, `ReasoningEvent` → `reasoning_events` |
 | `analysis` | `AnalysisResult` → `analysis_results`, `DetectorScore` → `detector_scores` |
+| `forum` | `ForumPost` → `forum_posts` (kind `announcement`/`discussion`), `ForumReply` → `forum_replies` |
+| `todos` | `StudentTodo` → `student_todos` |
 | `notifications` | `Notification` → `notifications` |
 
 Aturan penting dijaga **di basis data**, bukan hanya di serializer: satu submission per mahasiswa per tugas, email unik tanpa peduli huruf besar, rentang nilai/Bloom/semester, dan satu Cek Paham aktif per submission. Jenjang, program studi, dan semester **melekat di kelas**, bukan di profil atau tugas.
@@ -273,7 +282,14 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 |---|---|---|---|
 | GET | `/health` | publik | health check |
 | POST | `/api/auth/register` | publik | daftar (wajib `accept_policy: true` + `policy_version` berlaku; persetujuan dicatat di transaksi yang sama), balikan token + profil |
-| POST | `/api/auth/login` | publik | login, balikan token + profil |
+| POST | `/api/auth/login` | publik | login (throttle per IP dan per email), balikan token + profil |
+| POST | `/api/auth/logout` | login | cabut sesi ini di server; token langsung tidak berlaku |
+| POST | `/api/auth/upload-ticket` | login | tiket 10 menit untuk unggah/ambil berkas besar langsung ke API (lihat "Sesi dan token") |
+| POST | `/api/auth/password-reset` | publik | minta tautan atur ulang sandi (`email`); selalu 202, ada atau tidaknya akun tidak terlihat; 10/jam per IP, jeda 60 detik per akun |
+| POST | `/api/auth/password-reset/confirm` | publik | pasang sandi baru (`token`, `new_password`); tautan sekali pakai, berlaku 30 menit, mencabut semua sesi |
+| POST | `/api/me/password` | login | ganti kata sandi (`current_password`, `new_password`); sesi lain dicabut |
+| GET | `/api/me/deletion-impact` | login | hitungan yang ikut hilang bila akun dihapus |
+| DELETE | `/api/me` | login | **hapus akun beserta semua datanya dan berkasnya** (`password`, `confirm: "HAPUS"`); 204 |
 | GET/PATCH | `/api/me` | login | profil sendiri |
 | GET/POST | `/api/me/consent` | login | keadaan dan riwayat persetujuan / setujui ulang versi berlaku, body `{policy_version}` (butir dari peran; balikan token baru) |
 | POST | `/api/me/consent/withdraw` | login | tarik persetujuan (balikan token tanpa klaim persetujuan) |
@@ -282,8 +298,15 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET | `/api/assignments` | dosen | seluruh tugas lintas kelas |
 | GET/PATCH | `/api/assignments/<id>` | dosen pemilik | detail / edit tugas; target Bloom dikunci setelah ada pengumpulan |
 | GET | `/api/classes/<id>/students` | dosen pemilik | seluruh anggota kelas beserta jumlah pengumpulan dan penilaian |
-| GET/POST | `/api/classes/<id>/announcements` | GET pemilik/anggota, POST dosen pemilik | baca / terbitkan pengumuman dan kirim notifikasi mahasiswa |
-| GET | `/api/submissions` | dosen | pengumpulan lintas kelas sendiri; filter `status=all`, `submitted`, atau `reviewed`; tanpa draf |
+| GET | `/api/classes/<id>/people` | mahasiswa anggota | dosen dan teman sekelas, hanya nama tampil (tanpa email; akun tanpa nama diberi nama umum); non-anggota 404 |
+| GET/POST | `/api/classes/<id>/forum` | GET pemilik/anggota, POST pemilik/anggota (kind `announcement` hanya dosen pemilik) | daftar topik (pengumuman di atas) / buat topik; memicu notifikasi `forum_post_new`; ditolak di kelas arsip |
+| GET | `/api/student/forum/recent?limit=` | mahasiswa | aktivitas forum terbaru lintas kelas (maks 20) |
+| GET/DELETE | `/api/forum/posts/<id>` | pemilik/anggota; hapus oleh penulis atau dosen pemilik | topik beserta balasan / hapus |
+| POST | `/api/forum/posts/<id>/replies` | pemilik/anggota | balas topik; notifikasi `forum_reply_new` |
+| DELETE | `/api/forum/replies/<id>` | penulis atau dosen pemilik | hapus balasan |
+| GET/POST | `/api/student/todos` | mahasiswa | to-do pribadi (maks 100 yang belum selesai) |
+| PATCH/DELETE | `/api/student/todos/<id>` | pemilik item | centang/ubah / hapus; item orang lain 404 |
+| GET | `/api/submissions` | dosen | pengumpulan lintas kelas sendiri; filter `status=all`, `submitted`, atau `reviewed`; `limit` (bawaan 200, maks 500) dan `offset`; total di header `X-Total-Count`; tanpa draf |
 | GET | `/api/overview` | dosen | agregat layar Overview |
 | GET | `/api/reports/overview` | dosen | laporan per kelas, prodi, semester |
 | GET | `/api/students/<id>/profile` | dosen pengampu | profil kognitif mahasiswa |
@@ -291,10 +314,13 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET | `/api/student/classes` | mahasiswa | kelas diikuti + status tiap tugas |
 | GET | `/api/student/progress` | mahasiswa | perkembangan kognitif sendiri |
 | GET | `/api/student/assignments/<id>` | mahasiswa anggota | detail tugas + submission sendiri |
-| GET/POST | `/api/assignments/<id>/submissions` | GET dosen, POST mahasiswa | daftar / **submit atau revisi** |
+| PUT | `/api/assignments/<id>/draft` | mahasiswa anggota | simpan otomatis draf (`rich_answer` dokumen editor, atau `text_answer` teks polos); **server mencatat waktu mulai dan kurva kata**; baru mulai pada simpan pertama yang berisi teks |
+| GET/POST | `/api/assignments/<id>/submissions` | GET dosen, POST mahasiswa | daftar / **submit atau revisi** (hanya menyimpan, analisis dikerjakan worker) |
 | POST | `/api/assignments/<id>/documents` | mahasiswa anggota | unggah PDF/DOCX/PNG/JPG (maks 10 MB, multipart `file`); membalas teks hasil baca |
-| GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik |
-| POST | `/api/submissions/<id>/reanalyze` | dosen pemilik | analisis ulang |
+| GET/PATCH | `/api/submissions/<id>` | dosen pemilik | detail / beri nilai + umpan balik; detail memuat `style_markers` (penanda gaya teks, bukan bagian skor AI) dan `similar_submissions` (irisan 5 kata berurutan dengan jawaban lain di tugas yang sama, maks. 5); `assignment` memuat `instructions`/`instructions_rich` |
+| POST | `/api/submissions/<id>/reanalyze` | dosen pemilik | antrekan analisis ulang; **202** + `analysis_state` |
+| GET | `/api/submissions/<id>/compare/<other_id>` | dosen pemilik | dua jawaban pada tugas yang sama berdampingan; `spans` = potongan lima kata yang sama persis di tiap sisi |
+| POST | `/api/submissions/<id>/suggestion` | dosen pemilik | saran satu klik (baik / tinjau / perlu Cek Paham / bandingkan). **409** sampai analisis selesai. Aturan lokal selalu jalan; narasi Groq hanya bila mahasiswa menyetujui analisis luar negeri. Throttle `ai_suggestion` 40/jam |
 | GET/POST | `/api/submissions/<id>/cekpaham` | dosen pemilik | daftar / **minta Cek Paham** (soal, bahasa, durasi 15–300 dtk, jendela waktu) |
 | GET | `/api/cekpaham` | dosen | antrean; filter `status`, `phase` (`upcoming`/`open`/`closed`), `has_open_report` |
 | GET | `/api/cekpaham/<id>` | dosen pemilik | detail: transkrip, saran skor, bukti, flag, konteks sesi, laporan |
@@ -314,14 +340,35 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | GET | `/api/notifications` | login | 30 notifikasi terbaru + jumlah belum dibaca |
 | POST | `/api/notifications/read` | login | tandai dibaca (`ids`, atau semua bila kosong) |
 
-### Submit & revisi
+### Draf, submit, dan revisi
 
-`POST /api/assignments/<id>/submissions` bersifat **upsert per mahasiswa**:
+Bukti proses **dicatat server**, bukan dikirim klien:
 
-- Submission pertama membuat baris baru (`revision_count = 0`). Body: `text_answer`, `started_at`, dan `progress` (cuplikan jumlah kata). Tindakan menempel tidak direkam; kolom `pastes` dari form lama diabaikan.
-- Submission berikutnya, selama tenggat belum lewat dan belum dinilai, **memperbarui jawaban yang sama**: `revision_count += 1`, menambah `ReasoningEvent(revision)`, dan memicu analisis ulang yang **memakai ulang cuplikan tersimpan**. Jumlah revisi ditampilkan di bukti, tidak diskor.
-- Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`. Status "sudah dinilai" diperiksa ulang di dalam transaksi (`SELECT ... FOR UPDATE`), jadi nilai yang masuk selagi analisis revisi berjalan tetap menang.
-- Klik ganda pada pengumpulan pertama: constraint `submission_unique_per_student` menolak baris kedua, dan permintaan itu dibalas `400`, bukan `500`.
+1. Mahasiswa mengetik; form menyimpan otomatis lewat `PUT /api/assignments/<id>/draft`. Draf (`submission_drafts`) dibuat pada simpan pertama yang **berisi teks**, dan `started_at` adalah jam server saat itu. Membuka halaman tugas tidak memulai apa pun. Jumlah kata dihitung server dari teks, dan satu cuplikan dicatat paling sering tiap 20 detik (maks 240).
+2. `POST /api/assignments/<id>/submissions` adalah **upsert per mahasiswa**. Body `rich_answer` (dokumen editor TipTap; server membersihkannya lewat daftar putih di `services/rich_text.py` dan **menurunkan sendiri** `text_answer` darinya, sehingga klien tidak bisa mengirim teks polos yang berbeda) atau `text_answer` saja (klien lama), minimal 5 kata (+ `document_id` bila dari unggahan). Gambar disisipkan sebagai data URI kecil (PNG/JPEG/WebP/GIF) di dalam dokumen, maksimal 6 gambar dan 2,5 MB. `started_at` dan `progress` dari bundel lama **diterima tetapi diabaikan**. Pengumpulan pertama memakai draf (dihapus di transaksi yang sama); tanpa draf, durasi terukur 0 dan teks dianggap tiba sekaligus.
+3. Pengumpulan berikutnya, selama tenggat belum lewat dan belum dinilai, memperbarui jawaban yang sama: `revision_count += 1`, `ReasoningEvent(revision)` yang memuat `inserted_words` (kata baru yang tidak ada di teks sebelumnya, supaya mengganti seluruh isi saat revisi tetap terbaca).
+4. Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`. Status "sudah dinilai" diperiksa ulang di dalam transaksi (`SELECT ... FOR UPDATE`).
+5. Klik ganda pada pengumpulan pertama: constraint `submission_unique_per_student` menolak baris kedua, dibalas `400`, bukan `500`.
+
+Residu yang tidak bisa ditutup tanpa merekam ketikan: skrip yang mengirim draf bertahap selama berjam-jam bisa meniru kurva wajar. Biayanya waktu nyata, bukan satu request.
+
+### Analisis di worker
+
+Submit/revisi hanya menyimpan jawaban dan satu `AnalysisJob` (antrean di Postgres, tanpa Redis); respons kembali dalam milidetik. Container `worker` (`manage.py run_analysis_worker`, 3 thread, `SELECT ... FOR UPDATE SKIP LOCKED`) mengerjakan job: membaca persetujuan dan jejak proses dari basis data **saat job berjalan**, menjalankan `run_analysis`, menulis `AnalysisResult` (keadaan terkini) dan `AnalysisRun` (riwayat, tidak pernah ditimpa). Galat tak terduga diulang 2× dengan jeda; setelah itu hasil heuristik dipakai supaya pengumpulan selalu punya hasil. Job `running` yang macet > 90 detik diambil ulang; hasil job yang teksnya sudah direvisi lagi dibuang.
+
+`Submission.analysis_state` (`pending`/`running`/`done`/`failed`) ikut di daftar dan detail dosen; frontend memuat ulang tiap 3 detik selama belum `done`. Di lokal (`ANALYSIS_INLINE = True` di `development.py` dan `test.py`) job dikerjakan seketika di request, jadi `make dev` tidak butuh proses ketiga. Produksi: `ANALYSIS_INLINE = False`. Anggaran memori diukur: api ±110 MB, worker ±90 MB, db ±35 MB (idle); koneksi DB: 8 (gunicorn) + 3 (worker) di bawah `max_connections=30`. Hanya `api` yang menjalankan `migrate`; worker menunggu api sehat.
+
+### Skor: teks dan pola pengerjaan dipisah
+
+`ai_score`/`ai_band` dihitung **dari teks saja** (Winston → Groq → heuristik). Pola pengerjaan (`process_band`: `normal`, `partial`, `attention`, `unrecorded`; kosong untuk jawaban diimpor) adalah bukti tersendiri dan tidak menjumlah ke skor. Alasan: ambang skor diukur pada bobot teks murni, tidak ada data berlabel untuk bobot proses, dan mahasiswa yang menempel dari Word menghasilkan lonjakan yang sama dengan penyalin. Lonjakan = ≥ 60 kata dengan laju ≥ 120 kata/menit antar cuplikan; porsi < 35% wajar, ≥ 60% perlu dilihat. Setiap analisis tersimpan di `analysis_runs` bersama masukan prosesnya (bahan kalibrasi kelak). Teks yang memuat kalimat untuk penilai otomatis ("abaikan instruksi…") tidak dikirim ke Groq (`apps/analysis/injection.py`).
+
+### Sesi dan token
+
+Token JWT memuat `sid` yang menunjuk baris `auth_sessions`; tiap request memeriksa sesinya (di-cache 15 detik di memori). `exp`, `iat`, `sub`, `sid`, `iss`, `aud` wajib; kunci tanda tangan diturunkan dari `DJANGO_SECRET_KEY` (minimal 32 karakter di produksi). Logout dan ganti sandi mencabut sesi. Frontend menaruh token di cookie **HttpOnly** lewat jembatan `/bff` (Next.js), jadi JavaScript tidak memegangnya. Unggahan besar (dokumen 10 MB, audio 5 MB) melampaui batas badan fungsi Vercel (4,5 MB), sehingga memakai **tiket unggah**: token 10 menit yang hanya diterima view bertanda `accepts_upload_ticket`. Sandi: minimal 10 karakter, bukan sandi umum, bukan angka semua, tidak mirip email/nama. Login dibatasi per IP (20/menit) dan per email (10/menit).
+
+### Penghapusan data
+
+`DELETE /api/me` (UI: Pengaturan, kartu "Hapus akun") menghapus profil (cascade ke jawaban, analisis, notifikasi, persetujuan, sesi) **dan berkasnya** (`documents/<id>/`, `cekpaham/<id>/`). Daftar jalur dikumpulkan sebelum baris dihapus, berkas dihapus setelah commit. Yang tersisa hanya `account_deletions`: id acak, peran, versi kebijakan, jumlah. **Dosen yang menghapus akun tidak menghapus kelasnya**: `Class.owner` menjadi kosong dan `owner_left_at` terisi, sehingga kelas, tugas, dan jawaban mahasiswa tetap ada sebagai arsip baca-saja. Mahasiswa melihat peringatan di kelas itu (`is_archived` pada `/api/student/classes` dan detail tugas), sedangkan draf, pengumpulan, dan gabung kelas ditolak (`reject_if_archived`). `CekPaham.created_by` juga dikosongkan, bukan dihapus. Berkas mahasiswa di kelas arsip tidak ikut dihapus; mahasiswa menghapusnya dengan menghapus akunnya sendiri (`/api/me/deletion-impact` memberi hitungannya lebih dulu). `manage.py purge_stale_data` (cron harian, `deploy/maintenance.sh`) menyapu berkas yatim > 24 jam, job analisis > 30 hari, notifikasi > 90 hari, dan sesi lama. Salinan di backup (7 hari) memuat data sebelum penghapusan sampai kedaluwarsa.
 
 **Skor AI dan sinyal tidak pernah diekspos ke mahasiswa** (`StudentSubmissionStatusSerializer`). Daftar tugas mahasiswa juga tidak mengirim `text_answer` demi menekan ukuran respons — teks lengkap hanya ada di endpoint detail.
 
@@ -329,8 +376,8 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 
 Dosen memilih per tugas lewat `Assignment.allow_file_upload` (bawaan `false`, wajib diketik): bila mati, endpoint unggah dibalas `403` dan `document_id` diabaikan. Bila hidup, mahasiswa bisa mengisi jawaban dari berkas. Alurnya dua langkah, dan unggahan **tidak pernah mengumpulkan jawaban sendiri**:
 
-1. `POST /api/assignments/<id>/documents` (multipart, field `file`, maks 10 MB, tenggat dan persetujuan privasi diperiksa seperti submit) membalas `{document_id, text, page_count, method, warnings}`. Mahasiswa meninjau `text` di editor.
-2. Submit biasa dengan tambahan `document_id`.
+1. `POST /api/assignments/<id>/documents` (multipart, field `file`, maks 10 MB, tenggat dan persetujuan privasi diperiksa seperti submit) membalas `{document_id, text, page_count, method, warnings}`. Teks ini tidak dimasukkan ke editor.
+2. Submit biasa dengan tambahan `document_id`. Server **menggabungkan** tulisan mahasiswa di kotak jawaban (nama, NIM, catatan; boleh kosong) dengan teks dokumen yang tersimpan: `text_answer` = ketikan + teks dokumen, dan inilah yang dianalisis. `rich_answer` hanya berisi ketikannya. Klien harus mengirim ulang `document_id` pada revisi; tanpa itu dokumen dianggap dilepas. Bila ketikan lebih dari separuh gabungan, jawaban tidak lagi dianggap diimpor dan forensik proses berlaku.
 
 Cara baca (`apps/academics/services/documents.py`): jenis berkas ditentukan dari isinya (bukan nama atau content-type). DOCX dan PDF berlapis teks dibaca di server. Halaman gambar (scan, foto, PNG/JPG) dibaca model visual Groq (`providers/groq_vision.py`, `GROQ_VISION_MODEL`, bawaan `qwen/qwen3.8-27b`), **hanya bila mahasiswa mengizinkan analisis di luar negeri**; selain itu ditolak dengan pesan yang jelas. Batas: 20 halaman, 6 halaman gambar (dibaca paralel agar di bawah timeout gunicorn 60 detik). `.doc` lama tidak didukung.
 

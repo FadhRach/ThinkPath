@@ -9,16 +9,15 @@ import type { Role } from "@/lib/types";
  * Pasal 21 ayat (2) UU No. 27 Tahun 2022: perubahan informasi diberitahukan
  * sebelum terjadi.
  */
-export const PRIVACY_POLICY_VERSION = "2026-10-22";
-export const PRIVACY_POLICY_EFFECTIVE_LABEL = "22 Oktober 2026";
+export const PRIVACY_POLICY_VERSION = "2026-10-26";
+export const PRIVACY_POLICY_EFFECTIVE_LABEL = "26 Oktober 2026";
 
 /**
  * Surel untuk permohonan hak subjek data (Pasal 14: permohonan tercatat).
  * Diisi lewat lingkungan deploy, bukan ditanam di kode, supaya alamat pribadi
  * anggota tim tidak ikut terpublikasi tanpa keputusan tim.
  */
-export const PRIVACY_CONTACT_EMAIL =
-  process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL?.trim() || null;
+export const PRIVACY_CONTACT_EMAIL = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL?.trim() || null;
 
 export type ConsentItemKey =
   | "data_perkuliahan"
@@ -48,7 +47,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "data_perkuliahan",
       title: "Data akun dan perkuliahan",
-      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas (termasuk dokumen yang kamu unggah), nilai, dan umpan balik dosen untuk menjalankan perkuliahan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang kamu buka atau kirim lewat halaman ikut melewati server Vercel.",
+      body: "ThinkPath menyimpan akunmu, kelas yang kamu ikuti, jawaban tugas (termasuk gambar yang kamu sisipkan dan dokumen yang kamu unggah), nilai, umpan balik dosen, tulisan di forum kelas, catatan to-do pribadi, dan namamu di daftar anggota kelas (terlihat teman sekelas dan dosen, tanpa email) untuk menjalankan perkuliahan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang kamu buka atau kirim lewat halaman ikut melewati server Vercel.",
       anchor: "data-yang-dikumpulkan",
     },
     {
@@ -60,7 +59,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "analisis_luar_negeri",
       title: "Analisis oleh penyedia di luar negeri",
-      body: "Teks jawabanmu dikirim ke Groq (Amerika Serikat) dan Winston AI (Kanada) untuk analisis, ditambah jenjang studi untuk Groq, tanpa nama atau email. Bila kamu mengunggah dokumen scan atau foto, gambar halamannya juga dikirim ke Groq agar bisa dibaca. Winston menyimpan teks yang dinilai sebagai laporan sampai laporan itu dihapus.",
+      body: "Teks jawabanmu dikirim ke Groq (Amerika Serikat) dan Winston AI (Kanada) untuk analisis, ditambah jenjang studi untuk Groq, tanpa nama atau email. Bila kamu mengunggah dokumen scan atau foto, gambar halamannya juga dikirim ke Groq agar bisa dibaca. Bila dosen meminta saran atas jawabanmu, ringkasan hasil analisisnya ikut dikirim. Winston menyimpan teks yang dinilai sebagai laporan sampai laporan itu dihapus.",
       anchor: "penyedia-layanan",
     },
     {
@@ -80,7 +79,7 @@ export const CONSENT_ITEMS: Record<Role, ConsentItem[]> = {
     {
       key: "data_perkuliahan",
       title: "Data akun dan kelas",
-      body: "ThinkPath menyimpan akun Anda, kelas, tugas, materi, dan penilaian yang Anda berikan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang Anda buka atau kirim lewat halaman ikut melewati server Vercel.",
+      body: "ThinkPath menyimpan akun Anda, kelas, tugas, materi, pengumuman dan tulisan forum, serta penilaian yang Anda berikan. Datanya disimpan di server ThinkPath milik IDCloudHost di Jakarta, Indonesia. Halaman web disajikan oleh Vercel (Washington, D.C., Amerika Serikat), sehingga data yang Anda buka atau kirim lewat halaman ikut melewati server Vercel.",
       anchor: "data-yang-dikumpulkan",
     },
     {

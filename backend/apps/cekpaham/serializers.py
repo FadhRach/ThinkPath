@@ -84,13 +84,16 @@ class CekPahamTeacherSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="submission.student_profile.display_name", read_only=True)
     assignment_title = serializers.CharField(source="submission.assignment.title", read_only=True)
     class_name = serializers.CharField(source="submission.assignment.class_ref.name", read_only=True)
+    class_id = serializers.UUIDField(source="submission.assignment.class_ref_id", read_only=True)
+    student_id = serializers.UUIDField(source="submission.student_profile_id", read_only=True)
     phase = serializers.SerializerMethodField()
     attempt = serializers.SerializerMethodField()
 
     class Meta:
         model = CekPaham
         fields = [
-            "id", "submission_id", "student_name", "assignment_title", "class_name",
+            "id", "submission_id", "student_id", "student_name", "assignment_title",
+            "class_id", "class_name",
             "question_text", "language", "answer_seconds", "window_start", "window_end",
             "status", "phase", "created_at", "cancelled_at", "attempt",
         ]

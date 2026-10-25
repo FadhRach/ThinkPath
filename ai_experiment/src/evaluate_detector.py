@@ -38,24 +38,16 @@ Tiga hal yang membentuk seluruh rancangan berkas ini:
    Peringatannya dicetak di keluaran skrip, bukan hanya ditulis di dokumen,
    karena yang membaca angka biasanya tidak sedang membaca dokumen.
 
-Jalankan dari folder ai_experiment:
-
-    python -m src.evaluate_detector --limit 40
-    python -m src.evaluate_detector --limit 200 --sleep 0.5
+Dipakai oleh notebooks/04_rantai_llm_dan_detektor.ipynb.
 """
 from __future__ import annotations
 
-import argparse
-import sys
 import time
-from pathlib import Path
 
 import requests
 
-from .config import CACHE_DIR, GOLD_DIR, detector_api_key
-from .evaluate_baseline import bootstrap_backend, load_rows
-from .evaluation import ScoreCache, balanced_sample, print_engine_comparison
-from .evaluation import print_register_caveat
+from .config import CACHE_DIR
+from .evaluation import ScoreCache
 
 CACHE = ScoreCache(CACHE_DIR / "detector_scores.jsonl")
 
@@ -164,94 +156,3 @@ def collect_scores(
         "dipanggil baru."
     )
     return detector_scores, heuristic_scores, labels
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Bandingkan detektor eksternal terhadap heuristik E1."
-    )
-    parser.add_argument("--gold", default=str(GOLD_DIR / "gold_set.csv"))
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=40,
-        help=(
-            "jumlah sampel, diseimbangkan manusia dan AI. Default sengaja kecil: "
-            "kredit terpakai per kata dan pendaftaran baru hanya memberi 2.500. "
-            "Pakai 0 untuk semua."
-        ),
-    )
-    parser.add_argument("--sleep", type=float, default=1.0, help="jeda antar permintaan")
-    parser.add_argument("--split", choices=("train", "test"), default=None)
-    parser.add_argument(
-        "--mixed-as", choices=("ai", "human", "exclude"), default="exclude"
-    )
-    args = parser.parse_args()
-
-    api_key = detector_api_key()
-    if not api_key:
-        raise SystemExit(
-            "WINSTON_API_KEY belum diisi.\n"
-            "Daftar di gowinston.ai, buka dashboard API, buat kunci, lalu\n"
-            "isikan ke ai_experiment/.env. Pendaftaran memberi 2.500 kredit\n"
-            "gratis, dan satu kredit terpakai per kata."
-        )
-
-    bootstrap_backend()
-    from apps.analysis.providers import winston as detector
-
-    rows = load_rows(Path(args.gold), args.split, args.mixed_as)
-    if not rows:
-        raise SystemExit("Tidak ada baris yang cocok dengan filter.")
-
-    rows, skipped = eligible_rows(rows, detector)
-    if skipped:
-        print(
-            f"{skipped} teks dilewati karena panjangnya di luar rentang "
-            f"{detector.MIN_CHARS} sampai {detector.MAX_CHARS} karakter."
-        )
-    if not rows:
-        raise SystemExit("Tidak ada teks yang panjangnya diterima penyedia.")
-
-    rows = balanced_sample(rows, args.limit)
-    words = sum(len(row["text"].split()) for row in rows)
-    print(
-        f"Akan menilai {len(rows)} teks, total {words} kata.\n"
-        f"Skor yang sudah pernah diambil dibaca dari {CACHE.path}."
-    )
-    if words > FREE_CREDITS:
-        print(
-            f"\nCatatan: subset ini butuh sekitar {words} kredit, melampaui "
-            f"{FREE_CREDITS} kredit\ngratis pendaftaran. Kalau saldomu masih "
-            "kredit gratis, prosesnya akan\nberhenti dengan 402 di tengah jalan. "
-            "Skor yang sudah terambil tetap\ntersimpan di cache, jadi setelah "
-            "saldo diisi skrip akan melanjutkan,\nbukan mengulang."
-        )
-
-    detector_scores, heuristic_scores, labels = collect_scores(
-        rows, api_key, args.sleep, detector
-    )
-    print_engine_comparison(
-        detector.PROVIDER_NAME,
-        detector_scores,
-        heuristic_scores,
-        labels,
-        subheading=f"Versi model yang diukur: {detector.MODEL_VERSION}",
-        worse_note=(
-            f"  {detector.PROVIDER_NAME} TIDAK lebih baik pada subset ini. Jangan\n"
-            "  menggeser ambang produksi, dan pertimbangkan mencabut\n"
-            "  integrasinya. Detektor berbayar yang tidak mengungguli heuristik\n"
-            "  gratis hanya menambah satu titik kegagalan."
-        ),
-        footer=(
-            f"\n  Angka {detector.PROVIDER_NAME} di baris atas inilah yang mengisi\n"
-            "  MID_THRESHOLD di backend/apps/analysis/providers/winston.py. Jangan menyalin\n"
-            "  ambang heuristik ke sana: kedua sebaran skor bentuknya berbeda."
-        ),
-    )
-    print_register_caveat()
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

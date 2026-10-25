@@ -1,20 +1,17 @@
 "use client";
 
-import { ErrorState } from "@/components/ErrorState";
+import { ErrorBoundaryPage } from "@/components/shared/ErrorBoundaryPage";
 
-export default function DashboardError({
-  error,
-  reset,
-}: {
+export default function DashboardError(props: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
   return (
-    <ErrorState
+    <ErrorBoundaryPage
+      {...props}
+      kind="offline"
       title="Data dasbor gagal dimuat"
-      caption="Server ThinkPath sedang bermasalah atau tidak dapat dihubungi. Coba lagi beberapa saat lagi."
-      reset={reset}
-      digest={error.digest}
+      homeHref="/dashboard"
     />
   );
 }

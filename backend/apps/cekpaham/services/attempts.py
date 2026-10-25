@@ -7,6 +7,7 @@ terburuk ~50 detik, di bawah timeout gunicorn 60 detik.
 from __future__ import annotations
 
 import logging
+import math
 from datetime import timedelta
 from uuid import UUID
 
@@ -108,10 +109,14 @@ def clean_events(raw: object) -> dict:
     """Konteks dari klien: hanya kunci dikenal dengan angka wajar. Tidak pernah diskor."""
     if not isinstance(raw, dict):
         return {}
+    # math.isfinite: json.loads menerima NaN/Infinity, dan int() atasnya melempar
+    # ValueError/OverflowError sehingga finalisasi berakhir HTTP 500.
     events = {
         key: min(max(int(raw[key]), 0), 100_000)
         for key in EVENT_KEYS
-        if isinstance(raw.get(key), (int, float)) and not isinstance(raw.get(key), bool)
+        if isinstance(raw.get(key), (int, float))
+        and not isinstance(raw.get(key), bool)
+        and math.isfinite(raw[key])
     }
     if isinstance(raw.get("ended_reason"), str):
         events["ended_reason"] = raw["ended_reason"][:EVENT_REASON_MAX]
@@ -153,12 +158,13 @@ def finalize_attempt(
         attempt.finalized_at = now
         attempt.client_events = clean_events(client_events)
         attempt.live_transcript = (live_transcript or "")[:LIVE_TRANSCRIPT_MAX]
+        if data is not None:
+            # Audio disimpan SEBELUM status berubah di basis data: bila penyimpanan
+            # gagal, transaksi batal dan sesi tetap in_progress sehingga bisa dikirim ulang.
+            attempt.audio_path = audio.store(student_id, attempt.id, data, mime)
+            attempt.audio_mime, attempt.audio_bytes = mime, len(data)
         attempt.save()
 
-    if data is not None:
-        attempt.audio_path = audio.store(student_id, attempt.id, data, mime)
-        attempt.audio_mime, attempt.audio_bytes = mime, len(data)
-        attempt.save(update_fields=["audio_path", "audio_mime", "audio_bytes"])
     if attempt.status == AttemptStatus.PROCESSING:
         process_attempt(attempt)
     return attempt, True

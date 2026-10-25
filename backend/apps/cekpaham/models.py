@@ -66,8 +66,9 @@ class CekPaham(models.Model):
     submission = models.ForeignKey(
         Submission, on_delete=models.CASCADE, related_name="cekpaham_requests"
     )
+    # Kosong bila dosennya menghapus akun: hasilnya tetap bagian arsip kelas.
     created_by = models.ForeignKey(
-        Profile, on_delete=models.CASCADE, related_name="cekpaham_created"
+        Profile, null=True, blank=True, on_delete=models.SET_NULL, related_name="cekpaham_created"
     )
     # Panjang soal (10-1000) dan jendela >= answer_seconds + 60 dtk divalidasi
     # di service; CHECK aritmetika datetime tidak portabel ke SQLite tes.
