@@ -84,7 +84,8 @@ class SubmissionListView(APIView):
 
 
 QUEUE_DEFAULT_LIMIT = 200
-QUEUE_MAX_LIMIT = 500
+# Satu semester: 3 kelas x 40 mahasiswa x 14 tugas = 1.680 baris; halaman Periksa memuat semuanya.
+QUEUE_MAX_LIMIT = 2000
 
 
 def _page_size(raw: str | None) -> int:

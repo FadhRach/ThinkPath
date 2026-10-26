@@ -469,3 +469,22 @@ class DocumentAvailabilityTest(DocumentTestCase):
 
         default_storage.delete(f"documents/{self.student.id}/{document_id}.docx")
         self.assertFalse(self.client_for(self.teacher).get(url).data["document_available"])
+
+
+class ListGlyphTest(TestCase):
+    def test_word_bullet_list_is_not_read_as_a_chat_leftover(self):
+        """Bullet Word/PDF adalah format daftar; jangan sampai jadi penanda salinan obrolan."""
+        from apps.academics.services import documents
+        from apps.analysis.engines.style_markers import find_style_markers
+
+        pdf = pymupdf.open()
+        pdf.new_page().insert_htmlbox(
+            pymupdf.Rect(50, 50, 500, 400),
+            "<p>Kebutuhan pelanggan anak kos di sekitar kampus:</p><ul><li>Makan sehat dengan harga terjangkau.</li>"
+            "<li>Pengiriman tepat waktu setiap siang.</li></ul><ol><li>Langkah pertama adalah survei.</li></ol>",
+        )
+        text = documents.extract(pdf.tobytes(), "pdf", allow_external=False).text
+
+        self.assertIn("Makan sehat dengan harga terjangkau", text)
+        self.assertNotIn("•", text)
+        self.assertNotIn("bullet_symbol", [m["key"] for m in find_style_markers(text)["markers"]])

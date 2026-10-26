@@ -1,6 +1,7 @@
 import { ClipboardList } from "lucide-react";
 import Link from "next/link";
 
+import { ExpandableList } from "@/components/shared/ExpandableList";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { BloomBadge } from "@/features/bloom/components/BloomBadge";
@@ -60,13 +61,11 @@ export function ReviewGroupCard({ group }: { group: ReviewGroup }) {
         <span />
       </div>
 
-      <ul className="divide-y divide-border/70">
-        {rows.map((row) => (
-          <li key={row.id}>
-            <ReviewRow row={row} target={assignment.expected_bloom_level} />
-          </li>
-        ))}
-      </ul>
+      <ExpandableList
+        items={rows}
+        getKey={(row) => row.id}
+        renderItem={(row) => <ReviewRow row={row} target={assignment.expected_bloom_level} />}
+      />
     </Card>
   );
 }

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 /** Kolom baris pemeriksaan di layar lebar; judul kolomnya ada di ReviewGroupCard. */
 export const REVIEW_COLUMNS =
-  "lg:grid lg:grid-cols-[minmax(0,1.4fr)_10rem_9rem_7rem_9rem_1rem] lg:items-center lg:gap-4";
+  "xl:grid xl:grid-cols-[minmax(0,1.4fr)_10rem_9rem_7rem_9rem_1rem] xl:items-center xl:gap-4";
 
 /** Satu pengumpulan: mahasiswa, waktu, status, level hasil terhadap target, dan indikasi AI. */
 export function ReviewRow({ row, target }: { row: TeacherSubmissionRow; target: number }) {
@@ -27,7 +27,7 @@ export function ReviewRow({ row, target }: { row: TeacherSubmissionRow; target: 
         REVIEW_COLUMNS,
       )}
     >
-      <span className="flex min-w-0 basis-full items-center gap-3 lg:basis-auto">
+      <span className="flex min-w-0 basis-full items-center gap-3 xl:basis-auto">
         <AvatarInitials name={row.student.display_name} size="sm" />
         <span className="min-w-0">
           <span className="block truncate font-semibold text-foreground">
@@ -86,7 +86,7 @@ export function ReviewRow({ row, target }: { row: TeacherSubmissionRow; target: 
         ) : null}
       </span>
 
-      <ChevronRight className="hidden h-4 w-4 text-muted-foreground lg:block" aria-hidden="true" />
+      <ChevronRight className="hidden h-4 w-4 text-muted-foreground xl:block" aria-hidden="true" />
     </Link>
   );
 }

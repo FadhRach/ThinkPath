@@ -785,11 +785,11 @@ export function PolicyArticle({ className }: { className?: string }) {
 
       <PolicySection id="demo" number={number("demo")} title="Akun demo">
         <p>
-          Akun demo (dosen@thinkpath.local serta mhs01@thinkpath.local sampai mhs08@thinkpath.local)
-          berisi data fiktif, dan kata sandinya diumumkan di README proyek. Siapa pun dapat masuk ke
-          akun tersebut, jadi jangan menulis data pribadi sungguhan saat memakainya. Persetujuan
-          akun demo dicatat oleh pengelola saat data demo dibuat, sehingga akun itu langsung bisa
-          dipakai. Data demo dapat diatur ulang kapan saja.
+          Akun demo (dosen@thinkpath.local, dosen2@thinkpath.local, serta mhs01@thinkpath.local
+          sampai mhs20@thinkpath.local) berisi data fiktif, dan kata sandinya diumumkan di README
+          proyek. Siapa pun dapat masuk ke akun tersebut, jadi jangan menulis data pribadi sungguhan
+          saat memakainya. Persetujuan akun demo dicatat oleh pengelola saat data demo dibuat,
+          sehingga akun itu langsung bisa dipakai. Data demo dapat diatur ulang kapan saja.
         </p>
       </PolicySection>
 

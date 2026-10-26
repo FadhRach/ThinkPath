@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ExpandableList } from "@/components/shared/ExpandableList";
 import { FilterPills } from "@/components/shared/FilterPills";
 import { SearchInput } from "@/components/shared/IconInput";
 import { Badge } from "@/components/ui/badge";
@@ -169,24 +170,21 @@ export function TeacherAssignmentList({
                 <Badge tone="warning">{group.waiting} perlu diperiksa</Badge>
               ) : null}
             </div>
-            <ul className="divide-y divide-border/70">
-              {group.items.map((item) => (
-                <li key={item.id}>
-                  <TeacherAssignmentRowItem item={item} now={now} />
-                </li>
-              ))}
-            </ul>
+            <ExpandableList
+              items={group.items}
+              getKey={(item) => item.id}
+              renderItem={(item) => <TeacherAssignmentRowItem item={item} now={now} />}
+            />
           </Card>
         ))
       ) : (
         <Card className="overflow-hidden">
-          <ul className="divide-y divide-border/70">
-            {visible.map((item) => (
-              <li key={item.id}>
-                <TeacherAssignmentRowItem item={item} now={now} />
-              </li>
-            ))}
-          </ul>
+          <ExpandableList
+            items={visible}
+            visible={12}
+            getKey={(item) => item.id}
+            renderItem={(item) => <TeacherAssignmentRowItem item={item} now={now} />}
+          />
         </Card>
       )}
     </div>

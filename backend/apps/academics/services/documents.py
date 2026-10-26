@@ -103,6 +103,16 @@ def _page_paragraphs(blocks: list[str]) -> str:
     return "\n\n".join(filter(None, closed))
 
 
+# Simbol daftar dari Word/PDF (termasuk glyph font Symbol/Wingdings di area privat Unicode).
+# Di dokumen ia hanya format daftar, bukan sisa salinan obrolan: tanpa dibuang, mahasiswa
+# yang menulis daftar berpoin di Word ikut tertandai "simbol poin khas obrolan".
+_LIST_GLYPH = re.compile(r"^\s*[•‣▪◦➤➢✔✓➜·\uf0a7\uf0b7\uf076\uf0d8\uf0fc]+\s*", re.MULTILINE)
+
+
+def _strip_list_glyphs(text: str) -> str:
+    return _LIST_GLYPH.sub("", text)
+
+
 def _drop_repeated(pages: list[list[str]]) -> list[list[str]]:
     """Buang kepala/kaki halaman: blok yang sama (selain angka) di separuh halaman atau lebih."""
     if len(pages) < 2:
@@ -190,7 +200,7 @@ def _extract_pages(data: bytes, kind: str, *, allow_external: bool) -> Extractio
 
     pages = _drop_repeated(
         [
-            [text for block in page.get_text("blocks", sort=True) if block[6] == 0 and (text := " ".join(block[4].split()))]
+            [text for block in page.get_text("blocks", sort=True) if block[6] == 0 and (text := " ".join(_strip_list_glyphs(block[4]).split()))]
             for page in document
         ]
     )
@@ -217,7 +227,7 @@ def _extract_pages(data: bytes, kind: str, *, allow_external: bool) -> Extractio
         # Pixmap dirender di thread ini: PyMuPDF tidak aman dipakai lintas thread.
         for index, text in zip(scanned, _ocr([_render_jpeg(document[i]) for i in scanned])):
             if text:
-                texts[index] = text
+                texts[index] = _strip_list_glyphs(text)
             else:
                 warnings.append(f"Halaman {index + 1} gagal dibaca, periksa hasilnya.")
 

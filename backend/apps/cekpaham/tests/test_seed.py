@@ -1,7 +1,8 @@
+import tempfile
 from io import StringIO
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from apps.accounts.models import Profile
 from apps.accounts.privacy import current_consent
@@ -11,6 +12,20 @@ from apps.cekpaham.services.gate import consent_state
 
 
 class SeedDemoTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Seed menulis PDF demo; jangan sampai masuk folder media sungguhan.
+        cls._media = tempfile.TemporaryDirectory()
+        cls._settings = override_settings(MEDIA_ROOT=cls._media.name)
+        cls._settings.enable()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls._settings.disable()
+        cls._media.cleanup()
+
     @classmethod
     def setUpTestData(cls):
         call_command("seed_demo_data", stdout=StringIO())
@@ -28,7 +43,7 @@ class SeedDemoTest(TestCase):
 
     def test_every_demo_account_has_consent_so_login_goes_straight_in(self):
         students = Profile.objects.filter(role="student")
-        self.assertEqual(students.count(), 8)
+        self.assertEqual(students.count(), 20)
         for profile in Profile.objects.all():
             self.assertIsNotNone(current_consent(profile.id), profile.email)
         self.assertTrue(all(consent_state(p.id)["ready"] for p in students))

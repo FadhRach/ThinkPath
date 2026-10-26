@@ -25,8 +25,8 @@ export function TeacherAssignmentRowItem({
   const detailHref = `/dashboard/classes/${item.class_id}?tab=tugas&assignment=${item.id}`;
 
   return (
-    <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:gap-5">
-      <span className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground sm:grid">
+    <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 xl:flex-row xl:items-center xl:gap-5">
+      <span className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground xl:grid">
         <ClipboardList className="h-5 w-5" aria-hidden="true" />
       </span>
 
@@ -56,7 +56,7 @@ export function TeacherAssignmentRowItem({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 lg:w-60 lg:justify-end">
+      <div className="flex flex-wrap items-center gap-2 xl:w-60 xl:justify-end">
         <BloomBadge level={item.expected_bloom_level} variant="code" />
         <span className="text-xs text-muted-foreground">{item.submission_count} terkumpul</span>
         {item.needs_review_count > 0 ? (

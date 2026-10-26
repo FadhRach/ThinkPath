@@ -1,6 +1,7 @@
 """Data demo Cek Paham untuk `seed_demo_data` (idempoten lewat uuid5).
 
-Tiga keadaan supaya seluruh alur bisa didemokan tanpa mikrofon sungguhan:
+Tiga keadaan pada satu tugas (Linear search vs binary search), supaya seluruh alur bisa
+didemokan tanpa mikrofon sungguhan:
 - terbuka untuk mhs07 (semua akun demo sudah menyetujui kebijakan, jadi bisa langsung mencoba);
 - sudah dinilai, dengan transkrip fixture (mhs08);
 - sudah dinilai dan ada laporan terbuka "transkrip tidak sesuai" (mhs06).
@@ -15,7 +16,7 @@ from typing import Sequence
 
 from django.utils import timezone
 
-from apps.academics.models import Submission
+from apps.academics.models import Assignment, Submission
 from apps.accounts.models import Profile
 from apps.cekpaham import rubric
 from apps.cekpaham.models import (
@@ -29,32 +30,21 @@ from apps.cekpaham.models import (
 
 NAMESPACE = uuid.UUID("3b1c0f5e-6a0d-4c46-9a52-0b9d5a1c7e21")
 DEMO_NOTE = "[DATA DEMO] "
-QUESTION = "Pada jawabanmu kamu memilih satu pendekatan. Jelaskan alasannya dan bagaimana kamu mengumpulkan datanya."
+QUESTION = "Di jawabanmu kamu memilih binary search. Jelaskan kenapa, dan bagaimana kamu menguji bahwa hasilnya benar."
 TRANSCRIPT = (
-    "Saya memilih pendekatan kualitatif karena yang saya teliti itu pengalaman mahasiswa, bukan angka. "
-    "Waktu pengambilan data saya wawancara lima orang, lalu dari situ saya kelompokkan jawabannya jadi tiga tema."
+    "Saya pilih binary search karena datanya sudah urut berdasarkan NIM, jadi setiap langkah separuh data langsung dibuang. "
+    "Untuk mengujinya saya coba cari NIM yang ada di awal, di tengah, dan NIM yang tidak ada sama sekali."
 )
 LEVELS = {"accuracy": 3, "consistency": 2, "depth": 2, "ownership": 3}
 EVIDENCE = {
-    "accuracy": "pendekatan kualitatif karena yang saya teliti itu pengalaman mahasiswa",
-    "consistency": "wawancara lima orang",
-    "depth": "saya kelompokkan jawabannya jadi tiga tema",
-    "ownership": "Waktu pengambilan data saya wawancara lima orang",
+    "accuracy": "datanya sudah urut berdasarkan NIM",
+    "consistency": "setiap langkah separuh data langsung dibuang",
+    "depth": "NIM yang tidak ada sama sekali",
+    "ownership": "Untuk mengujinya saya coba cari NIM yang ada di awal",
 }
-
 
 def _id(label: str) -> uuid.UUID:
     return uuid.uuid5(NAMESPACE, label)
-
-
-def _submission_of(student: Profile, skip: set[uuid.UUID]) -> Submission | None:
-    return (
-        Submission.objects.filter(student_profile=student)
-        .exclude(pk__in=skip)
-        .select_related("assignment")
-        .order_by("-submitted_at")
-        .first()
-    )
 
 
 def _request(label, submission, teacher, *, window, status="active") -> CekPaham:
@@ -64,7 +54,7 @@ def _request(label, submission, teacher, *, window, status="active") -> CekPaham
         defaults=dict(
             submission=submission, created_by=teacher, question_text=QUESTION, language="id",
             answer_seconds=45, window_start=start, window_end=end, status=status,
-            keyterms=["kualitatif", "wawancara", "tema"],
+            keyterms=["binary search", "urut", "separuh"],
         ),
     )
     return obj
@@ -86,7 +76,7 @@ def _scored_attempt(label, cekpaham, *, started) -> CekPahamAttempt:
             asr_quality={"segments": [], "dropped": [], "unsure": []},
             client_events={"visibility_changes": 0, "blur_count": 1, "device_changes": 0, "mic_errors": 0, "silent_seconds": 4},
             ai_score=score, ai_band=rubric.band_from_score(score), ai_dimensions=dimensions, ai_flags=[],
-            ai_summary=f"{DEMO_NOTE}Menyebut pilihan pendekatan beserta alasannya dan menceritakan proses pengambilan datanya sendiri.",
+            ai_summary=f"{DEMO_NOTE}Menjelaskan syarat data urut, cara kerja binary search, dan kasus uji yang ia coba sendiri.",
             judge_model="data-demo", rubric_version=rubric.RUBRIC_VERSION, prompt_version=rubric.PROMPT_VERSION,
             judge_runs=[{"order": "normal", "score": score}, {"order": "reversed", "score": score}],
         ),
@@ -94,11 +84,10 @@ def _scored_attempt(label, cekpaham, *, started) -> CekPahamAttempt:
     return attempt
 
 
-def seed_cekpaham_demo(teacher: Profile, students: Sequence[Profile]) -> int:
+def seed_cekpaham_demo(teacher: Profile, students: Sequence[Profile], assignment: Assignment) -> int:
     if len(students) < 8:
         return 0
     now = timezone.now()
-    used: set[uuid.UUID] = set()
 
     count = 0
     plans = [
@@ -107,10 +96,9 @@ def seed_cekpaham_demo(teacher: Profile, students: Sequence[Profile]) -> int:
         ("reported", students[5], dict(window=(now - timedelta(days=2), now + timedelta(days=1)))),
     ]
     for label, student, options in plans:
-        submission = _submission_of(student, used)
+        submission = Submission.objects.filter(assignment=assignment, student_profile=student).first()
         if submission is None:
             continue
-        used.add(submission.pk)
         cekpaham = _request(f"cp-{label}", submission, teacher, **options)
         count += 1
         if label == "open":
@@ -121,7 +109,7 @@ def seed_cekpaham_demo(teacher: Profile, students: Sequence[Profile]) -> int:
                 pk=_id("cp-reported-report"),
                 defaults=dict(
                     attempt=attempt, reason=ReportReason.TRANSCRIPT_MISMATCH, status=ReportStatus.OPEN,
-                    note=f"{DEMO_NOTE}Saya bilang 'tiga tema', tetapi di transkrip tertulis 'tiga tim'.",
+                    note=f"{DEMO_NOTE}Saya bilang 'separuh data', tetapi di transkrip tertulis 'sebagian data'.",
                     resolved_at=None, resolved_by=None, response_note="",
                 ),
             )

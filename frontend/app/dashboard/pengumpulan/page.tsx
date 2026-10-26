@@ -8,7 +8,7 @@ export default async function SubmissionQueuePage({
   searchParams: Promise<{ kelas?: string; tugas?: string }>;
 }) {
   const [submissions, assignments, classes, query] = await Promise.all([
-    getTeacherSubmissions(),
+    getTeacherSubmissions("all", 2000),
     getAllAssignments(),
     getClasses(),
     searchParams,

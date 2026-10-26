@@ -79,7 +79,7 @@ Cek: `http://127.0.0.1:7860/health` membalas `{"status":"ok"}`. Di macOS/Linux, 
 
 Frontend dijalankan terpisah di `frontend/` (`npm install` lalu `npm run dev`), dengan `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860` di `frontend/.env.local`.
 
-**Akun demo** (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`
+**Akun demo** (password `thinkpath123`): `dosen@thinkpath.local` (3 kelas) · `dosen2@thinkpath.local` (Business Creation) · `mhs01@thinkpath.local` s.d. `mhs20@thinkpath.local`. Isinya 4 kelas di pekan sesi ke-10: 12 materi dan 12 tugas per kelas, jawaban berkode, bertautan, dan PDF unggahan; katalognya di `apps/academics/demo/`.
 
 Membuka database: `psql thinkpath` di terminal, atau GUI (TablePlus, DBeaver, pgAdmin) dengan host `127.0.0.1`, port `5432`, database `thinkpath`.
 
@@ -306,7 +306,7 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | DELETE | `/api/forum/replies/<id>` | penulis atau dosen pemilik | hapus balasan |
 | GET/POST | `/api/student/todos` | mahasiswa | to-do pribadi (maks 100 yang belum selesai) |
 | PATCH/DELETE | `/api/student/todos/<id>` | pemilik item | centang/ubah / hapus; item orang lain 404 |
-| GET | `/api/submissions` | dosen | pengumpulan lintas kelas sendiri; filter `status=all`, `submitted`, atau `reviewed`; `limit` (bawaan 200, maks 500) dan `offset`; total di header `X-Total-Count`; tanpa draf |
+| GET | `/api/submissions` | dosen | pengumpulan lintas kelas sendiri; filter `status=all`, `submitted`, atau `reviewed`; `limit` (bawaan 200, maks 2000) dan `offset`; total di header `X-Total-Count`; tanpa draf |
 | GET | `/api/overview` | dosen | agregat layar Overview |
 | GET | `/api/reports/overview` | dosen | laporan per kelas, prodi, semester |
 | GET | `/api/students/<id>/profile` | dosen pengampu | profil kognitif mahasiswa |

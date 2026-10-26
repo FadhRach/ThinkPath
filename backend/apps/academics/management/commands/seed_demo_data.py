@@ -1,23 +1,35 @@
-"""Seed demo data tahap 1.
+"""Seed data demo: 2 dosen, 20 mahasiswa, 4 kelas di tengah semester.
 
-Idempotent: pakai uuid5 dengan namespace tetap supaya re-run tidak membuat
-duplikat. Aman dijalankan ulang kapan saja.
+Tiap kelas punya 12 sesi, 12 materi, dan 12 tugas (katalognya di `apps/academics/demo/courses.py`).
+Hari ini jatuh di pekan sesi ke-10:
+
+- tugas 1-7/8 sudah dinilai, satu tugas setengah dinilai, tugas 9 lewat tenggat dan menunggu nilai;
+- tugas 10 masih berjalan (sebagian mahasiswa sudah mengumpulkan, mhs01 belum, supaya juri bisa
+  mencoba mengumpulkan);
+- tugas 11 dan 12 sudah diterbitkan dosen, tenggatnya masih jauh.
+
+Jawaban ditulis generator (`demo/answers.py`) dengan gaya menulis per mahasiswa. Ada jawaban
+berkode, bertautan, dan berupa PDF unggahan. Seluruh skor dihitung pipeline heuristik yang sama
+dengan produksi, tidak ada angka yang ditulis tangan.
+
+Idempoten: semua id memakai uuid5, jadi menjalankan ulang memperbarui baris yang sama.
 """
 from __future__ import annotations
 
 import random
 import uuid
 from datetime import timedelta
-from typing import Sequence
 
+import pymupdf
 from django.contrib.auth.hashers import make_password
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.analysis.engines.heuristic import analyze_text
-from apps.academics.services.join_codes import generate_unique_join_code
-from apps.analysis.engines.process_signals import ProcessContext, ProgressSample, assess_process
+from apps.academics.demo.answers import STUDENTS, code_for, compose, depth_for, nim_for
+from apps.academics.demo.courses import COURSES, PROGRAM, SEMESTER, TEACHERS, Course, Session
 from apps.academics.models import (
     Assignment,
     Class,
@@ -28,10 +40,15 @@ from apps.academics.models import (
     Submission,
     SubmissionStatus,
 )
-from apps.analysis.choices import AiBand, AnalysisSource
-from apps.analysis.models import AnalysisResult
+from apps.academics.services.documents import combine_with_document
+from apps.academics.services.join_codes import generate_unique_join_code
+from apps.academics.services.rich_text import clean_rich_doc, rich_to_plain
 from apps.accounts.models import ConsentAction, EducationLevel, Profile, Role
 from apps.accounts.privacy import SOURCE_SEED, current_consent, items_for, record_consent
+from apps.analysis.choices import AnalysisSource
+from apps.analysis.engines.heuristic import analyze_text
+from apps.analysis.engines.process_signals import ProcessContext, ProgressSample, assess_process
+from apps.analysis.models import AnalysisResult
 from apps.cekpaham.models import CekPaham, RequestStatus
 from apps.cekpaham.seed import seed_cekpaham_demo
 from apps.forum.seed import seed_forum_demo
@@ -39,617 +56,403 @@ from apps.notifications import events as notify_events
 from apps.notifications.models import Notification, NotificationKind
 from apps.todos.seed import seed_todos_demo
 
-
 SEED_NAMESPACE = uuid.UUID("8c5ff61a-94e0-4f3a-9d4e-4ad27d2e8d3c")
-TEACHER_EMAIL = "dosen@thinkpath.local"
-TEACHER_NAME = "Dr. Ningsih Prameswari"
 SEED_PASSWORD = "thinkpath123"
+# Kelas dari versi seed sebelumnya; dihapus supaya akun demo tidak menampilkan kelas lama.
+LEGACY_CLASSES = ("metpen-a", "ekbang-b")
+
+CURRENT_SESSION = 10
+SAMPLE_SECONDS = 30
+MIXED_QUOTE_SHARE = 0.3
+# Pasangan salin yang disengaja: (kelas, tugas) -> (penyalin, sumber). Kartu kemiripan dosen
+# menampilkannya sebagai sangat mirip.
+COPIES = {("ai", 6): (18, 6), ("os", 8): (18, 6)}
+# Mahasiswa yang dipakai seed Cek Paham harus mengumpulkan tugas ini.
+CEKPAHAM_TASK = ("algo", 9)
+
+FEEDBACK = {
+    2: (
+        "Analisis perbandingannya kuat dan alasannya jelas. Pertahankan.",
+        "Bagus, kamu menguji pilihanmu dengan contoh sendiri. Coba tambahkan batasan analisisnya.",
+        "Argumen runtut dan didukung contoh konkret.",
+    ),
+    1: (
+        "Penjelasan sudah benar, tetapi perbandingannya masih bisa diperdalam.",
+        "Langkahnya jelas. Tambahkan alasan kenapa memilih pendekatan itu.",
+        "Cukup baik. Lain kali sertakan juga kasus uji yang gagal.",
+    ),
+    0: (
+        "Masih berupa daftar poin dari slide. Coba jelaskan hubungan antarkonsepnya.",
+        "Jawaban terlalu singkat. Tambahkan contoh dan alasan.",
+        "Belum menjawab pertanyaan utama. Silakan konsultasi di jam kantor.",
+    ),
+}
 
 
-def _stable_uuid(label: str) -> uuid.UUID:
+def _id(label: str) -> uuid.UUID:
     return uuid.uuid5(SEED_NAMESPACE, label)
 
 
-def _ensure_consent(profile: Profile) -> None:
-    """Akun demo sudah menyetujui kebijakan agar login langsung masuk aplikasi."""
+# --- akun ---------------------------------------------------------------------------------
+
+
+def _ensure_profile(label: str, email: str, name: str, role: str, password: str) -> Profile:
+    profile, _ = Profile.objects.update_or_create(
+        id=_id(label),
+        defaults={
+            "email": email,
+            "password": password,
+            "display_name": name,
+            "role": role,
+            "education_level": EducationLevel.S1 if role == Role.STUDENT else "",
+        },
+    )
+    # Akun demo sudah menyetujui kebijakan, jadi login langsung masuk aplikasi.
     if current_consent(profile.id) is None:
-        record_consent(
-            profile.id, ConsentAction.GIVEN, items_for(profile.role), source=SOURCE_SEED
-        )
+        record_consent(profile.id, ConsentAction.GIVEN, items_for(profile.role), source=SOURCE_SEED)
+    return profile
 
 
-def _ensure_teacher() -> Profile:
-    teacher, _ = Profile.objects.update_or_create(
-        id=_stable_uuid("teacher:demo"),
-        defaults={
-            "email": TEACHER_EMAIL,
-            "password": make_password(SEED_PASSWORD),
-            "display_name": TEACHER_NAME,
-            "role": Role.TEACHER,
-            "education_level": "",
+# --- waktu --------------------------------------------------------------------------------
+
+
+def _session_at(course: Course, number: int):
+    days = (CURRENT_SESSION - number) * 7 + course.day_offset
+    return (timezone.now() - timedelta(days=days)).replace(hour=2, minute=0, second=0, microsecond=0)
+
+
+def _deadline(course: Course, number: int):
+    # 23.59 WIB sepekan setelah pertemuan.
+    return (_session_at(course, number) + timedelta(days=7)).replace(hour=16, minute=59)
+
+
+# --- kelas, materi, tugas -----------------------------------------------------------------
+
+
+def _ensure_class(course: Course, owner: Profile) -> Class:
+    defaults = {
+        "owner": owner,
+        "name": course.name,
+        "subject": course.subject,
+        "education_level": EducationLevel.S1,
+        "program_studi": PROGRAM,
+        "semester": SEMESTER,
+    }
+    klass = Class.objects.filter(pk=_id(f"class:{course.label}")).first()
+    if klass is None:
+        return Class.objects.create(id=_id(f"class:{course.label}"), join_code=generate_unique_join_code(), **defaults)
+    for key, value in defaults.items():
+        setattr(klass, key, value)
+    klass.save()
+    return klass
+
+
+def _paragraph(text: str, marks: list | None = None) -> dict:
+    node = {"type": "text", "text": text}
+    if marks:
+        node["marks"] = marks
+    return {"type": "paragraph", "content": [node]}
+
+
+def _link_paragraph(prefix: str, label: str, href: str) -> dict:
+    return {
+        "type": "paragraph",
+        "content": [
+            {"type": "text", "text": prefix},
+            {"type": "text", "text": label, "marks": [{"type": "link", "attrs": {"href": href}}]},
+        ],
+    }
+
+
+def _instructions(session: Session) -> tuple[str, dict | None]:
+    """Instruksi polos, plus versi berformat bila tugas punya ketentuan."""
+    if not session.requirements:
+        return session.instructions, None
+    content = [
+        _paragraph(session.instructions),
+        _paragraph("Ketentuan:", [{"type": "bold"}]),
+        {
+            "type": "bulletList",
+            "content": [{"type": "listItem", "content": [_paragraph(item)]} for item in session.requirements],
         },
-    )
-    _ensure_consent(teacher)
-    return teacher
+    ]
+    title, _, url = session.material
+    if url:
+        content.append(_link_paragraph("Bacaan pendukung: ", title, url))
+    doc = clean_rich_doc({"type": "doc", "content": content})
+    return rich_to_plain(doc), doc
 
 
-def _ensure_students(count: int) -> list[Profile]:
-    students: list[Profile] = []
-    for i in range(1, count + 1):
-        label = f"student:{i:02d}"
-        student, _ = Profile.objects.update_or_create(
-            id=_stable_uuid(label),
-            defaults={
-                "email": f"mhs{i:02d}@thinkpath.local",
-                "password": make_password(SEED_PASSWORD),
-                "display_name": f"Mahasiswa {i:02d}",
-                "role": Role.STUDENT,
-            },
-        )
-        _ensure_consent(student)
-        students.append(student)
-    return students
-
-
-def _ensure_class(
-    owner: Profile,
-    label: str,
-    name: str,
-    subject: str,
-    level: str,
-    program_studi: str,
-    semester: int,
-) -> Class:
-    class_id = _stable_uuid(f"class:{label}")
-    existing = Class.objects.filter(pk=class_id).first()
-    if existing is not None:
-        existing.owner = owner
-        existing.name = name
-        existing.subject = subject
-        existing.education_level = level
-        existing.program_studi = program_studi
-        existing.semester = semester
-        existing.save()
-        return existing
-    return Class.objects.create(
-        id=class_id,
-        owner=owner,
-        name=name,
-        subject=subject,
-        education_level=level,
-        program_studi=program_studi,
-        semester=semester,
-        join_code=generate_unique_join_code(),
-    )
-
-
-def _ensure_assignment(
-    target_class: Class,
-    label: str,
-    title: str,
-    instructions: str,
-    expected_bloom_level: int,
-    deadline_days: int,
-) -> Assignment:
-    assignment_id = _stable_uuid(f"assignment:{label}")
-    # Tenggat demo jatuh pukul 23.59 WIB (16.59 UTC) seperti kebiasaan dosen,
-    # bukan pada menit seed kebetulan dijalankan. Tenggat yang dimaksudkan
-    # sudah lewat (deadline_days <= 0) digeser sehari ke belakang bila jam
-    # 23.59-nya belum tiba, supaya tugas lama tidak kembali terbuka hanya
-    # karena seed dijalankan pagi hari.
+def _ensure_session(course: Course, klass: Class, number: int, session: Session) -> tuple[Assignment, Material]:
     now = timezone.now()
-    deadline = (now + timedelta(days=deadline_days)).replace(
-        hour=16, minute=59, second=0, microsecond=0
-    )
-    if deadline_days <= 0 and deadline > now:
-        deadline -= timedelta(days=1)
+    instructions, rich = _instructions(session)
     assignment, _ = Assignment.objects.update_or_create(
-        id=assignment_id,
+        id=_id(f"assignment:{course.label}:{number}"),
         defaults={
-            "class_ref": target_class,
-            "title": title,
+            "class_ref": klass,
+            "title": session.title,
             "instructions": instructions,
-            "deadline": deadline,
-            "expected_bloom_level": expected_bloom_level,
+            "instructions_rich": rich,
+            "deadline": _deadline(course, number),
+            "expected_bloom_level": session.bloom,
+            "allow_file_upload": session.kind == "dokumen",
         },
     )
-    return assignment
+    # Dosen menyiapkan tugas sesi 11 dan 12 lebih awal, jadi diterbitkan kemarin.
+    published = min(_session_at(course, number), now - timedelta(days=1))
+    Assignment.objects.filter(pk=assignment.pk).update(created_at=published)
 
-
-# Profil per mahasiswa, tetap sepanjang semester.
-#
-# trajectory menentukan bagaimana kedalaman jawabannya berubah dari tugas ke
-# tugas. Ini yang membuat grafik Profil Kognitif punya isi: tanpa lintasan,
-# semua mahasiswa akan tampil sebagai garis datar dan layar itu tidak
-# menunjukkan apa pun.
-#
-# band dan lintasan sengaja tidak berkorelasi. Ada mahasiswa berindikasi AI
-# rendah yang tetap mandek di L1, dan ada yang berindikasi tinggi tetapi
-# argumennya berkembang. Kombinasi itu yang membuktikan E1 dan E2 terpisah.
-#
-# Cara mengerjakan meniru rekaman form produksi, yaitu cuplikan jumlah kata
-# tiap 30 detik, bukan angka karangan:
-# - "tulis": kata bertambah sedikit demi sedikit tiap cuplikan.
-# - "campur": sebagian besar diketik, dengan satu lompatan kecil (sekitar 30%
-#   jawaban) seperti kutipan yang ditempel. Lompatannya di bawah ambang
-#   lonjakan, jadi kutipan sewajar ini tidak terbaca sebagai apa pun.
-# - "tempel": seluruh jawaban muncul sekaligus di awal lalu dikumpulkan.
-#
-# Revisi di sini berarti Simpan Revisi SETELAH dikumpulkan, sama seperti di
-# produksi. Data demo lama mengarang revisi saat menulis dan tempelan acak,
-# dua hal yang tidak pernah direkam aplikasinya sendiri.
-_STUDENT_PROFILES = (
-    # (band, lintasan, rentang durasi, cara mengerjakan, merevisi sekali)
-    (AiBand.LOW, "naik", (20 * 60, 45 * 60), "tulis", False),
-    (AiBand.LOW, "datar", (22 * 60, 48 * 60), "tulis", True),
-    (AiBand.LOW, "naik", (25 * 60, 50 * 60), "tulis", False),
-    (AiBand.LOW, "turun", (20 * 60, 40 * 60), "tulis", False),
-    (AiBand.MID, "datar", (8 * 60, 15 * 60), "campur", False),
-    (AiBand.MID, "naik", (9 * 60, 18 * 60), "campur", True),
-    (AiBand.HIGH, "datar", (2 * 60, 5 * 60), "tempel", False),
-    (AiBand.HIGH, "turun", (2 * 60, 6 * 60), "tempel", False),
-)
-
-# Selang cuplikan dan porsi lompatan persona "campur". Selang harus sama
-# dengan form (30 detik) supaya kurva demo terbaca seperti rekaman asli.
-SAMPLE_SECONDS = 30
-MIXED_QUOTE_SHARE = 0.3
-
-
-def _depth_for(trajectory: str, step: int, total: int) -> int:
-    """Indeks jawaban contoh: 0 dangkal, 1 mendalam.
-
-    Dipilih dari lintasan mahasiswa dan posisi tugas dalam rangkaian, bukan
-    acak, supaya grafik trennya terbaca sebagai cerita: satu mahasiswa membaik,
-    satu mandek, satu menurun.
-    """
-    if total <= 1:
-        return 1 if trajectory == "turun" else 0
-    progress = step / (total - 1)
-    if trajectory == "naik":
-        return 1 if progress >= 0.5 else 0
-    if trajectory == "turun":
-        return 0 if progress >= 0.5 else 1
-    # datar: tetap di kedalaman yang sama sepanjang semester
-    return 0
-
-
-def _simulate_session(
-    rng: random.Random, style: str, text: str, duration_seconds: int
-) -> list[ProgressSample]:
-    """Cuplikan jumlah kata untuk satu sesi mengerjakan."""
-    final_words = len(text.split())
-    offsets = list(range(0, duration_seconds, SAMPLE_SECONDS)) + [duration_seconds]
-
-    if style == "tempel":
-        # Teks penuh muncul di cuplikan kedua, lalu datar sampai dikumpulkan.
-        samples = [
-            ProgressSample(
-                offset_seconds=offset,
-                word_count=0 if offset == 0 else final_words,
-            )
-            for offset in offsets
-        ]
-        return samples
-
-    quoted_words = round(final_words * MIXED_QUOTE_SHARE) if style == "campur" else 0
-    typed_words = final_words - quoted_words
-    # Lompatan persona campur jatuh di sepertiga sampai setengah sesi.
-    quote_at = (
-        offsets[max(1, round(len(offsets) * rng.uniform(0.33, 0.5)))]
-        if quoted_words
-        else None
+    title, description, url = session.material
+    material, _ = Material.objects.update_or_create(
+        id=_id(f"material:{course.label}:{number}"),
+        defaults={
+            "class_ref": klass,
+            "topic": f"Sesi {number}: {session.topic}",
+            "title": title,
+            "description": description,
+            "url": url,
+        },
     )
+    shared = min(_session_at(course, number) - timedelta(days=1), now - timedelta(hours=6))
+    Material.objects.filter(pk=material.pk).update(created_at=shared)
+    material.refresh_from_db()
+    return assignment, material
 
+
+# --- jawaban ------------------------------------------------------------------------------
+
+
+def _paragraphs(index: int, course: Course, number: int, session: Session) -> tuple[list[str], int]:
+    """Paragraf jawaban mahasiswa ke-`index`; deterministik untuk kelas dan tugas yang sama."""
+    rng = random.Random(f"answer:{index}:{course.label}:{number}")
+    persona = STUDENTS[index]
+    depth = depth_for(persona.trajectory, number - 1, len(course.sessions), rng)
+    return compose(rng, persona, depth, session.slots), depth
+
+
+def _handle(index: int) -> str:
+    first = STUDENTS[index].name.split()[0].lower()
+    return f"{first}{nim_for(index)[-3:]}"
+
+
+def _typed_doc(index: int, course: Course, number: int, session: Session, paragraphs: list[str]) -> dict:
+    rng = random.Random(f"extras:{index}:{course.label}:{number}")
+    blocks = [_paragraph(line) for para in paragraphs for line in para.split("\n")]
+    if session.kind == "kode":
+        code = code_for(rng, session.code)
+        blocks.insert(1, {"type": "codeBlock", "attrs": {"language": "python"}, "content": [{"type": "text", "text": code}]})
+    elif session.kind == "tautan":
+        token = uuid.uuid5(SEED_NAMESPACE, f"link:{index}:{course.label}").hex
+        link = {
+            "algo": ("Repositori: ", f"https://github.com/{_handle(index)}/algoprog-semester3"),
+            "ai": ("Notebook Colab: ", f"https://colab.research.google.com/drive/1{token[:32]}"),
+            "biz": ("Prototipe: ", f"https://www.figma.com/proto/{token[:22]}/mvp-katering-sehat"),
+        }[course.label]
+        blocks.append(_link_paragraph(link[0], link[1], link[1]))
+    else:
+        title, _, url = session.material
+        if url and STUDENTS[index].band != "high" and rng.random() < 0.3:
+            blocks.append(_link_paragraph("Referensi tambahan yang saya baca: ", title, url))
+    return clean_rich_doc({"type": "doc", "content": blocks})
+
+
+def _store_pdf(student: Profile, document_id: uuid.UUID, text: str) -> None:
+    """Berkas PDF dan teks hasil bacanya, di jalur yang sama dengan unggahan sungguhan."""
+    pdf = pymupdf.open()
+    page = pdf.new_page()
+    page.insert_textbox(pymupdf.Rect(56, 56, 540, 800), text, fontsize=10.5, fontname="helv")
+    base = f"documents/{student.id}/{document_id}"
+    for name, data in ((f"{base}.pdf", pdf.tobytes()), (f"{base}.txt", text.encode("utf-8"))):
+        default_storage.delete(name)  # save() tidak menimpa, ia mengganti nama
+        default_storage.save(name, ContentFile(data))
+
+
+def _simulate_session(rng: random.Random, style: str, words_total: int, duration: int) -> list[ProgressSample]:
+    """Cuplikan jumlah kata tiap 30 detik, meniru rekaman draf di produksi."""
+    offsets = list(range(0, duration, SAMPLE_SECONDS)) + [duration]
+    if style == "tempel":
+        return [ProgressSample(offset_seconds=o, word_count=0 if o == 0 else words_total) for o in offsets]
+    quoted = round(words_total * MIXED_QUOTE_SHARE) if style == "campur" else 0
+    typed = words_total - quoted
+    quote_at = offsets[max(1, round(len(offsets) * rng.uniform(0.33, 0.5)))] if quoted else None
     samples = []
     for offset in offsets:
-        progress = offset / duration_seconds if duration_seconds else 1.0
-        words = round(typed_words * progress)
+        words = round(typed * offset / duration) if duration else typed
         if quote_at is not None and offset >= quote_at:
-            words += quoted_words
-        if 0 < offset < duration_seconds:
-            # Menyunting sesekali menghapus beberapa kata, jadi kurvanya tidak
-            # pernah lurus sempurna seperti hasil rumus.
+            words += quoted
+        if 0 < offset < duration:
             words = max(0, words - rng.choice((0, 0, 0, 1, 2)))
-        if offset == duration_seconds:
-            words = final_words
-        samples.append(ProgressSample(offset_seconds=offset, word_count=max(words, 0)))
+        samples.append(ProgressSample(offset_seconds=offset, word_count=words_total if offset == duration else words))
     return samples
 
 
-def _build_reasoning_events(
-    submission: Submission,
-    started_at,
-    first_submitted_at,
-    revised_at,
-    samples: list[ProgressSample],
-) -> list[ReasoningEvent]:
-    """Event dengan bentuk yang sama persis dengan yang ditulis views produksi."""
-    events: list[ReasoningEvent] = [
-        ReasoningEvent(
-            id=_stable_uuid(f"event:{submission.id}:started"),
-            submission=submission,
-            event_type=EventType.STARTED,
-            payload={},
-            occurred_at=started_at,
-        ),
-        ReasoningEvent(
-            id=_stable_uuid(f"event:{submission.id}:submitted"),
-            submission=submission,
-            event_type=EventType.SUBMITTED,
-            payload={},
-            occurred_at=first_submitted_at,
-        ),
-    ]
-    events += [
-        ReasoningEvent(
-            id=_stable_uuid(f"event:{submission.id}:progress:{index}"),
-            submission=submission,
-            event_type=EventType.PROGRESS,
-            payload={"word_count": sample.word_count},
-            occurred_at=started_at + timedelta(seconds=sample.offset_seconds),
-        )
-        for index, sample in enumerate(samples)
-    ]
-    if revised_at is not None:
-        events.append(
-            ReasoningEvent(
-                id=_stable_uuid(f"event:{submission.id}:revision:1"),
-                submission=submission,
-                event_type=EventType.REVISION,
-                payload={"revision_count": 1},
-                occurred_at=revised_at,
-            )
-        )
-    return events
+def _seed_submissions(course: Course, number: int, session: Session, assignment: Assignment,
+                      students: list[Profile]) -> tuple[list[uuid.UUID], list[ReasoningEvent]]:
+    now = timezone.now()
+    # Sama dengan created_at tugas: sesi 11-12 diterbitkan lebih awal (kemarin).
+    published = min(_session_at(course, number), now - timedelta(days=1))
+    deadline = _deadline(course, number)
+    kept: list[uuid.UUID] = []
+    events: list[ReasoningEvent] = []
 
+    for index, (persona, student) in enumerate(zip(STUDENTS, students)):
+        rng = random.Random(f"submission:{index}:{course.label}:{number}")
+        copy = COPIES.get((course.label, number))
+        forced = (course.label, number) == CEKPAHAM_TASK and index in (5, 6, 7)
+        forced = forced or (copy is not None and index in copy) or (index == 0 and number <= 9)
+        if number <= 9:
+            submits = forced or rng.random() >= persona.skip
+        elif number == 10:
+            submits = index != 0 and rng.random() < 0.55
+        elif number == 11:
+            submits = index != 0 and persona.trajectory == "kuat" and rng.random() < 0.4
+        else:
+            submits = False
+        if not submits:
+            continue
 
-def _seed_submissions_for_assignment(
-    rng: random.Random,
-    assignment: Assignment,
-    students: Sequence[Profile],
-    step: int,
-    total_steps: int,
-    weeks_ago: int,
-) -> int:
-    """Buat satu submission per mahasiswa untuk satu tugas.
+        paragraphs, depth = _paragraphs(index, course, number, session)
+        if copy is not None and index == copy[0]:
+            source, _ = _paragraphs(copy[1], course, number, session)
+            paragraphs = ["Berikut jawaban saya. " + source[0], *source[1:]]
 
-    step dan total_steps menentukan posisi tugas ini dalam rangkaian satu
-    kelas, dipakai untuk memilih kedalaman jawaban sesuai lintasan mahasiswa.
-    weeks_ago menempatkan submission di masa lalu supaya grafik tren punya
-    sumbu waktu yang nyata.
+        latest = min(deadline, now) - timedelta(minutes=30)
+        earliest = published + timedelta(hours=2)
+        first_at = latest - (latest - earliest) * rng.random() ** 2
+        is_document = session.kind == "dokumen" and rng.random() < persona.doc_pref
+        submission_id = _id(f"submission:{assignment.id}:{index}")
+        kept.append(submission_id)
 
-    Return jumlah submission yang berhasil di-upsert.
-    """
-    if len(students) < 8:
-        raise RuntimeError("Butuh setidaknya 8 profil mahasiswa untuk seed assignment.")
+        if is_document:
+            nim = nim_for(index)
+            document_id = _id(f"document:{assignment.id}:{index}")
+            body = "\n\n".join(paragraphs)
+            doc_text = f"{session.title}\n\n{persona.name}\nNIM {nim}\n\n{body}"
+            _store_pdf(student, document_id, doc_text)
+            note = f"{persona.name} - {nim}. Laporan lengkap ada di PDF terlampir."
+            rich = clean_rich_doc({"type": "doc", "content": [_paragraph(note)]})
+            text = combine_with_document(note, doc_text)
+            duration = rng.randint(60, 240)
+            revised_at = None
+        else:
+            document_id = None
+            rich = _typed_doc(index, course, number, session, paragraphs)
+            text = rich_to_plain(rich)
+            duration = rng.randint(persona.minutes[0] * 60, persona.minutes[1] * 60)
+            revised_at = first_at + timedelta(hours=rng.randint(2, 20)) if persona.revises and rng.random() < 0.35 else None
+            if revised_at is not None and revised_at >= latest:
+                revised_at = None
 
-    created = 0
-    expected_ids: list[uuid.UUID] = []
-    sample_answers = _sample_answers_for(assignment)
+        graded = number <= course.graded_through or (number in course.partially_graded and rng.random() < 0.5)
+        if graded:
+            grade = max(50, min(98, {0: 66, 1: 78, 2: 87}[depth] + rng.randint(-6, 6)))
+            feedback = "" if rng.random() < 0.2 else rng.choice(FEEDBACK[depth])
+        else:
+            grade, feedback = None, ""
 
-    for index, (band, trajectory, duration_range, style, revises) in enumerate(
-        _STUDENT_PROFILES
-    ):
-        student = students[index]
-        duration_seconds = rng.randint(*duration_range)
-        first_submitted_at = timezone.now() - timedelta(
-            weeks=weeks_ago, hours=rng.randint(1, 40)
-        )
-        started_at = first_submitted_at - timedelta(seconds=duration_seconds)
-        # Revisi terjadi beberapa jam setelah submit pertama, dan submitted_at
-        # ikut maju ke waktu revisi, persis seperti jalur Simpan Revisi.
-        revised_at = (
-            first_submitted_at + timedelta(hours=rng.randint(2, 20)) if revises else None
-        )
-        submitted_at = revised_at or first_submitted_at
-        revision_count = 1 if revises else 0
-
-        label = f"submission:{assignment.id}:{index}"
-        submission_id = _stable_uuid(label)
-        expected_ids.append(submission_id)
-
-        # Tugas lama sudah dinilai, yang terbaru belum. Itu keadaan yang wajar
-        # di tengah semester dan membuat dashboard punya kedua status.
-        is_graded = weeks_ago >= 3
-        depth = _depth_for(trajectory, step, total_steps)
+        started_at = first_at - timedelta(seconds=duration)
         submission, _ = Submission.objects.update_or_create(
             id=submission_id,
             defaults={
                 "assignment": assignment,
                 "student_profile": student,
-                "text_answer": sample_answers[band][depth],
+                "text_answer": text,
+                "rich_answer": rich,
+                "source_document": document_id,
                 "started_at": started_at,
-                "submitted_at": submitted_at,
-                "duration_seconds": duration_seconds,
-                "revision_count": revision_count,
-                "status": (
-                    SubmissionStatus.REVIEWED
-                    if is_graded
-                    else SubmissionStatus.SUBMITTED
-                ),
-                "grade": rng.randint(78, 95) if is_graded else None,
-                "teacher_feedback": (
-                    "Argumenmu runtut dan memakai contoh dari praktikum sendiri. Pertahankan."
-                    if is_graded
-                    else ""
-                ),
+                "submitted_at": revised_at or first_at,
+                "duration_seconds": duration,
+                "revision_count": 1 if revised_at else 0,
+                "status": SubmissionStatus.REVIEWED if graded else SubmissionStatus.SUBMITTED,
+                "grade": grade,
+                "teacher_feedback": feedback,
             },
         )
 
-        samples = _simulate_session(rng, style, submission.text_answer, duration_seconds)
-        ReasoningEvent.objects.filter(submission=submission).delete()
-        ReasoningEvent.objects.bulk_create(
-            _build_reasoning_events(
-                submission=submission,
-                started_at=started_at,
-                first_submitted_at=first_submitted_at,
-                revised_at=revised_at,
-                samples=samples,
-            )
-        )
-
-        # Tidak ada angka yang ditulis tangan. Seluruh baris demo dihitung
-        # pipeline yang sama dengan jalur produksi, termasuk sinyal forensik
-        # proses dari cuplikan di atas.
-        process = ProcessContext(
-            duration_seconds=duration_seconds,
-            revision_count=revision_count,
-            word_count=len(submission.text_answer.split()),
-            char_count=len(submission.text_answer),
+        # Jawaban dari dokumen tidak punya jejak mengetik, persis seperti di produksi.
+        samples = [] if is_document else _simulate_session(rng, persona.style, len(text.split()), duration)
+        process = None if is_document else ProcessContext(
+            duration_seconds=duration,
+            revision_count=submission.revision_count,
+            word_count=len(text.split()),
+            char_count=len(text),
             progress=tuple(samples),
         )
-        analysis = analyze_text(submission.text_answer, assignment.expected_bloom_level, process)
+        events += _events(submission, started_at, first_at, revised_at, samples)
+
+        analysis = analyze_text(text, assignment.expected_bloom_level, process)
         assessment = assess_process(process)
-        analysis["process_band"] = assessment.band
-        analysis["process_evidence"] = assessment.evidence
-        analysis["analysis_source"] = AnalysisSource.SEED
-        AnalysisResult.objects.update_or_create(
-            submission=submission,
-            defaults=analysis,
+        analysis.update(
+            process_band=assessment.band,
+            process_evidence=assessment.evidence,
+            analysis_source=AnalysisSource.SEED,
         )
-        created += 1
+        AnalysisResult.objects.update_or_create(submission=submission, defaults=analysis)
 
-    # Buang submission seed lama yang tidak lagi diharapkan.
-    #
-    # Tanpa ini, seed hanya idempoten selama pola ID-nya tidak berubah. Begitu
-    # strukturnya diubah, baris lama tertinggal berdampingan dengan yang baru
-    # dan grafik tren menampilkan titik hantu: pernah terlihat 7 titik untuk
-    # rangkaian yang cuma berisi 5 tugas.
-    Submission.objects.filter(assignment=assignment).exclude(
-        id__in=expected_ids
-    ).delete()
-    return created
+    Submission.objects.filter(assignment=assignment).exclude(id__in=kept).delete()
+    return kept, events
 
 
-# Materi demo: (label, topik, judul, ringkasan, tautan, berapa hari lalu
-# dibagikan). Topik mengikuti pertemuan tempat tugasnya dibahas; topik kosong
-# berarti materi umum. Setiap tautan sudah diperiksa bisa dibuka; materi tanpa
-# tautan adalah catatan yang ditulis dosen sendiri.
-_MATERIALS = {
-    "metpen-a": [
-        (
-            "kontrak-kuliah",
-            "",
-            "Kontrak kuliah dan komponen nilai",
-            "Komponen nilai: tugas mingguan 40%, UTS 25%, UAS 35%. Pengumpulan "
-            "ditutup tepat pada tenggat, jadi kerjakan lebih awal.",
-            "",
-            84,
-        ),
-        (
-            "metodologi",
-            "",
-            "Gambaran umum metodologi penelitian",
-            "Bacaan pembuka sebelum memilih pendekatan penelitian.",
-            "https://id.wikipedia.org/wiki/Metodologi_penelitian",
-            63,
-        ),
-        (
-            "rumusan-masalah",
-            "Pertemuan 2: Merumuskan masalah",
-            "Panduan menyusun rumusan masalah",
-            "Rumusan masalah yang baik bisa dijawab dengan data, cukup sempit untuk "
-            "satu skripsi, dan menyebut fenomena yang diteliti. Bawa satu draf "
-            "rumusan ke pertemuan berikutnya untuk dibahas bersama.",
-            "",
-            70,
-        ),
-        (
-            "kualitatif",
-            "Pertemuan 6: Desain penelitian kualitatif",
-            "Pengantar penelitian kualitatif",
-            "Bacaan pendukung untuk tugas Desain penelitian kualitatif. Perhatikan "
-            "bagian teknik pengumpulan data.",
-            "https://id.wikipedia.org/wiki/Penelitian_kualitatif",
-            45,
-        ),
-        (
-            "studi-kasus",
-            "Pertemuan 6: Desain penelitian kualitatif",
-            "Studi kasus sebagai desain penelitian",
-            "Salah satu desain yang bisa dipilih untuk tugas Desain penelitian "
-            "kualitatif. Bandingkan dengan desain lain sebelum memutuskan.",
-            "https://id.wikipedia.org/wiki/Studi_kasus",
-            44,
-        ),
-        (
-            "reliabilitas",
-            "Pertemuan 8: Validitas dan reliabilitas",
-            "Reliabilitas instrumen",
-            "Baca sebelum mengerjakan tugas Validitas dan reliabilitas instrumen.",
-            "https://id.wikipedia.org/wiki/Reliabilitas",
-            31,
-        ),
-        (
-            "kuantitatif",
-            "Pertemuan 8: Validitas dan reliabilitas",
-            "Pengukuran pada penelitian kuantitatif",
-            "Validitas dan reliabilitas paling sering dibahas pada instrumen "
-            "kuantitatif. Fokus pada bagian pengukuran.",
-            "https://id.wikipedia.org/wiki/Penelitian_kuantitatif",
-            30,
-        ),
-        (
-            "etika",
-            "Pertemuan 11: Etika penelitian",
-            "Etika penelitian",
-            "Bahan untuk tugas yang sedang berjalan: Etika penelitian dan persetujuan "
-            "responden.",
-            "https://id.wikipedia.org/wiki/Etika_penelitian",
-            1,
-        ),
-    ],
-    "ekbang-b": [
-        (
-            "kontrak-kuliah",
-            "",
-            "Kontrak kuliah dan komponen nilai",
-            "Komponen nilai: tugas 40%, UTS 30%, UAS 30%. Ringkasan diskusi kelas "
-            "dibagikan di halaman ini setiap pekan.",
-            "",
-            80,
-        ),
-        (
-            "pembangunan-ekonomi",
-            "Pertemuan 2: Konsep pembangunan",
-            "Pertumbuhan dan pembangunan ekonomi",
-            "Bacaan dasar: kenapa pertumbuhan ekonomi belum tentu berarti pembangunan.",
-            "https://id.wikipedia.org/wiki/Pembangunan_ekonomi",
-            66,
-        ),
-        (
-            "ipm",
-            "Pertemuan 4: Indikator pembangunan",
-            "Indeks Pembangunan Manusia",
-            "Salah satu indikator yang dibahas pada tugas Memilih indikator "
-            "pembangunan.",
-            "https://id.wikipedia.org/wiki/Indeks_Pembangunan_Manusia",
-            52,
-        ),
-        (
-            "pdrb",
-            "Pertemuan 4: Indikator pembangunan",
-            "PDRB sebagai ukuran ekonomi daerah",
-            "Bandingkan dengan IPM: apa yang diukur, dan apa yang terlewat.",
-            "https://id.wikipedia.org/wiki/Produk_domestik_regional_bruto",
-            50,
-        ),
-        (
-            "subsidi",
-            "Pertemuan 6: Kebijakan subsidi",
-            "Subsidi dan ketepatan sasaran",
-            "Bacaan awal untuk tugas Efektivitas kebijakan subsidi energi.",
-            "https://id.wikipedia.org/wiki/Subsidi",
-            38,
-        ),
-        (
-            "gini",
-            "Pertemuan 9: Ketimpangan antarwilayah",
-            "Koefisien Gini",
-            "Ukuran ketimpangan yang paling sering dikutip. Perhatikan apa yang "
-            "tidak ditangkapnya.",
-            "https://id.wikipedia.org/wiki/Koefisien_Gini",
-            16,
-        ),
-        (
-            "ketimpangan",
-            "Pertemuan 9: Ketimpangan antarwilayah",
-            "Ringkasan diskusi: ketimpangan antarwilayah",
-            "Tiga sebab yang muncul di kelas: investasi menumpuk di kota besar, "
-            "infrastruktur yang timpang, dan kapasitas fiskal daerah yang berbeda. "
-            "Gunakan salah satunya sebagai titik awal argumen.",
-            "",
-            2,
-        ),
-        (
-            "desentralisasi",
-            "Pertemuan 11: Desentralisasi fiskal",
-            "Desentralisasi dan kewenangan daerah",
-            "Bahan untuk tugas yang sedang berjalan: Ruang fiskal pemerintah daerah.",
-            "https://id.wikipedia.org/wiki/Desentralisasi",
-            3,
-        ),
-    ],
-}
-
-
-def _seed_materials(classes: dict[str, Class]) -> list[Material]:
-    now = timezone.now()
-    materials: list[Material] = []
-    expected_ids: list[uuid.UUID] = []
-    for class_label, items in _MATERIALS.items():
-        target_class = classes[class_label]
-        for label, topic, title, description, url, days_ago in items:
-            material_id = _stable_uuid(f"material:{class_label}:{label}")
-            expected_ids.append(material_id)
-            material, _ = Material.objects.update_or_create(
-                id=material_id,
-                defaults={
-                    "class_ref": target_class,
-                    "topic": topic,
-                    "title": title,
-                    "description": description,
-                    "url": url,
-                },
+def _events(submission, started_at, first_at, revised_at, samples) -> list[ReasoningEvent]:
+    """Event dengan bentuk yang sama dengan yang ditulis jalur pengumpulan produksi."""
+    sid = submission.id
+    rows = [
+        ReasoningEvent(id=_id(f"event:{sid}:started"), submission=submission, event_type=EventType.STARTED, payload={}, occurred_at=started_at),
+        ReasoningEvent(id=_id(f"event:{sid}:submitted"), submission=submission, event_type=EventType.SUBMITTED, payload={}, occurred_at=first_at),
+    ]
+    rows += [
+        ReasoningEvent(
+            id=_id(f"event:{sid}:progress:{i}"),
+            submission=submission,
+            event_type=EventType.PROGRESS,
+            payload={"word_count": sample.word_count},
+            occurred_at=started_at + timedelta(seconds=sample.offset_seconds),
+        )
+        for i, sample in enumerate(samples)
+    ]
+    if revised_at is not None:
+        rows.append(
+            ReasoningEvent(
+                id=_id(f"event:{sid}:revision:1"), submission=submission, event_type=EventType.REVISION,
+                payload={"revision_count": 1}, occurred_at=revised_at,
             )
-            # created_at diisi otomatis saat dibuat; tanggal demo disebar
-            # supaya daftar materi punya urutan yang masuk akal.
-            Material.objects.filter(pk=material.pk).update(
-                created_at=now - timedelta(days=days_ago)
-            )
-            material.refresh_from_db()
-            materials.append(material)
-    Material.objects.filter(class_ref__in=classes.values()).exclude(
-        id__in=expected_ids
-    ).delete()
-    return materials
+        )
+    return rows
 
 
-def _seed_notifications(
-    teacher: Profile,
-    students: Sequence[Profile],
-    assignments: Sequence[Assignment],
-    materials: Sequence[Material],
-) -> int:
+# --- notifikasi ---------------------------------------------------------------------------
+
+
+def _seed_notifications(teachers, students, assignments, materials) -> int:
     """Isi lonceng akun demo lewat fungsi peristiwa yang sama dengan produksi.
 
-    Notifikasi lama milik akun demo dihapus dulu supaya seed tetap idempoten.
-    Waktunya lalu disetel ke saat peristiwanya terjadi, dan yang sudah lama
-    ditandai dibaca, supaya lonceng tidak menampilkan puluhan hal "baru saja".
+    Notifikasi lama dihapus dulu supaya idempoten; waktunya lalu disetel ke saat peristiwanya
+    terjadi, dan yang lama ditandai dibaca.
     """
     now = timezone.now()
-    profiles = [teacher, *students]
+    profiles = [*teachers, *students]
     Notification.objects.filter(recipient__in=profiles).delete()
     mine = Notification.objects.filter(recipient__in=profiles)
 
-    # Dosen: pengumpulan tugas terakhir tiap kelas, digabung per tugas.
-    latest_by_class: dict = {}
+    # Dosen: pengumpulan tugas yang terakhir lewat tenggat di tiap kelas, digabung per tugas.
+    latest: dict = {}
     for assignment in assignments:
-        if assignment.deadline and assignment.deadline < now:
-            current = latest_by_class.get(assignment.class_ref_id)
+        if assignment.deadline < now:
+            current = latest.get(assignment.class_ref_id)
             if current is None or assignment.deadline > current.deadline:
-                latest_by_class[assignment.class_ref_id] = assignment
-    for assignment in latest_by_class.values():
-        submissions = list(
-            assignment.submissions.select_related(
-                "student_profile", "assignment__class_ref"
-            ).order_by("submitted_at")
-        )
-        for submission in submissions:
+                latest[assignment.class_ref_id] = assignment
+    for assignment in latest.values():
+        rows = list(assignment.submissions.select_related("student_profile", "assignment__class_ref").order_by("submitted_at"))
+        for submission in rows:
             notify_events.submission_received(submission, revised=False)
-        if submissions:
-            mine.filter(group_key=f"submissions:{assignment.id}").update(
-                created_at=submissions[-1].submitted_at
-            )
+        if rows:
+            mine.filter(group_key=f"submissions:{assignment.id}").update(created_at=rows[-1].submitted_at)
 
     # Mahasiswa: tugas yang masih berjalan dan materi terbaru tiap kelas.
     for assignment in assignments:
-        if assignment.deadline and assignment.deadline > now:
+        if assignment.deadline > now:
             notify_events.assignment_created(assignment)
-    mine.filter(kind=NotificationKind.ASSIGNMENT_NEW).update(
-        created_at=now - timedelta(hours=5)
-    )
+    mine.filter(kind=NotificationKind.ASSIGNMENT_NEW).update(created_at=now - timedelta(hours=5))
     newest: dict = {}
     for material in materials:
         current = newest.get(material.class_ref_id)
@@ -657,9 +460,7 @@ def _seed_notifications(
             newest[material.class_ref_id] = material
     for material in newest.values():
         notify_events.material_created(material)
-        mine.filter(kind=NotificationKind.MATERIAL_NEW, title__endswith=material.title).update(
-            created_at=material.created_at
-        )
+        mine.filter(kind=NotificationKind.MATERIAL_NEW, title__endswith=material.title).update(created_at=material.created_at)
 
     # Nilai terbaru tiap mahasiswa, sudah lama dan sudah dibaca.
     for student in students:
@@ -673,310 +474,74 @@ def _seed_notifications(
             continue
         notify_events.submission_graded(graded)
         at = graded.submitted_at + timedelta(days=3)
-        mine.filter(recipient=student, kind=NotificationKind.SUBMISSION_GRADED).update(
-            created_at=at, read_at=at + timedelta(hours=2)
-        )
+        mine.filter(recipient=student, kind=NotificationKind.SUBMISSION_GRADED).update(created_at=at, read_at=at + timedelta(hours=2))
 
     # Cek Paham yang jendelanya masih terbuka dan belum dikerjakan.
-    open_requests = CekPaham.objects.filter(
-        status=RequestStatus.ACTIVE,
-        window_end__gt=now,
-        attempts__isnull=True,
-        submission__student_profile__in=students,
-    ).select_related("submission__assignment__class_ref")
-    for cekpaham in open_requests:
+    for cekpaham in CekPaham.objects.filter(
+        status=RequestStatus.ACTIVE, window_end__gt=now, attempts__isnull=True, submission__student_profile__in=students
+    ).select_related("submission__assignment__class_ref"):
         notify_events.cekpaham_created(cekpaham)
     mine.filter(kind=NotificationKind.CEKPAHAM_NEW).update(created_at=now - timedelta(hours=3))
     return mine.count()
 
 
-def _sample_answers_for(assignment: Assignment) -> dict[str, list[str]]:
-    """Jawaban contoh yang memvariasikan dua dimensi secara terpisah.
-
-    Tiap band punya satu varian kognitif lemah dan satu varian kognitif kuat.
-    Tujuannya supaya dashboard demo memperlihatkan keempat kombinasi:
-    indikasi AI rendah dengan penalaran kuat, indikasi AI rendah dengan
-    penalaran lemah, indikasi AI tinggi dengan penalaran kuat, dan indikasi AI
-    tinggi dengan penalaran lemah.
-
-    Kombinasi silang itu adalah bukti paling langsung bahwa skor AI dan level
-    Bloom sekarang benar benar diukur terpisah.
-    """
-    base = assignment.title.lower()
-    return {
-        # Ragam informal dan suara orang pertama menekan skor AI.
-        # Suara manusia pada register akademik hadir lewat keraguan, kualifikasi,
-        # dan rujukan konkret ke mata kuliah. Bukan lewat ragam informal, karena
-        # mahasiswa yang menulis esai tidak memakainya.
-        AiBand.LOW: [
-            # Kognitif lemah: mendaftar ulang isi bacaan tanpa penalaran.
-            (
-                "Sejauh ini yang saya pahami dari materi " + base + " ada beberapa "
-                "bagian. Pertama soal definisinya, lalu jenis jenisnya, kemudian "
-                "pihak yang terlibat di dalamnya. Di slide mata kuliah kemarin "
-                "disebutkan juga ada dampak lanjutannya. Harus diakui saya belum "
-                "sepenuhnya paham bagian terakhir itu, jadi saya tuliskan kembali "
-                "yang sempat saya catat. Belum jelas bagi saya bagaimana ketiganya "
-                "berhubungan satu sama lain."
-            ),
-            # Kognitif kuat: sebab akibat, pembandingan, penilaian berdasar alasan.
-            (
-                "Saya mencoba menguraikan " + base + " berdasarkan bacaan mata "
-                "kuliah dan diskusi kelas. Faktor awal menentukan hasil faktor "
-                "berikutnya, sehingga urutannya tidak bisa dibalik begitu saja. "
-                "Akibatnya pendekatan yang sama bisa menghasilkan efek berlawanan, "
-                "tergantung bagaimana penerapannya dirancang. Waktu praktikum "
-                "kemarin, kelompok saya sengaja melewati tahap pertama dan hasilnya "
-                "justru menyimpang jauh, sesuatu yang tidak kami duga. Ini berbeda "
-                "dengan asumsi awal saya bahwa tahapannya bisa dipertukarkan. "
-                "Setidaknya pada percobaan itu, kualitas persiapan tampaknya lebih "
-                "menentukan daripada urutannya sendiri. Menurut saya penjelasan di "
-                "buku rujukan kurang tepat, karena menggambarkan seolah semuanya "
-                "berjalan serentak. Sebaiknya digambarkan bertahap. Kelemahan "
-                "analisis saya sendiri, datanya hanya dari satu percobaan, sehingga "
-                "belum tentu berlaku untuk kasus lain. Masih perlu pembanding "
-                "sebelum kesimpulan ini bisa dipegang. Kalau dibandingkan dengan "
-                "studi kasus yang dibahas pada pertemuan sebelumnya, polanya juga "
-                "tidak sepenuhnya sama, sedangkan kondisi awalnya mirip. Perbedaan "
-                "itu membuat saya menduga ada faktor lain yang belum kami "
-                "perhitungkan. Sejauh ini saya menilai kerangka yang dipakai di "
-                "kelas masih lebih tepat daripada yang ada di buku rujukan, karena "
-                "kerangka itu setidaknya mengakui adanya ketergantungan antartahap. "
-                "Meski begitu saya belum sepenuhnya yakin, dan akan mencoba "
-                "menguji ulang dengan data pembanding pada tugas berikutnya."
-            ),
-        ],
-        # Campuran: sebagian baku dan berfrasa klise, sebagian masih menyisakan
-        # suara penulisnya. Panjangnya sekitar 110 kata, dan skornya diukur
-        # ulang setelah keragaman kosakata berhenti jenuh pada jawaban pendek
-        # dan setelah tindakan menempel berhenti diskor: skornya kini datang
-        # dari gaya teks saja, dengan jarak aman di atas ambang sedang 42.
-        AiBand.MID: [
-            # Kognitif menengah: menjelaskan ulang dan menguraikan langkah.
-            (
-                base.capitalize() + " merupakan rangkaian proses yang dapat "
-                "dijelaskan dalam beberapa tahap. Artinya, ada urutan yang perlu "
-                "diikuti supaya hasilnya sesuai dengan tujuan. Pertama, kondisi awal "
-                "disiapkan terlebih dahulu dengan cermat. Kemudian kondisi tersebut "
-                "diproses pada tahap berikutnya secara bertahap. Setelah itu "
-                "hasilnya dapat diamati dan dicatat dengan teliti. Tahap pencatatan "
-                "ini memainkan peran penting dalam keseluruhan proses. Caranya "
-                "kurang lebih seperti yang dicontohkan pada modul praktikum. Saya "
-                "menerapkan langkah yang sama ketika mengerjakan studi kasus "
-                "sebelumnya. Setiap tahap memiliki tujuan yang jelas dan saling "
-                "melengkapi satu sama lain. Dengan mengikuti urutan tersebut, hasil "
-                "yang diperoleh menjadi lebih mudah diperiksa kembali. Secara "
-                "fundamental, langkah tersebut dapat diterapkan pada berbagai situasi "
-                "yang serupa."
-            ),
-            # Kognitif lebih kuat: sebab akibat dan pembandingan yang eksplisit.
-            (
-                "Berdasarkan bacaan, " + base + " mencakup beberapa komponen yang "
-                "saling mempengaruhi. Komponen pertama menentukan hasil komponen "
-                "kedua, sehingga urutannya penting. Namun apabila dibandingkan "
-                "dengan kasus yang dibahas di kelas, ada perbedaan yang cukup jelas. "
-                "Pada kasus di kelas faktor eksternal hampir tidak berpengaruh, "
-                "sedangkan pada contoh di literatur faktor eksternal justru mengubah "
-                "hasilnya. Perlu dicatat, perbedaan ini muncul karena kondisi awalnya "
-                "memang tidak sama. Tidak dapat dipungkiri, kondisi awal memainkan peran penting "
-                "terhadap arah hasil akhir. Kondisi yang stabil menghasilkan pola "
-                "yang lebih mudah diprediksi. Sebaliknya, kondisi yang berubah ubah "
-                "menghasilkan pola yang sulit dibandingkan. Oleh karena itu penilaian "
-                "terhadap komponen perlu mempertimbangkan konteksnya masing masing. "
-                "Kesimpulannya, hasil akhir perlu dipahami secara holistik sesuai "
-                "konteks penerapannya."
-            ),
-        ],
-        # Ragam sangat baku, frasa klise, tanpa keraguan dan tanpa rujukan konkret.
-        AiBand.HIGH: [
-            # Kognitif kuat: penalaran dan penilaian tetap ada meski gaya formulaik.
-            (
-                "Secara fundamental, " + base + " dapat dikonseptualisasikan "
-                "sebagai sistem yang saling terhubung. Komponen awal menentukan "
-                "keluaran komponen berikutnya, sehingga urutan pemrosesan memainkan "
-                "peran penting. Namun demikian, terdapat perbedaan mendasar apabila "
-                "dibandingkan dengan pendekatan konvensional. Pendekatan "
-                "konvensional mengasumsikan independensi antarvariabel, sedangkan "
-                "pendekatan kontemporer menekankan keterkaitan struktural. "
-                "Perbedaan asumsi tersebut menyebabkan implikasi metodologis yang "
-                "berbeda pula. Ditinjau dari efektivitasnya, pendekatan kontemporer "
-                "lebih efektif untuk kasus kompleks. Kelebihan utamanya terletak "
-                "pada akurasi prediksi, sementara kekurangannya adalah kebutuhan "
-                "data yang lebih besar. Analisis komparatif memperlihatkan bahwa "
-                "desain penerapan menentukan hasil akhirnya. Pertimbangan tersebut "
-                "menjadi dasar perumusan rekomendasi yang lebih tepat sasaran. "
-                "Kerangka analitis tersebut memungkinkan pemetaan hubungan "
-                "antarvariabel secara sistematis. Pemetaan tersebut menghasilkan "
-                "pemahaman yang lebih utuh terhadap mekanisme yang berlangsung. "
-                "Evaluasi terhadap kedua pendekatan memperlihatkan bahwa pemilihan "
-                "instrumen seharusnya mempertimbangkan ketersediaan sumber daya. "
-                "Implikasi tersebut berlaku pada berbagai konteks penerapan. "
-                "Dengan mempertimbangkan seluruh aspek tersebut, pendekatan "
-                "kontemporer dinilai lebih unggul untuk kasus berskala besar."
-            ),
-            # Kognitif lemah: gaya formulaik tapi isinya sekadar menyebutkan.
-            (
-                "Di era modern ini, " + base + " tidak dapat dipungkiri memainkan "
-                "peran penting. Secara fundamental, hal tersebut melibatkan banyak "
-                "variabel. Dalam konteks ini, setiap variabel memiliki peran "
-                "spesifik yang berkontribusi secara holistik. Terdapat beberapa "
-                "komponen utama di dalamnya. Komponen tersebut meliputi aspek "
-                "pertama, aspek kedua, dan aspek ketiga. Masing masing komponen "
-                "memiliki definisi dan karakteristik tersendiri. Uraian tersebut "
-                "memperlihatkan struktur yang kompleks."
-            ),
-        ],
-    }
-
-
 class Command(BaseCommand):
-    help = "Seed data demo untuk mockup tahap 1 (idempotent)."
+    help = "Seed data demo: 2 dosen, 20 mahasiswa, 4 kelas di tengah semester (idempoten)."
 
     def handle(self, *args, **options):
-        rng = random.Random(42)
-
         with transaction.atomic():
-            teacher = _ensure_teacher()
-            students = _ensure_students(8)
+            Class.objects.filter(id__in=[_id(f"class:{label}") for label in LEGACY_CLASSES]).delete()
+            # Satu hash untuk semua akun: PBKDF2 sengaja lambat, dan sandinya memang sama.
+            password = make_password(SEED_PASSWORD)
+            teachers = {
+                # "teacher:demo" dipertahankan supaya id dosen lama tetap sama.
+                key: _ensure_profile("teacher:demo" if key == "budi" else f"teacher:{key}", email, name, Role.TEACHER, password)
+                for key, (email, name) in TEACHERS.items()
+            }
+            students = [
+                _ensure_profile(f"student:{i:02d}", f"mhs{i:02d}@thinkpath.local", persona.name, Role.STUDENT, password)
+                for i, persona in enumerate(STUDENTS, start=1)
+            ]
 
-            def _ensure_memberships(target_class: Class) -> None:
+            classes: dict[str, Class] = {}
+            assignments: list[Assignment] = []
+            materials: list[Material] = []
+            by_key: dict[tuple[str, int], Assignment] = {}
+            submission_ids: list[uuid.UUID] = []
+            events: list[ReasoningEvent] = []
+            for course in COURSES:
+                klass = _ensure_class(course, teachers[course.teacher])
+                classes[course.label] = klass
                 for student in students:
-                    ClassMembership.objects.get_or_create(
-                        class_ref=target_class,
-                        student_profile=student,
-                    )
-
-            class_metpen = _ensure_class(
-                owner=teacher,
-                label="metpen-a",
-                name="Metodologi Penelitian A",
-                subject="Metodologi Penelitian",
-                level=EducationLevel.S1,
-                program_studi="Sistem Informasi",
-                semester=5,
-            )
-            class_ekbang = _ensure_class(
-                owner=teacher,
-                label="ekbang-b",
-                name="Ekonomi Pembangunan B",
-                subject="Ekonomi Pembangunan",
-                level=EducationLevel.S1,
-                program_studi="Ilmu Ekonomi",
-                semester=3,
-            )
-            _ensure_memberships(class_metpen)
-            _ensure_memberships(class_ekbang)
-
-            # Tugas disebar lintas minggu supaya Profil Kognitif punya sumbu
-            # waktu yang nyata. Satu titik per mahasiswa tidak membentuk tren
-            # apa pun, dan layar itu akan kosong.
-            series = {
-                class_metpen: [
-                    ("rumusan-masalah", "Merumuskan masalah penelitian",
-                     "Rumuskan masalah penelitian skripsi Anda beserta alasan pemilihannya.", 3, 10),
-                    ("kajian-pustaka", "Menyusun kajian pustaka",
-                     "Bandingkan tiga sumber tentang topik Anda, lalu tunjukkan celah penelitiannya.", 4, 8),
-                    ("desain-kualitatif", "Desain penelitian kualitatif",
-                     "Uraikan pertimbangan dalam memilih desain penelitian kualitatif untuk topik skripsi Anda.", 3, 6),
-                    ("validitas-reliabilitas", "Validitas dan reliabilitas instrumen",
-                     "Bandingkan ancaman terhadap validitas dan reliabilitas, lalu jelaskan cara menanganinya.", 4, 4),
-                    ("analisis-data", "Rencana analisis data",
-                     "Rancang langkah analisis data yang sesuai dengan desain penelitian Anda.", 5, 1),
-                ],
-                class_ekbang: [
-                    ("indikator-pembangunan", "Memilih indikator pembangunan",
-                     "Pilih indikator yang paling tepat untuk mengukur pembangunan daerah, dan pertahankan pilihan Anda.", 4, 7),
-                    ("subsidi-energi", "Efektivitas kebijakan subsidi energi",
-                     "Bandingkan subsidi harga dan transfer langsung, lalu argumentasikan mana yang lebih tepat sasaran.", 4, 5),
-                    ("ketimpangan-wilayah", "Ketimpangan antarwilayah",
-                     "Jelaskan sebab ketimpangan antarwilayah dan usulkan satu kebijakan penanganannya.", 5, 2),
-                ],
-            }
-
-            # Satu tugas yang masih berjalan per kelas, sengaja tanpa submission.
-            # Tanpa ini seluruh data demo berada di masa lalu, sehingga layar
-            # "masih berjalan" dan "perlu dikerjakan" selalu kosong dan alur
-            # mengumpulkan tugas tidak pernah bisa dicoba.
-            open_items = {
-                class_metpen: (
-                    "etika-penelitian",
-                    "Etika penelitian dan persetujuan responden",
-                    "Uraikan risiko etis pada rancangan penelitian Anda, lalu jelaskan cara Anda menanganinya.",
-                    4,
-                ),
-                class_ekbang: (
-                    "kebijakan-fiskal-daerah",
-                    "Ruang fiskal pemerintah daerah",
-                    "Nilai apakah ruang fiskal daerah Anda cukup untuk membiayai satu program prioritas, dan pertahankan penilaian itu.",
-                    5,
-                ),
-            }
-
-            assignments = []
-            total_submissions = 0
-            for target_class, items in series.items():
-                for step, (label, title, instructions, bloom, weeks_ago) in enumerate(items):
-                    assignment = _ensure_assignment(
-                        target_class=target_class,
-                        label=label,
-                        title=title,
-                        instructions=instructions,
-                        expected_bloom_level=bloom,
-                        # Tenggat relatif terhadap waktu pengumpulannya, bukan
-                        # terhadap hari ini, supaya tugas lama tidak tampil
-                        # seperti masih berjalan.
-                        deadline_days=-(weeks_ago * 7) + 7,
-                    )
-                    assignments.append(assignment)
-                    total_submissions += _seed_submissions_for_assignment(
-                        rng=rng,
-                        assignment=assignment,
-                        students=students,
-                        step=step,
-                        total_steps=len(items),
-                        weeks_ago=weeks_ago,
-                    )
-
-            cekpaham_count = seed_cekpaham_demo(teacher, students)
-
-            for target_class, (label, title, instructions, bloom) in open_items.items():
-                assignments.append(
-                    _ensure_assignment(
-                        target_class=target_class,
-                        label=label,
-                        title=title,
-                        instructions=instructions,
-                        expected_bloom_level=bloom,
-                        deadline_days=10,
-                    )
+                    ClassMembership.objects.get_or_create(class_ref=klass, student_profile=student)
+                # Semua bergabung di pekan pertama, bukan pada hari seed dijalankan.
+                ClassMembership.objects.filter(class_ref=klass).update(
+                    joined_at=_session_at(course, 1) - timedelta(days=3)
                 )
+                Class.objects.filter(pk=klass.pk).update(created_at=_session_at(course, 1) - timedelta(days=10))
+                for number, session in enumerate(course.sessions, start=1):
+                    assignment, material = _ensure_session(course, klass, number, session)
+                    assignments.append(assignment)
+                    materials.append(material)
+                    by_key[(course.label, number)] = assignment
+                    kept, rows = _seed_submissions(course, number, session, assignment, students)
+                    submission_ids += kept
+                    events += rows
 
-            class_labels = {"metpen-a": class_metpen, "ekbang-b": class_ekbang}
-            materials = _seed_materials(class_labels)
-            forum_count = seed_forum_demo(teacher, students, class_labels)
+            ReasoningEvent.objects.filter(submission_id__in=submission_ids).delete()
+            ReasoningEvent.objects.bulk_create(events, batch_size=2000)
+
+            cekpaham_count = seed_cekpaham_demo(teachers["budi"], students, by_key[CEKPAHAM_TASK])
+            forum_count = seed_forum_demo(classes, students)
             seed_todos_demo(students[0])
-            notification_count = _seed_notifications(
-                teacher, students, assignments, materials
-            )
+            notification_count = _seed_notifications(list(teachers.values()), students, assignments, materials)
 
         self.stdout.write(
-            "Seeded teacher={teacher_id}, classes=2, assignments={assignments}, "
-            "submissions={submissions}, analysis_results={submissions}, "
-            "cekpaham={cekpaham}, materials={materials}, forum_posts={forum}, "
-            "notifications={notifications}".format(
-                teacher_id=teacher.id,
-                assignments=len(assignments),
-                submissions=total_submissions,
-                cekpaham=cekpaham_count,
-                materials=len(materials),
-                forum=forum_count,
-                notifications=notification_count,
-            )
+            f"Seeded classes={len(classes)}, assignments={len(assignments)}, materials={len(materials)}, "
+            f"submissions={len(submission_ids)}, cekpaham={cekpaham_count}, forum_posts={forum_count}, "
+            f"notifications={notification_count}"
         )
         self.stdout.write(
-            "Akun demo (password semua: {password}): dosen={teacher_email}, "
-            "mahasiswa=mhs01@thinkpath.local s.d. mhs08@thinkpath.local".format(
-                password=SEED_PASSWORD,
-                teacher_email=TEACHER_EMAIL,
-            )
+            f"Akun demo (password {SEED_PASSWORD}): {TEACHERS['budi'][0]} (3 kelas), "
+            f"{TEACHERS['hendra'][0]} (Business Creation), mhs01..mhs{len(STUDENTS):02d}@thinkpath.local."
         )

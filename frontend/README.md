@@ -20,7 +20,7 @@ Windows PowerShell: `Copy-Item .env.local.example .env.local`, lalu `npm install
 
 **Untuk demo atau penjurian, jangan pakai `npm run dev`.** Mode dev mengompilasi tiap rute saat pertama dibuka (2–3 detik) dan jauh lebih lambat. Pakai build produksi: hentikan dev server, lalu `npm run build && npm start`. Diukur lokal: halaman mahasiswa 60–150 ms, pindah menu lewat sidebar 30 ms (rute pertama yang dibuka setelah server menyala sekitar 1–3 detik). Buka tiap halaman utama sekali sebelum demo untuk menghangatkan server.
 
-Login dengan akun demo (password `thinkpath123`): `dosen@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs08@thinkpath.local`. Setelah mengubah `NEXT_PUBLIC_BACKEND_URL`, jalankan ulang `npm run dev`.
+Login dengan akun demo (password `thinkpath123`): `dosen@thinkpath.local` · `dosen2@thinkpath.local` · `mhs01@thinkpath.local` s.d. `mhs20@thinkpath.local`. Setelah mengubah `NEXT_PUBLIC_BACKEND_URL`, jalankan ulang `npm run dev`.
 
 URL API lokal memakai `127.0.0.1` supaya browser tidak memilih alamat IPv6
 `::1` saat Django hanya mendengarkan di IPv4.

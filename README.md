@@ -66,8 +66,11 @@ Buka **https://thinkpath.vercel.app**, pilih peran **Dosen** atau **Mahasiswa**,
 
 | Peran | Email | Yang bisa dicoba |
 |---|---|---|
-| Dosen | `dosen@thinkpath.local` | 2 kelas, 10 tugas, 64 jawaban sudah dianalisis, 3 Cek Paham |
-| Mahasiswa | `mhs01@thinkpath.local` sampai `mhs08@thinkpath.local` | 8 mahasiswa dengan cara mengerjakan berbeda. `mhs07` punya satu Cek Paham yang bisa langsung dikerjakan |
+| Dosen | `dosen@thinkpath.local` | Budi Juarto: Algorithm & Programming, Operating System, Introduction to AI. 3 Cek Paham |
+| Dosen | `dosen2@thinkpath.local` | Hendra Gunawan: Business Creation, banyak jawaban berupa PDF |
+| Mahasiswa | `mhs01@thinkpath.local` sampai `mhs20@thinkpath.local` | 20 mahasiswa dengan cara mengerjakan berbeda. `mhs01` belum mengumpulkan tugas pekan ini, jadi bisa langsung mencoba. `mhs07` punya Cek Paham yang bisa dikerjakan |
+
+Semua kelas sudah berjalan sampai pekan sesi ke-10: 12 materi dan 12 tugas per kelas, sebagian sudah dinilai, sebagian menunggu diperiksa, dan tugas pekan ini masih terbuka.
 
 Akun baru: klik **Daftar**, centang persetujuan [Kebijakan Privasi](https://thinkpath.vercel.app/kebijakan-privasi), selesai. Aplikasi bisa dibuka di HP maupun laptop.
 
