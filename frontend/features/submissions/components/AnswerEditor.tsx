@@ -2,7 +2,7 @@
 
 import type { Editor } from "@tiptap/core";
 import { CheckCircle2, Info, Loader2, Send, TriangleAlert } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Alert } from "@/components/ui/alert";
@@ -13,7 +13,12 @@ import { richToPlain } from "@/features/editor/lib/rich-text";
 import { AttachedDocumentCard } from "@/features/submissions/components/AttachedDocumentCard";
 import { DocumentPickerCard } from "@/features/submissions/components/DocumentPickerCard";
 import { DocumentUploadField } from "@/features/submissions/components/DocumentUploadField";
-import { draftKey, useDraftSync, type SaveState } from "@/features/submissions/hooks/useDraftSync";
+import {
+  draftKey,
+  recallDraft,
+  useDraftSync,
+  type SaveState,
+} from "@/features/submissions/hooks/useDraftSync";
 import { useAction } from "@/hooks/use-action";
 import { useDeadline } from "@/hooks/use-deadline";
 import { submitAnswer, type DocumentImportResult, type DocumentReadMethod } from "@/lib/mutations";
@@ -88,8 +93,12 @@ export function AnswerEditor({
     successMessage: copy.done,
   });
 
-  const [doc, setDoc] = useState<RichDoc>(initialDoc);
-  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
+  // Kembali ke halaman yang baru ditinggalkan: tulisan di memori lebih baru daripada draf di cache.
+  const [recalled] = useState(() => (autosave ? recallDraft(assignmentId) : null));
+  const [doc, setDoc] = useState<RichDoc>(recalled?.doc ?? initialDoc);
+  const [documentId, setDocumentId] = useState<string | null>(
+    recalled ? recalled.documentId : initialDocumentId,
+  );
   const [importNote, setImportNote] = useState<ImportNote | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -118,6 +127,13 @@ export function AnswerEditor({
     initialKey,
     initiallySaved: plain !== "",
   });
+
+  useEffect(() => {
+    // Simpan-saat-keluar bisa saja gagal: kirim ulang tulisan yang dipulihkan (idempoten).
+    if (recalled) schedule(true);
+    // Hanya sekali saat dipasang.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleChange(next: RichDoc) {
     setDoc(next);
@@ -203,7 +219,7 @@ export function AnswerEditor({
 
       <Card className="overflow-clip">
         <LazyRichEditor
-          initial={initialDoc}
+          initial={recalled?.doc ?? initialDoc}
           onChange={handleChange}
           disabled={locked}
           editorRef={editorRef}

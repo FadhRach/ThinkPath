@@ -5,7 +5,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.academics.models import Class, Submission
+from apps.academics.models import Class, ClassMembership, Submission
 from apps.accounts.models import Profile
 from apps.accounts.permissions import IsStudent, IsTeacher
 from apps.analysis.insights.cognitive import build_profile
@@ -52,16 +52,23 @@ class StudentCognitiveProfileView(APIView):
         student = Profile.objects.filter(pk=parse_uuid_or_404(student_id)).first()
         if student is None:
             raise NotFound()
+        owner_id = request_user_id(request)
         submissions = Submission.objects.filter(
             student_profile_id=student.id,
-            assignment__class_ref__owner_id=request_user_id(request),
+            assignment__class_ref__owner_id=owner_id,
         )
-        if not submissions.exists():
+        if submissions.exists():
+            classes = build_profile(submissions)
+        elif ClassMembership.objects.filter(
+            student_profile_id=student.id, class_ref__owner_id=owner_id
+        ).exists():
+            classes = []  # anggota baru yang belum mengumpulkan apa pun
+        else:
             raise NotFound()
         return Response(
             {
                 "student": {"id": str(student.id), "display_name": student.label},
-                "classes": build_profile(submissions),
+                "classes": classes,
             }
         )
 

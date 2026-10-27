@@ -338,6 +338,22 @@ class FinalizeTest(CekPahamAPITestCase):
         raw = json.loads('{"blur_count": NaN, "mic_errors": Infinity, "silent_seconds": -Infinity, "visibility_changes": 2}')
         self.assertEqual(clean_events(raw), {"visibility_changes": 2})
 
+    def test_json_body_with_object_client_events_does_not_crash(self):
+        """Badan JSON membawa client_events sebagai objek; json.loads(dict) dulu jadi HTTP 500."""
+        for events in ({"visibility_changes": 2}, ["bukan", "objek"]):
+            CekPahamAttempt.objects.all().delete()
+            cekpaham = self.make_request()
+            self.start(cekpaham)
+            response = self.client_for(self.student).post(
+                self.url(cekpaham, "/finalize"),
+                {"interrupted": True, "client_events": events},
+                format="json",
+            )
+            self.assertEqual(response.status_code, 200, response.content)
+            expected = events if isinstance(events, dict) else {}
+            self.assertEqual(CekPahamAttempt.objects.get().client_events, expected)
+            CekPaham.objects.filter(pk=cekpaham.pk).delete()
+
     def test_stt_failure_keeps_the_audio_and_marks_the_attempt(self):
         cekpaham = self.make_request()
         self.start(cekpaham)
@@ -407,6 +423,16 @@ class RecoveryTest(CekPahamAPITestCase):
         cekpaham = self.failed_session()
         self.assertEqual(self.reprocess(cekpaham, self.other_teacher).status_code, 404)
         self.assertEqual(self.reprocess(cekpaham, self.student).status_code, 403)
+
+    def test_reprocess_needs_the_students_consent(self):
+        cekpaham = self.failed_session()
+        record_consent(self.student.id, ConsentAction.WITHDRAWN, [])
+        with patch("apps.cekpaham.services.attempts.groq_stt.transcribe") as transcribe, \
+             patch("apps.cekpaham.services.attempts.judge.judge") as judge_call:
+            self.assertEqual(self.reprocess(cekpaham).status_code, 403)
+        transcribe.assert_not_called()
+        judge_call.assert_not_called()
+        self.assertEqual(CekPahamAttempt.objects.get().status, AttemptStatus.PROCESSING_FAILED)
 
     def test_a_scored_attempt_is_not_reprocessed(self):
         done, _ = self.run_session()
@@ -487,6 +513,15 @@ class ReportTest(CekPahamAPITestCase):
         # Mahasiswa kini bisa memulai lagi; nomor attempt bertambah.
         self.assertEqual(self.start(cekpaham).status_code, 201)
         self.assertEqual(CekPahamAttempt.objects.order_by("number").last().number, 2)
+
+    def test_retry_is_refused_while_the_attempt_is_processing(self):
+        cekpaham, _ = self.run_session()
+        self.report(cekpaham)
+        CekPahamAttempt.objects.update(status=AttemptStatus.PROCESSING)
+        report = CekPahamAttempt.objects.get().reports.get()
+        self.assertEqual(self.resolve(report.id, resolution="grant_retry").status_code, 400)
+        self.assertEqual(CekPahamAttempt.objects.get().status, AttemptStatus.PROCESSING)
+        self.assertEqual(self.resolve(report.id, resolution="dismissed").status_code, 200)
 
     def test_retry_extension_must_leave_room_for_a_session(self):
         cekpaham, _ = self.run_session()

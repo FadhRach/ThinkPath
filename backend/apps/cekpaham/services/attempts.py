@@ -269,6 +269,8 @@ def reprocess_attempt(attempt: CekPahamAttempt) -> CekPahamAttempt:
             raise ValidationError("Sesi ini tidak perlu diproses ulang.")
         if not attempt.audio_path and not attempt.final_transcript:
             raise ValidationError("Tidak ada audio tersimpan untuk diproses ulang.")
+        # Audio dikirim ulang ke Groq: persetujuan mahasiswa (bisa sudah ditarik) wajib masih berlaku.
+        require_cekpaham_consent(attempt.cekpaham.submission.student_profile_id)
         attempt.status = AttemptStatus.PROCESSING
         attempt.finalized_at = now
         attempt.save(update_fields=["status", "finalized_at"])

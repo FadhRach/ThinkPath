@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toUtf16Spans } from "@/features/submissions/lib/offsets";
 import { getApiErrorMessage } from "@/lib/api/messages";
 import { getSubmissionComparison } from "@/lib/mutations";
 import type { ComparisonSide, SubmissionComparison } from "@/lib/types";
@@ -18,7 +19,7 @@ import type { ComparisonSide, SubmissionComparison } from "@/lib/types";
 function Side({ side }: { side: ComparisonSide }) {
   const pieces: React.ReactNode[] = [];
   let cursor = 0;
-  side.spans.forEach((span, index) => {
+  toUtf16Spans(side.text, side.spans).forEach((span, index) => {
     if (span.start > cursor) pieces.push(side.text.slice(cursor, span.start));
     pieces.push(
       <mark key={index} className="rounded-sm bg-warning-soft px-0.5 text-foreground">

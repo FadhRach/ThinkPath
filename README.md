@@ -149,16 +149,23 @@ Dari kurva kata ini dosen melihat bentuk pengerjaan: **bertahap** (menulis sendi
 Dua mesin, **saling bebas**. Level Bloom tidak pernah memengaruhi skor AI, dan itu dijaga uji otomatis.
 
 <p align="center">
-  <img src="assets/analysis-layers.svg" alt="Dua mesin analisis: E1 indikasi AI dengan tiga lapis cadangan dan E2 level Bloom" width="100%">
+  <img src="assets/analysis-layers.svg" alt="Dua mesin analisis: E1 indikasi AI (Groq, ditimpa Winston bila menjawab, heuristik sebagai cadangan dan pembanding) dan E2 level Bloom" width="100%">
 </p>
 
-**Skor indikasi AI (0-100)** diambil dari tiga lapis. Kalau satu lapis gagal, lapis berikutnya mengambil alih. Pengumpulan tugas tidak pernah terblokir.
+**Skor indikasi AI (0-100)** disusun dari tiga lapis. Layanan luar yang gagal atau kuncinya kosong dilewati. Pengumpulan tugas tidak pernah terblokir.
 
-1. **Winston AI**, detektor eksternal. Ia memberi skor "manusia", jadi ThinkPath membaliknya tepat satu kali.
-2. **Groq**, model bahasa yang menilai probabilitas AI.
-3. **Heuristik lokal**, lima sinyal teks yang dihitung di server sendiri.
+1. **Groq**, model bahasa yang menilai probabilitas AI. Jalan lebih dulu bila kuncinya ada dan teks tidak memuat kalimat yang ditujukan ke penilai otomatis.
+2. **Winston AI**, detektor eksternal. Bila menjawab, skornya **menimpa** skor Groq. Ia memberi skor "manusia", jadi ThinkPath membaliknya tepat satu kali.
+3. **Heuristik lokal**, lima sinyal teks yang dihitung di server sendiri. Menjadi skor bila Groq dan Winston tidak menjawab; selain itu tetap tampil sebagai **pembanding** berbobot 0.
 
-Skor lalu dibagi tiga pita: **rendah** (di bawah 42), **sedang** (42 sampai 69), **tinggi** (70 ke atas). Hanya dosen yang melihatnya.
+Skor lalu dibagi tiga pita, dengan ambang per sumber skor:
+
+| Sumber skor | Rendah | Sedang | Tinggi |
+|---|---|---|---|
+| Heuristik dan Groq | di bawah 42 | 42 sampai 69 | 70 ke atas |
+| Winston | di bawah 35 | 35 sampai 69 | 70 ke atas |
+
+Hanya dosen yang melihatnya. Pola pengerjaan **berbobot 0** di skor ini dan dilaporkan terpisah.
 
 <p align="center">
   <img src="assets/signals.svg" alt="Bobot lima sinyal teks pada heuristik lokal" width="100%">
@@ -170,7 +177,7 @@ Skor lalu dibagi tiga pita: **rendah** (di bawah 42), **sedang** (42 sampai 69),
 | Sinyal | Yang diukur |
 |---|---|
 | Keseragaman kalimat | Teks AI cenderung punya panjang kalimat yang mirip-mirip. Tulisan manusia lebih bervariasi. |
-| Frasa formulaik | Kepadatan transisi khas model bahasa ("selain itu", "oleh karena itu", "dengan demikian"). |
+| Frasa formulaik | Jumlah jenis klise khas model bahasa ("perlu dicatat", "memainkan peran penting", "tidak dapat dipungkiri"). Frasa akademik yang wajar seperti "dengan demikian" sengaja tidak dihitung. |
 | Keragaman kosakata | Rasio kata unik. Dinetralkan di bawah 120 kata karena teks pendek selalu tampak beragam. |
 | Tanpa suara personal | Tidak ada sudut pandang pribadi atau contoh konkret. |
 | Kepastian datar | Semua kalimat yakin, tanpa keraguan atau kualifikasi yang wajar. |
@@ -247,10 +254,10 @@ Jujur apa adanya:
 | Aspek | Status |
 |---|---|
 | Bobot sinyal teks dan ambang sedang 42 | **Terukur.** ROC-AUC uji 0,884 naik ke 0,912 pada gold set 999 sampel. FPR di bawah 5%. |
-| Ambang tinggi 70, lapisan Winston dan Groq | Belum terukur pada teks Indonesia. |
+| Ambang tinggi 70, ambang Winston 35/70, lapisan Winston dan Groq | Belum terukur pada teks Indonesia. |
 | Level Bloom | Berjalan, **belum divalidasi penilai manusia**. |
 | Cek Paham | Berjalan. Rubrik dan ambang **belum dikalibrasi**, UI selalu memberi label itu. |
-| Uji otomatis | 547 tes backend dan 85 tes ai_experiment, semuanya lolos. |
+| Uji otomatis | 558 tes backend dan 85 tes ai_experiment, semuanya lolos. |
 
 > Gold set berisi **abstrak akademik**, bukan esai mahasiswa. Angka sah untuk membandingkan sinyal, tapi **bukan klaim akurasi pada jawaban tugas**. Seluruh eksperimen ada di [`ai_experiment/notebooks`](./ai_experiment/notebooks), disajikan bertahap dari gold set sampai evaluasi.
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { saveDraft } from "@/lib/mutations";
@@ -18,6 +19,19 @@ export type SaveState = "idle" | "saving" | "saved" | "error";
 /** Isi yang disimpan sebagai draf: tulisan dan dokumen terlampir. */
 export function draftKey(doc: RichDoc, documentId: string | null) {
   return JSON.stringify([doc, documentId]);
+}
+
+// Tulisan terakhir saat editor ditinggalkan, hanya di memori tab ini (bukan localStorage). Kembali
+// lewat Back sebelum simpan-saat-keluar selesai menyajikan halaman dari cache router dengan draf
+// lama; tanpa ini autosave berikutnya menimpa tulisan yang lebih baru di server.
+const RECALL_MS = 60_000;
+const leftDrafts = new Map<string, { doc: RichDoc; documentId: string | null; at: number }>();
+
+/** Ambil (sekali pakai) tulisan yang ditinggalkan kurang dari semenit lalu. */
+export function recallDraft(assignmentId: string) {
+  const left = leftDrafts.get(assignmentId);
+  leftDrafts.delete(assignmentId);
+  return left && Date.now() - left.at < RECALL_MS ? left : null;
 }
 
 interface Options {
@@ -47,11 +61,15 @@ export function useDraftSync({
   initialKey,
   initiallySaved,
 }: Options) {
+  const router = useRouter();
   const [saveState, setSaveState] = useState<SaveState>(initiallySaved ? "saved" : "idle");
 
   // Nilai terbaru di ref supaya pewaktu dan pendengar tidak dipasang ulang tiap ketikan.
   const latest = useRef({ doc, documentId });
   latest.current = { doc, documentId };
+  // Isi awal saat dipasang. Prop `initialKey` ikut berubah setelah router.refresh(), padahal
+  // `schedule` perlu membandingkan dengan isi saat halaman dibuka.
+  const mountedKey = useRef(initialKey);
   const savedKey = useRef(initialKey);
   const timer = useRef<number | null>(null);
   const finished = useRef(false);
@@ -87,6 +105,9 @@ export function useDraftSync({
       );
       savedKey.current = key;
       saveFailed.current = false;
+      // Buang cache router (staleTimes 30 detik): kembali ke halaman ini harus membawa draf
+      // terbaru, bukan draf lama yang lalu menimpa tulisan di server. Isi editor tetap state klien.
+      router.refresh();
       if (!leaving) setSaveState(currentKey() === key ? "saved" : "saving");
     } catch {
       saveFailed.current = true;
@@ -102,7 +123,7 @@ export function useDraftSync({
    */
   function schedule(hasContent: boolean) {
     if (!autosave || timer.current !== null || finished.current || expiredRef.current) return;
-    if (!hasContent && savedKey.current === initialKey) return;
+    if (!hasContent && savedKey.current === mountedKey.current) return;
     timer.current = window.setTimeout(() => void flush(), AUTOSAVE_DELAY_MS);
   }
 
@@ -139,8 +160,10 @@ export function useDraftSync({
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("beforeunload", onBeforeUnload);
       // Pindah halaman di dalam aplikasi: kirim sisa ketikan, jangan buang.
-      if (autosave) void flush({ leaving: true });
-      else if (timer.current !== null) window.clearTimeout(timer.current);
+      if (autosave && !finished.current) {
+        leftDrafts.set(assignmentId, { ...latest.current, at: Date.now() });
+        void flush({ leaving: true });
+      } else if (timer.current !== null) window.clearTimeout(timer.current);
     };
     // flush dan hasUnsaved membaca nilai lewat ref; pewaktu dan pendengar tidak boleh dipasang ulang.
     // eslint-disable-next-line react-hooks/exhaustive-deps

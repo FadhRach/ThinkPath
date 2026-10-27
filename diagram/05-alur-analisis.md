@@ -3,8 +3,10 @@
 Berkas ini membedah apa yang terjadi antara mahasiswa menekan Kumpulkan dan
 dosen melihat angka.
 
-Sesuai kode di `main` setelah PR #11, yang menambahkan detektor eksternal dan
-mengganti bobot serta ambang E1 dengan hasil ukur.
+Sesuai kode di `main`: detektor eksternal menimpa skor Groq, bobot dan ambang
+E1 hasil ukur, dan pola pengerjaan berbobot 0 di skor AI (dilaporkan terpisah
+sebagai `process_band`). Analisis dikerjakan worker (`run_analysis_worker`,
+antrean `analysis_jobs`), bukan di dalam request submit.
 
 ---
 
@@ -29,16 +31,18 @@ flowchart TB
         E2["skor bukti + batas panjang"]
     end
 
-    PROC["Metadata proses"] --> PS["<b>process_signals.py</b>"]
-    PS --> E1
+    PROC["Metadata proses"] --> PS["<b>process_signals.py</b><br/>assess_process"]
+    PS --> PB["process_band<br/>bukti terpisah, bobot 0 di skor AI"]
 
-    E1 --> BASE["<b>jalur dasar</b><br/>Groq bila ada kunci, kalau tidak heuristik"]
+    E1 --> BASE["<b>jalur dasar</b><br/>Groq bila ada kunci dan tanpa pola injeksi,<br/>kalau tidak heuristik"]
     E2 --> BASE
     BASE --> DET{"detector_cache<br/>menjawab?"}
     DET -->|"ya"| OVL["Timpa SKOR AI saja"]
     DET -->|"tidak"| KEEP["Pakai jalur dasar apa adanya"]
-    OVL --> R[("AnalysisResult")]
-    KEEP --> R
+    OVL --> CMP["Skor dari Groq/Winston:<br/>tambah 5 sinyal heuristik<br/>sebagai pembanding bobot 0"]
+    KEEP --> CMP
+    CMP --> R[("AnalysisResult")]
+    PB --> R
 
     BLOOM["Level Bloom TIDAK pernah<br/>ikut penimpaan ini"]
     OVL -.-> BLOOM
@@ -46,7 +50,7 @@ flowchart TB
     classDef inti fill:#E8F4F5,stroke:#0E7C86,stroke-width:2px
     classDef jaga fill:#FDF0F4,stroke:#C2547A,stroke-dasharray:4 3
     class E1,E2,PS inti
-    class BLOOM jaga
+    class BLOOM,PB jaga
 ```
 
 `text_features.py` sengaja tidak memutuskan apa pun. Ia hanya mengukur properti
@@ -66,9 +70,9 @@ bisa membawa skor detektor ke sana.
 ```mermaid
 flowchart TB
     T["Satu teks jawaban"] --> BASE["<b>Jalur dasar dijalankan lebih dulu,<br/>tanpa syarat</b>"]
-    BASE --> G{"GROQ_API_KEY terisi?"}
-    G -->|"ya, tenggat 12 dtk"| GROQ["Groq gpt-oss-120b<br/>skor AI + level Bloom"]
-    G -->|"tidak, atau gagal"| HEU["Heuristik ai_score.py + bloom.py"]
+    BASE --> G{"GROQ_API_KEY terisi<br/>dan tanpa pola injeksi?"}
+    G -->|"ya, tenggat 12 dtk"| GROQ["Groq gpt-oss-120b<br/>skor AI + level Bloom<br/>band 42/70 pinjaman heuristik"]
+    G -->|"tidak, atau gagal"| HEU["Heuristik ai_score.py + bloom.py<br/>band 42/70"]
 
     GROQ --> CACHE
     HEU --> CACHE{"detector_cache<br/>teks ini pernah dibayar?"}
@@ -79,15 +83,24 @@ flowchart TB
     OK -->|"ya"| SIMPAN["Simpan ke DetectorScore, lalu pakai"]
     OK -->|"402 kredit habis · 429 · timeout<br/>teks di luar 300..150.000 karakter<br/>skor di luar rentang"| NONE["Kembalikan kosong"]
 
-    HIT --> OVL["Timpa skor AI, band, rincian sinyal,<br/>keyakinan, ringkasan, rekomendasi, asal"]
+    HIT --> OVL["Timpa skor AI, band 35/70, rincian sinyal,<br/>keyakinan, ringkasan, rekomendasi, asal"]
     SIMPAN --> OVL
     NONE --> PASS["Jalur dasar dipakai apa adanya"]
+    OVL --> PEMB["Bila skor bukan dari heuristik:<br/>5 sinyal heuristik ditambahkan<br/>sebagai pembanding bobot 0"]
+    PASS --> PEMB
 
     classDef kuat fill:#D9F2E6,stroke:#2E7D5B
     classDef aman fill:#FDF6E3,stroke:#B8860B
     class SIMPAN,HIT kuat
     class NONE,PASS aman
 ```
+
+Urutannya: Groq jalan lebih dulu (atau heuristik bila kunci kosong, Groq gagal,
+atau teks memuat kalimat untuk penilai otomatis), lalu Winston menimpa skor AI
+bila ia menjawab. Heuristik selalu ada: sebagai skor bila tidak ada penilai luar
+yang menjawab, dan sebagai baris pembanding berbobot 0 bila ada. Tanpa butir
+persetujuan `analisis_luar_negeri`, `run_analysis(allow_external=False)` melewati
+Groq, Winston, dan cache detektor sekaligus, sehingga skornya murni heuristik.
 
 **Kenapa kegagalan diratakan jadi kosong.** Tidak satu pun kegagalan detektor
 boleh menggagalkan pengumpulan tugas. Mahasiswa yang jawabannya hilang karena
@@ -115,17 +128,17 @@ membayar penuh lagi.
 
 ```mermaid
 flowchart LR
-    subgraph TXT["Sinyal teks · total 1,00 tanpa proses"]
+    subgraph TXT["Sinyal teks · total 1,00"]
         U["uniformity<br/><b>0,40</b>"]
         FP["formulaic_phrasing<br/><b>0,25</b>"]
         LU["lexical_uniformity<br/><b>0,25</b>"]
         IM["impersonality<br/><b>0,05</b>"]
         FC["flat_certainty<br/><b>0,05</b>"]
     end
-    PF["process_forensics<br/><b>0,25</b>"]
+    PF["process_forensics<br/><b>0</b> · PROCESS_WEIGHT"]
 
-    TXT -->|"diciutkan × 0,75<br/>bila proses tersedia"| SKOR["Skor 0–100"]
-    PF --> SKOR
+    TXT --> SKOR["Skor 0–100"]
+    PF -.->|"tidak menyumbang,<br/>dilaporkan sebagai process_band"| SKOR
     SKOR --> BAND{"Band"}
     BAND -->|"< 42"| L["rendah"]
     BAND -->|"42–69"| M["sedang"]
@@ -139,10 +152,12 @@ flowchart LR
     class H hi
 ```
 
-Sinyal proses diberi porsi terbesar karena ia **satu-satunya yang tidak membaca
-teks**. Parafrase, humanizer, dan penulisan ulang tidak mengubah fakta bahwa 400
-kata muncul dalam satu lonjakan. Detektor eksternal pun tetap membaca teks, jadi
-porsi ini tidak ikut berubah ketika detektor dipasang.
+Sinyal proses **berbobot 0** (`PROCESS_WEIGHT` di `engines/ai_score.py`). Ia
+tetap tampil sebagai baris `process_forensics` di rincian, tetapi tidak
+menyumbang skor. Alasannya terukur: ambang 42 diukur pada bobot teks murni,
+tidak ada data berlabel untuk bobot proses, dan mahasiswa yang menulis di Word
+lalu menempel menghasilkan lonjakan yang sama dengan penyalin. Pola pengerjaan
+dilaporkan terpisah sebagai `process_band` (lihat 5.4).
 
 **Bobot dan ambang keduanya hasil ukur, bukan lagi karangan.** Bobot dicari
 lewat grid search pada split train gold set 999 sampel
@@ -154,6 +169,11 @@ dan pada set penuh dari 0,869 menjadi **0,901**.
 |---|---|---|
 | MID | **42** | Ambang terendah yang menjaga false positive rate di bawah 5 persen. Terukur 0,044, yaitu 22 dari 500 tulisan manusia, dengan recall 0,607 dan presisi 0,932 |
 | HIGH | **70** | **Belum terukur.** Tidak ada satu pun sampel gold set yang mencapainya, skor tertingginya 68 |
+
+Ambang ini berlaku untuk skor heuristik **dan** skor Groq. Groq sengaja meminjam
+ambang heuristik 42/70 (`score_to_band` di `ai_score.py`) karena belum ada
+pengukuran sendiri. Skor Winston memakai ambangnya sendiri, **35/70**
+(`providers/winston.py`), yang masih titik awal sementara.
 
 Riwayat angkanya perlu diingat supaya tidak berputar balik: 35 adalah angka asli
 yang ditulis dari penalaran dan terukur ber-FPR 0,838; 56 adalah ambang terukur
@@ -210,9 +230,18 @@ artikel yang ia rujuk, jadi menghitung tempelan hanya menambah bising. Jawaban
 yang seluruhnya muncul sekaligus tetap tertangkap lewat bentuk kurva, sedangkan
 satu kutipan pendek hanya menggeser nilai sebanding porsinya.
 
-Modul ini tidak tersentuh oleh perubahan detektor. Bobotnya tetap 0,25 dari skor
-akhir, dan justru itu titiknya: apa pun yang membaca teks bisa dikalahkan
-parafrase, sedangkan ini tidak membaca teks sama sekali.
+**Lonjakan** = sedikitnya 60 kata yang tiba dengan laju minimal 80 kata/menit
+di antara dua cuplikan. Cuplikan dicatat server dari draf yang tersimpan
+otomatis, paling sering tiap 30 detik dan maksimal 240 cuplikan
+(`academics/services/drafts.py`). Porsi jawaban yang tiba lewat lonjakan
+menentukan `process_band`: di bawah 35% `normal`, 35% sampai di bawah 60%
+`partial`, 60% ke atas `attention`; `unrecorded` bila server tidak punya dasar
+menilai, kosong untuk jawaban yang diimpor dari dokumen.
+
+Nilai ini **tidak menjumlah ke skor AI** (bobot 0). Ia bukti tersendiri untuk
+dosen: tidak membaca teks sama sekali, jadi tidak dikalahkan parafrase, tetapi
+juga tidak bisa membedakan penyalin dari mahasiswa yang menempel tulisannya
+sendiri dari Word.
 
 ---
 

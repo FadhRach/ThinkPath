@@ -53,6 +53,18 @@ class BurstCalibrationTest(SimpleTestCase):
         result = assess_process(ctx(samples, words=390))
         self.assertIn(result.band, (ProcessBand.NORMAL, ProcessBand.PARTIAL))
 
+    def test_paste_landing_just_before_the_next_30_second_sample_is_still_a_burst(self):
+        """Jarak cuplikan minimal 30 detik + jeda simpan 3 detik: 250 kata tiba dalam 33 detik."""
+        samples = [(0, 0), (30, 10), (63, 260), (93, 262)]
+        self.assertEqual(assess_process(ctx(samples, words=262, duration=93)).band, ProcessBand.ATTENTION)
+
+    def test_sixty_word_paste_over_33_seconds_counts_as_a_burst(self):
+        """Ambang lama 120 kata/menit meloloskan ini (62 kata / 33 detik = 113 kata/menit)."""
+        from apps.analysis.engines.process_signals import BURST_WORDS, BURST_WPM
+
+        delta, gap = 62, 33
+        self.assertTrue(delta >= BURST_WORDS and delta / gap * 60 >= BURST_WPM)
+
     def test_first_sample_that_already_holds_the_text_is_a_burst(self):
         samples = [(2, 400), (32, 402), (62, 405), (92, 405)]
         self.assertEqual(assess_process(ctx(samples, words=405)).band, ProcessBand.ATTENTION)

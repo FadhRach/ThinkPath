@@ -53,8 +53,13 @@ export function ClassGradebook({ studentClass, growth }: ClassGradebookProps) {
         }
         summary={
           growth?.current_level != null ? (
-            <Badge tone="info" size="md" className="tabular-nums">
-              Level saat ini L{growth.current_level.toFixed(1)}
+            <Badge
+              tone="info"
+              size="md"
+              className="tabular-nums"
+              title={`Rata-rata L${growth.current_level}`}
+            >
+              Level saat ini L{Math.round(growth.current_level)}
             </Badge>
           ) : null
         }

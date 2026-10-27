@@ -56,6 +56,7 @@ export function AnswerPanel({
     }
     return (
       <AnswerEditor
+        key="create"
         assignmentId={assignmentId}
         deadline={deadline}
         allowUpload={allowUpload}
@@ -67,8 +68,11 @@ export function AnswerPanel({
 
   const canRevise = !isPastDeadline && !isArchived && !isReviewed;
   if (canRevise) {
+    // Key berganti setiap jawaban dikumpulkan atau direvisi: editor dipasang ulang dari jawaban
+    // tersimpan, sehingga "Perubahan belum disimpan" tidak tertinggal dari state editor sebelumnya.
     return (
       <AnswerEditor
+        key={`revise-${submission.revision_count}`}
         assignmentId={assignmentId}
         deadline={deadline}
         allowUpload={allowUpload}

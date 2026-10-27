@@ -6,17 +6,18 @@ Penyedia sekarang: **Winston AI**. Penyedia sudah terbukti bisa gugur
 Pindah penyedia cukup menulis modul baru dengan antarmuka yang sama.
 
 Kenapa detektor eksternal dipakai sama sekali. Heuristik di ai_score.py sudah
-diukur terhadap gold set 921 sampel dan hasilnya lemah: pada ambang produksi 35
-presisinya 0,498 dengan FPR 0,838, artinya 84 persen tulisan manusia ikut
+diukur terhadap gold set 921 sampel dan hasilnya lemah: pada ambang produksi saat
+itu (35; kini 42 setelah dikalibrasi ulang) presisinya 0,498 dengan FPR 0,838, artinya 84 persen tulisan manusia ikut
 tertuduh dan tebakan koin sama bagusnya. Tiga dari lima sinyal teksnya diam
 sepanjang pengukuran itu. Detail lengkapnya ada di bagian "Status kalibrasi"
 pada README.
 
 Yang TIDAK berubah karena modul ini ada:
 
-- Sinyal forensik proses tetap dipakai dan tetap berbobot 0,25. Detektor mana
-  pun membaca teks, dan apa pun yang membaca teks bisa dikalahkan parafrase.
-  Forensik proses tidak membaca teks sama sekali.
+- Sinyal forensik proses tetap dicatat, tetapi berbobot 0: ditampilkan terpisah
+  sebagai pola pengerjaan dan tidak menyumbang skor (ambang diukur pada bobot
+  teks murni). Detektor mana pun membaca teks, dan apa pun yang membaca teks bisa
+  dikalahkan parafrase. Forensik proses tidak membaca teks sama sekali.
 - Level Bloom tidak pernah menyentuh modul ini, dan modul ini tidak pernah
   menyentuh level Bloom. Dijaga pemeriksaan AST di test_analysis_decoupling.py.
 
@@ -76,7 +77,7 @@ MAX_CHARS = 150_000
 
 # Ambang band MILIK DETEKTOR EKSTERNAL SENDIRI.
 #
-# Jangan pernah memakai ambang 35/70 dari ai_score.py di sini. Angka itu
+# Jangan pernah memakai ambang 42/70 dari ai_score.py di sini. Angka itu
 # dikalibrasi (dengan buruk) untuk sebaran skor ensemble heuristik, dan sebaran
 # skor detektor terlatih sama sekali berbeda bentuknya. Menyalin ambang antar
 # dua sebaran yang berbeda adalah persis kesalahan yang diperingatkan di README:

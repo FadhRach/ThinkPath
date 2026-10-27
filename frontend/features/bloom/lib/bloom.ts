@@ -4,7 +4,7 @@ export const BLOOM_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 const BLOOM_LABELS: Record<number, string> = {
   1: "Mengingat",
   2: "Memahami",
-  3: "Mengaplikasikan",
+  3: "Menerapkan",
   4: "Menganalisis",
   5: "Mengevaluasi",
   6: "Mencipta",

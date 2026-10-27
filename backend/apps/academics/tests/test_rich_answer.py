@@ -66,6 +66,19 @@ class CleanDocTest(TestCase):
         )
         self.assertEqual(rich_to_plain(cleaned), "a\tb")
 
+    def test_row_child_without_text_is_an_empty_cell(self):
+        """Anak tableRow yang tidak menghasilkan baris dulu IndexError (HTTP 500)."""
+        cleaned = clean_rich_doc(
+            doc(
+                {"type": "table", "content": [{"type": "tableRow", "content": [
+                    {"type": "tableCell", "content": [para(text("a"))]},
+                    {"type": "blockMath", "attrs": {"latex": "x"}},
+                    {"type": "tableCell", "content": [para(text("c"))]},
+                ]}]}
+            )
+        )
+        self.assertEqual(rich_to_plain(cleaned), "a\t\tc")
+
     def test_unknown_node_and_mark_are_refused(self):
         with self.assertRaises(ValidationError):
             clean_rich_doc(doc({"type": "script", "content": []}))

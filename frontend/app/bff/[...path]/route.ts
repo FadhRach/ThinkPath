@@ -40,6 +40,21 @@ function clearSessionCookie(response: NextResponse) {
   response.cookies.set({ name: AUTH_COOKIE_NAME, value: "", path: "/", maxAge: 0 });
 }
 
+function requestHost(request: NextRequest): string | null {
+  const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  return forwarded || request.headers.get("host");
+}
+
+/** Origin yang tidak bisa diurai (mis. "null") selalu ditolak. */
+function sameHost(origin: string, host: string | null): boolean {
+  if (!host) return false;
+  try {
+    return new URL(origin).host === host.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 async function handle(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -53,9 +68,11 @@ async function handle(
   const method = request.method.toUpperCase();
   const mutating = method !== "GET" && method !== "HEAD";
   if (mutating) {
-    // Cookie SameSite=Lax sudah menahan POST lintas situs; ini lapis kedua.
+    // Cookie SameSite=Lax sudah menahan POST lintas situs; ini lapis kedua. Dibandingkan dengan
+    // host yang dilihat peramban (Host, atau X-Forwarded-Host di balik proxy), bukan
+    // nextUrl.origin: saat `next start` itu bisa "localhost" walau dibuka lewat 127.0.0.1/IP LAN.
     const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) {
+    if (origin && !sameHost(origin, requestHost(request))) {
       return NextResponse.json({ detail: "Asal permintaan tidak diizinkan." }, { status: 403 });
     }
   }

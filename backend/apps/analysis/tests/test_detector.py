@@ -191,6 +191,18 @@ class HappyPathTest(TestCase):
         self.assertEqual(result["signal_breakdown"][0]["weight"], 1.0)
         self.assertEqual(result["ai_score"], 61)
 
+    def test_groq_breakdown_present_even_without_process_metadata(self):
+        """Jalur Groq dengan process=None (dokumen impor) dulu menulis rincian kosong."""
+        from apps.analysis.pipeline import _parse_llm_result
+
+        raw = {"ai_probability": 63, "bloom_level": 3, "confidence": "medium", "signals": [], "summary": "Ringkas."}
+        result = _parse_llm_result(raw, 3, None)
+        self.assertEqual(result["ai_score"], 63)
+        self.assertEqual(len(result["signal_breakdown"]), 1)
+        row = result["signal_breakdown"][0]
+        self.assertEqual((row["key"], row["weight"]), ("llm_text", 1.0))
+        self.assertAlmostEqual(row["contribution"], result["ai_score"], delta=1.0)
+
     def test_prose_follows_the_number(self):
         """summary dan recommendation disusun ulang mengikuti band baru."""
         with _with_key(), _winston_says(1):

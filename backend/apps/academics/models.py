@@ -341,7 +341,7 @@ class SubmissionDraft(models.Model):
     document_id = models.UUIDField(null=True, blank=True, default=None)
     started_at = models.DateTimeField()
     # [{"t": detik sejak started_at, "w": jumlah kata}], maksimal 240, dicatat
-    # server paling sering tiap 20 detik.
+    # server paling sering tiap 30 detik.
     samples = models.JSONField(default=list, blank=True)
     last_saved_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)

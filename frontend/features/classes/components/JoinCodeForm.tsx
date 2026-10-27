@@ -5,25 +5,26 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { joinClass } from "@/lib/mutations";
+import { notify } from "@/lib/notify";
 import { useAction } from "@/hooks/use-action";
 
 export function JoinCodeForm() {
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const { pending, error, run } = useAction("Gagal bergabung. Periksa kode kelasnya.", {
-    successMessage: "Berhasil bergabung ke kelas.",
-  });
+  // Tanpa toast sukses bawaan: hasilnya bisa "sudah anggota", jadi pesannya mengikuti respons.
+  const { pending, error, run } = useAction("Gagal bergabung. Periksa kode kelasnya.");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
     const { result } = await run(() => joinClass(code.trim().toUpperCase()));
     if (result) {
-      setMessage(
-        result.created
-          ? `Berhasil bergabung ke kelas ${result.class.name}.`
-          : `Kamu sudah menjadi anggota kelas ${result.class.name}.`,
-      );
+      const text = result.created
+        ? `Berhasil bergabung ke kelas ${result.class.name}.`
+        : `Kamu sudah menjadi anggota kelas ${result.class.name}.`;
+      if (result.created) notify.success(text);
+      else notify.info(text);
+      setMessage(text);
       setCode("");
     }
   }

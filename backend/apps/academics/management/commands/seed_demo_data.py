@@ -503,6 +503,12 @@ class Command(BaseCommand):
                 for i, persona in enumerate(STUDENTS, start=1)
             ]
 
+            # Akun dibuat sebelum semester dimulai, bukan pada hari seed dijalankan.
+            semester_start = min(_session_at(course, 1) for course in COURSES)
+            Profile.objects.filter(id__in=[p.id for p in [*teachers.values(), *students]]).update(
+                created_at=semester_start - timedelta(days=14)
+            )
+
             classes: dict[str, Class] = {}
             assignments: list[Assignment] = []
             materials: list[Material] = []

@@ -17,16 +17,18 @@ Django 5.2 LTS + Django REST Framework. **Satu-satunya API** untuk seluruh data 
 
 Tiap mesin hanya punya **satu** `backend/.env`, disalin dari templat yang sesuai. Selain itu semuanya ditulis langsung di `config/settings/`.
 
-Di produksi, backend berjalan sebagai tiga container Docker di satu VPS (IDCloudHost, Jakarta):
+Di produksi, backend berjalan sebagai empat container Docker di satu VPS (IDCloudHost, Jakarta):
 
 ```
 Internet ──HTTPS──> caddy ──HTTP──> api (gunicorn + Django) ──> db (PostgreSQL 17)
                     :80/:443        jaringan Docker saja         127.0.0.1:5433 (SSH tunnel)
+                                    worker (run_analysis_worker) ──┘
 ```
 
 | Komponen | Untuk apa |
 |---|---|
-| **gunicorn** | Server aplikasi produksi yang menjalankan Django. `runserver` hanya untuk dev. Konfigurasinya 1 worker × 8 thread, jadi dashboard dosen tetap jalan walau ada submit yang menunggu Winston + Groq (~20 detik) |
+| **gunicorn** | Server aplikasi produksi yang menjalankan Django. `runserver` hanya untuk dev. Konfigurasinya 1 worker × 8 thread. Analisis tidak berjalan di sini, jadi submit tidak pernah menunggu Groq + Winston |
+| **worker** | `manage.py run_analysis_worker` (3 thread): mengerjakan antrean `analysis_jobs` dan memanggil Groq, Winston, atau heuristik. Lihat [Analisis di worker](#analisis-di-worker) |
 | **Caddy** | Pintu depan dari internet: sertifikat HTTPS otomatis (Let's Encrypt), redirect HTTP→HTTPS, kompresi, lalu meneruskan ke gunicorn |
 | **PostgreSQL** | Datanya di Docker volume `thinkpath_pgdata`, tetap ada walau container dibuat ulang. Hanya `docker compose down -v` yang menghapusnya |
 
@@ -194,7 +196,7 @@ Uji pemulihan sebulan sekali: `deploy/restore-test.sh` memuat backup terbaru ke 
 Hal yang perlu diingat:
 
 - **Migrasi otomatis** setiap container `api` mulai. Menghapus atau mengganti nama kolom tetap harus dua rilis: rilis kode yang tidak lagi memakai kolom itu dulu, baru rilis migrasinya.
-- **Batas RAM**: db 320 MB, api 320 MB, caddy 64 MB. Saat diam totalnya sekitar 120 MB. Jika banyak mahasiswa mengumpulkan bersamaan, naikkan `threads` di `config/gunicorn.conf.py`, bukan `workers`.
+- **Batas RAM**: db 320 MB, api 320 MB, worker 160 MB, caddy 64 MB. Saat diam totalnya sekitar 120 MB. Jika banyak mahasiswa mengumpulkan bersamaan, naikkan `threads` di `config/gunicorn.conf.py`, bukan `workers`.
 - **Throttle login** (20/menit per IP) disimpan di memori proses, bukan di DB, sesuai Kebijakan Privasi. Restart container mengenolkannya.
 - **Port**: hanya 80/443 yang publik. Postgres terikat ke `127.0.0.1:5433`, jadi hanya bisa dibuka lewat SSH tunnel. Docker melewati UFW untuk port yang dipublikasikan, jadi jangan pernah mengubahnya ke `0.0.0.0`.
 
@@ -239,14 +241,14 @@ Aturan sederhananya: **view tipis** (HTTP saja) → baca lewat `selectors.py`, t
 
 **Identitas dikelola sendiri.** Bukan `django.contrib.auth.User`, melainkan tabel `profiles` (`apps.accounts.models.Profile`) dengan password ter-hash. Login menerbitkan **JWT HS256** yang ditandatangani `DJANGO_SECRET_KEY`, berisi klaim `sub` (UUID profil), `email`, dan `role`. Verifikasi token murni di memori — nol query database per request. App bawaan `django.contrib.auth`/`contenttypes` tidak dipasang, jadi tidak ada tabel `auth_*`.
 
-**Analisis dijalankan sinkron** saat submit lewat `apps.analysis.pipeline.run_analysis`:
+**Analisis dikerjakan worker**, bukan di dalam request submit (lihat [Analisis di worker](#analisis-di-worker)). Worker memanggil `apps.analysis.pipeline.run_analysis`:
 
 ```
-Skor AI     : Winston (providers/winston.py) -> Groq (providers/groq.py) -> heuristik (engines/ai_score.py)
-Level Bloom :                                   Groq                     -> heuristik (engines/bloom.py)
+Skor AI     : Groq (providers/groq.py) atau heuristik (engines/ai_score.py), lalu Winston (providers/winston.py) menimpa bila menjawab
+Level Bloom : Groq -> heuristik (engines/bloom.py); Winston tidak pernah menyentuhnya
 ```
 
-Kunci yang kosong atau API yang gagal cukup menjatuhkan ke lapisan berikutnya — tidak pernah menggagalkan pengumpulan tugas. **Level Bloom tidak pernah menyentuh detektor**, dan itu dijaga uji AST, bukan sekadar konvensi. Analisis dijalankan **sebelum** transaksi dibuka, jadi tidak ada baris yang terkunci selama menunggu API (~20 detik kasus terburuk).
+Jalur dasar jalan lebih dulu: Groq bila kuncinya ada dan teks tidak memuat pola injeksi, selain itu heuristik. Winston (lewat `detector_cache`) menyusul dan hanya menimpa skor AI bila ia menjawab. Saat skor datang dari Groq atau Winston, kelima sinyal heuristik tetap ditulis sebagai baris pembanding berbobot 0. Ambang band per sumber: heuristik dan Groq 42/70 (Groq sengaja meminjam ambang heuristik), Winston 35/70 (sementara, belum terukur). Kunci yang kosong atau API yang gagal cukup menjatuhkan ke lapisan berikutnya — tidak pernah menggagalkan pengumpulan tugas. **Level Bloom tidak pernah menyentuh detektor**, dan itu dijaga uji AST, bukan sekadar konvensi. Panggilan API terjadi di worker, di luar transaksi pengumpulan, jadi tidak ada baris yang terkunci selama menunggu Groq + Winston (12 + 8 detik kasus terburuk).
 
 Dua jebakan yang dikunci tes:
 
@@ -344,7 +346,7 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 
 Bukti proses **dicatat server**, bukan dikirim klien:
 
-1. Mahasiswa mengetik; form menyimpan otomatis lewat `PUT /api/assignments/<id>/draft`. Draf (`submission_drafts`) dibuat pada simpan pertama yang **berisi teks**, dan `started_at` adalah jam server saat itu. Membuka halaman tugas tidak memulai apa pun. Jumlah kata dihitung server dari teks, dan satu cuplikan dicatat paling sering tiap 20 detik (maks 240).
+1. Mahasiswa mengetik; form menyimpan otomatis lewat `PUT /api/assignments/<id>/draft`. Draf (`submission_drafts`) dibuat pada simpan pertama yang **berisi teks**, dan `started_at` adalah jam server saat itu. Membuka halaman tugas tidak memulai apa pun. Jumlah kata dihitung server dari teks, dan satu cuplikan dicatat paling sering tiap 30 detik (maks 240, sekitar dua jam).
 2. `POST /api/assignments/<id>/submissions` adalah **upsert per mahasiswa**. Body `rich_answer` (dokumen editor TipTap; server membersihkannya lewat daftar putih di `services/rich_text.py` dan **menurunkan sendiri** `text_answer` darinya, sehingga klien tidak bisa mengirim teks polos yang berbeda) atau `text_answer` saja (klien lama), minimal 5 kata (+ `document_id` bila dari unggahan). Gambar disisipkan sebagai data URI kecil (PNG/JPEG/WebP/GIF) di dalam dokumen, maksimal 6 gambar dan 2,5 MB. `started_at` dan `progress` dari bundel lama **diterima tetapi diabaikan**. Pengumpulan pertama memakai draf (dihapus di transaksi yang sama); tanpa draf, durasi terukur 0 dan teks dianggap tiba sekaligus.
 3. Pengumpulan berikutnya, selama tenggat belum lewat dan belum dinilai, memperbarui jawaban yang sama: `revision_count += 1`, `ReasoningEvent(revision)` yang memuat `inserted_words` (kata baru yang tidak ada di teks sebelumnya, supaya mengganti seluruh isi saat revisi tetap terbaca).
 4. Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`. Status "sudah dinilai" diperiksa ulang di dalam transaksi (`SELECT ... FOR UPDATE`).
@@ -360,7 +362,7 @@ Submit/revisi hanya menyimpan jawaban dan satu `AnalysisJob` (antrean di Postgre
 
 ### Skor: teks dan pola pengerjaan dipisah
 
-`ai_score`/`ai_band` dihitung **dari teks saja** (Winston → Groq → heuristik). Pola pengerjaan (`process_band`: `normal`, `partial`, `attention`, `unrecorded`; kosong untuk jawaban diimpor) adalah bukti tersendiri dan tidak menjumlah ke skor. Alasan: ambang skor diukur pada bobot teks murni, tidak ada data berlabel untuk bobot proses, dan mahasiswa yang menempel dari Word menghasilkan lonjakan yang sama dengan penyalin. Lonjakan = ≥ 60 kata dengan laju ≥ 120 kata/menit antar cuplikan; porsi < 35% wajar, ≥ 60% perlu dilihat. Setiap analisis tersimpan di `analysis_runs` bersama masukan prosesnya (bahan kalibrasi kelak). Teks yang memuat kalimat untuk penilai otomatis ("abaikan instruksi…") tidak dikirim ke Groq (`apps/analysis/injection.py`).
+`ai_score`/`ai_band` dihitung **dari teks saja** (Groq atau heuristik, ditimpa Winston bila menjawab; bobot proses `PROCESS_WEIGHT = 0`). Pola pengerjaan (`process_band`: `normal`, `partial`, `attention`, `unrecorded`; kosong untuk jawaban diimpor) adalah bukti tersendiri dan tidak menjumlah ke skor. Alasan: ambang skor diukur pada bobot teks murni, tidak ada data berlabel untuk bobot proses, dan mahasiswa yang menempel dari Word menghasilkan lonjakan yang sama dengan penyalin. Lonjakan = ≥ 60 kata dengan laju ≥ 80 kata/menit antar cuplikan; porsi < 35% wajar, ≥ 60% perlu dilihat. Setiap analisis tersimpan di `analysis_runs` bersama masukan prosesnya (bahan kalibrasi kelak). Teks yang memuat kalimat untuk penilai otomatis ("abaikan instruksi…") tidak dikirim ke Groq (`apps/analysis/injection.py`).
 
 ### Sesi dan token
 

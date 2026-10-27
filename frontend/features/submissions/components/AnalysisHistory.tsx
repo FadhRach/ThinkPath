@@ -16,9 +16,22 @@ const SOURCE_LABEL: Record<AnalysisSource, string> = {
 };
 
 /** Setiap analisis tersimpan permanen, jadi skor yang pernah dilihat tidak hilang diam-diam. */
-export function AnalysisHistory({ runs }: { runs: AnalysisRunView[] }) {
+export function AnalysisHistory({
+  runs,
+  hasScore = false,
+}: {
+  runs: AnalysisRunView[];
+  /** Skor sudah ada (mis. data lama atau demo) walau riwayatnya belum tercatat. */
+  hasScore?: boolean;
+}) {
   if (runs.length === 0) {
-    return <p className="text-body-sm text-muted-foreground">Belum ada analisis yang tersimpan.</p>;
+    return (
+      <p className="text-body-sm text-muted-foreground">
+        {hasScore
+          ? "Riwayat tercatat mulai analisis berikutnya."
+          : "Belum ada analisis yang tersimpan."}
+      </p>
+    );
   }
   return (
     <ul className="divide-y divide-border text-body-sm">

@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { toUtf16Spans } from "@/features/submissions/lib/offsets";
 import { analyseRhythm, rhythmTone, type RhythmTone } from "@/features/submissions/lib/rhythm";
 import type { StyleMarkerSpan, StyleMarkers } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -87,7 +88,7 @@ export function TextReview({ text, markers }: { text: string; markers: StyleMark
 
   // Sorotan yang saling tumpang tindih: yang pertama menang.
   let last = 0;
-  const spans = markers.spans.filter((span) => {
+  const spans = toUtf16Spans(text, markers.spans).filter((span) => {
     if (span.start < last || span.end > text.length) return false;
     last = span.end;
     return true;

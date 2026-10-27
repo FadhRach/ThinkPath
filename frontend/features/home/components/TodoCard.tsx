@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
-import { notify } from "@/lib/notify";
-import { getApiErrorMessage } from "@/lib/api/messages";
+import { useAction } from "@/hooks/use-action";
 import { createTodo, deleteTodo, updateTodo } from "@/lib/mutations";
 import type { StudentTodo } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -17,12 +16,15 @@ const MAX_TITLE = 200;
 
 /**
  * Daftar to-do pribadi. Perubahan tampil seketika (optimistis) lalu dikirim ke server;
- * bila gagal, tampilan dikembalikan dan galatnya muncul sebagai toast.
+ * bila gagal, tampilan dikembalikan dan galatnya muncul sebagai toast. Lewat useAction supaya
+ * cache router ikut disegarkan: kembali ke Beranda tidak menampilkan daftar lama.
  */
 export function TodoCard({ initial }: { initial: StudentTodo[] }) {
   const [items, setItems] = useState(initial);
   const [title, setTitle] = useState("");
-  const [adding, setAdding] = useState(false);
+  const add = useAction("Butir belum tersimpan. Coba lagi.");
+  const update = useAction("Perubahan belum tersimpan. Coba lagi.");
+  const del = useAction("Butir belum terhapus. Coba lagi.");
   const open = items.filter((item) => !item.done);
   const finished = items.filter((item) => item.done);
 
@@ -30,16 +32,10 @@ export function TodoCard({ initial }: { initial: StudentTodo[] }) {
     event.preventDefault();
     const text = title.trim();
     if (!text) return;
-    setAdding(true);
-    try {
-      const created = await createTodo({ title: text });
-      setItems((current) => [created, ...current]);
-      setTitle("");
-    } catch (error) {
-      notify.error(getApiErrorMessage(error, "Butir belum tersimpan. Coba lagi."));
-    } finally {
-      setAdding(false);
-    }
+    const { ok, result } = await add.run(() => createTodo({ title: text }));
+    if (!ok || !result) return;
+    setItems((current) => [result, ...current]);
+    setTitle("");
   }
 
   async function toggle(item: StudentTodo) {
@@ -47,23 +43,15 @@ export function TodoCard({ initial }: { initial: StudentTodo[] }) {
     setItems((current) =>
       current.map((entry) => (entry.id === item.id ? { ...entry, done: !entry.done } : entry)),
     );
-    try {
-      await updateTodo(item.id, { done: !item.done });
-    } catch (error) {
-      setItems(before);
-      notify.error(getApiErrorMessage(error, "Perubahan belum tersimpan. Coba lagi."));
-    }
+    const { ok } = await update.run(() => updateTodo(item.id, { done: !item.done }));
+    if (!ok) setItems(before);
   }
 
   async function remove(item: StudentTodo) {
     const before = items;
     setItems((current) => current.filter((entry) => entry.id !== item.id));
-    try {
-      await deleteTodo(item.id);
-    } catch (error) {
-      setItems(before);
-      notify.error(getApiErrorMessage(error, "Butir belum terhapus. Coba lagi."));
-    }
+    const { ok } = await del.run(() => deleteTodo(item.id));
+    if (!ok) setItems(before);
   }
 
   return (
@@ -89,7 +77,7 @@ export function TodoCard({ initial }: { initial: StudentTodo[] }) {
         <Button
           type="submit"
           size="icon"
-          disabled={adding || !title.trim()}
+          disabled={add.pending || !title.trim()}
           aria-label="Tambah butir"
         >
           <Plus />

@@ -293,7 +293,7 @@ dicatat di sini agar tidak "dirapikan" tanpa sadar:
 
 | Kolom | Kenapa tidak dinormalisasi |
 |---|---|
-| `analysis_results.ai_band` | Bisa diturunkan dari `ai_score`, tetapi ambangnya **berbeda per sumber** (heuristik 42/70, detektor 35/70). Menghitung ulang dari angka saja bisa memberi band yang berbeda dari yang dilihat dosen saat itu. |
+| `analysis_results.ai_band` | Bisa diturunkan dari `ai_score`, tetapi ambangnya **berbeda per sumber** (heuristik dan Groq 42/70, detektor Winston 35/70). Menghitung ulang dari angka saja bisa memberi band yang berbeda dari yang dilihat dosen saat itu. |
 | `classes.program_studi`, `materials.topic` | Teks bebas, bukan tabel referensi. Ada kelas lintas prodi dan mata kuliah umum, dan topik hanya dipakai untuk mengelompokkan. Mengubahnya menjadi tabel mengubah kontrak API. |
 | `profiles.education_level` | Jenjang yang diisi pengguna di Pengaturan. **Analisis tidak memakainya**; analisis memakai `classes.education_level`. Jenjang melekat di kelas karena semester mahasiswa berubah tiap enam bulan, sedangkan kelas permanen berstatus "semester 3". |
 | `reasoning_events.payload`, `analysis_results.signals`/`signal_breakdown` | JSON karena isinya berbeda per jenis event atau per sumber analisis, dan selalu dibaca utuh bersama barisnya. Tidak pernah difilter di SQL. |

@@ -96,13 +96,12 @@ pihak ketiga. Dua layanan luar yang dipakai, Groq dan Winston, keduanya hanya
 disentuh saat menganalisis tugas, dan keduanya punya jalur cadangan. Tidak ada
 satu pun permintaan halaman yang bergantung pada layanan luar.
 
-Keduanya dipanggil **berurutan**, bukan bersamaan: 8 detik untuk Winston lalu 12
-detik untuk Groq, sehingga kasus terburuknya 20 detik. Angka itu sengaja ditahan
-jauh di bawah batas waktu server supaya proses tidak pernah dibunuh tepat saat
-salah satu API hendak menjawab: 60 detik untuk gunicorn
-(`backend/config/gunicorn.conf.py`). Selama menunggu, satu worker gunicorn
-dengan 8 thread tetap melayani permintaan lain, jadi dashboard dosen tidak
-ikut membeku.
+Keduanya dipanggil **berurutan**, bukan bersamaan: 12 detik untuk Groq lalu 8
+detik untuk Winston, sehingga kasus terburuknya 20 detik. Panggilan itu tidak
+terjadi di dalam request: submit hanya menyimpan jawaban dan satu job di tabel
+`analysis_jobs`, lalu container `worker` (`manage.py run_analysis_worker`)
+mengerjakannya. gunicorn (1 worker, 8 thread) tidak pernah menunggu Groq atau
+Winston untuk analisis jawaban, jadi dashboard dosen tidak ikut membeku.
 
 ---
 

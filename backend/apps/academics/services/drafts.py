@@ -22,7 +22,7 @@ from apps.analysis.engines.process_signals import ProgressSample
 # Cuplikan dicatat paling sering tiap ini. Penyimpanan otomatis boleh lebih
 # sering (teks selalu tersimpan), tetapi kurva tidak dipadati cuplikan rapat
 # yang membuat laju antar cuplikan tak terbaca.
-SAMPLE_INTERVAL_SECONDS = 20
+SAMPLE_INTERVAL_SECONDS = 30
 MAX_SAMPLES = 240
 
 

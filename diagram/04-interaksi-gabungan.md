@@ -134,8 +134,8 @@ flowchart LR
         A["revision_count<br/><i>dihitung server,<br/>ditampilkan, tidak diskor</i>"]
     end
     subgraph S["Menaikkan biaya kecurangan"]
-        B["Kurva pertumbuhan kata<br/><i>telemetri klien</i>"]
-        C["started_at<br/><i>dikirim klien</i>"]
+        B["Kurva pertumbuhan kata<br/><i>dicatat server dari draf</i>"]
+        C["started_at<br/><i>dicatat server, nilai klien diabaikan</i>"]
     end
     subgraph L["Bisa dihapus dengan menulis ulang"]
         D["Lima sinyal teks<br/><i>statistik dan penanda</i>"]
@@ -159,8 +159,9 @@ ini terbuka lebih berguna daripada mengklaim sistem yang tidak bisa diakali.
 tebakan di lapisan terlemah.** Winston dilatih untuk tugas ini dan mengaku
 mendukung bahasa Indonesia, jadi tebakannya lebih baik daripada lima sinyal
 statistik. Tetapi ia tetap membaca teks, dan apa pun yang membaca teks bisa
-dikalahkan parafrase. Itulah sebabnya bobot forensik proses tidak diturunkan
-sedikit pun ketika detektor dipasang.
+dikalahkan parafrase. Forensik proses tidak membaca teks, tetapi bobotnya di
+skor AI tetap 0: ambang diukur pada teks saja, jadi pola pengerjaan dilaporkan
+sebagai bukti terpisah (`process_band`).
 
 Satu pengecualian yang pantas dicatat: Winston juga melaporkan penyisipan
 karakter lebar nol dan penggantian huruf dengan karakter mirip. Berbeda dari

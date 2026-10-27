@@ -53,10 +53,12 @@ IMPLAUSIBLE_WPM = 80.0
 # Lonjakan = sedikitnya BURST_WORDS kata yang tiba dengan laju minimal BURST_WPM
 # antar dua cuplikan. Dua syarat, bukan satu: cuplikan sekarang dicatat server
 # pada jarak tidak tetap, dan 60 kata dalam 5 menit (12 kata/menit) bukan
-# lonjakan sama sekali. 120 kata/menit berkelanjutan lewat dari kecepatan
-# mengetik mengarang mana pun.
+# lonjakan sama sekali. Ambang lajunya sama dengan IMPLAUSIBLE_WPM: cuplikan
+# berjarak minimal 30 detik (drafts.SAMPLE_INTERVAL_SECONDS), jadi 60 kata yang
+# ditempel tepat sebelum cuplikan berikutnya tiba dalam ~33 detik (~110 kata/menit).
+# Ambang 120 yang dulu dipakai untuk jarak 20 detik akan meloloskannya.
 BURST_WORDS = 60
-BURST_WPM = 120.0
+BURST_WPM = IMPLAUSIBLE_WPM
 
 # Porsi jawaban akhir yang tiba lewat lonjakan: di bawah NORMAL_SHARE dianggap
 # wajar (kutipan pendek), di atas ATTENTION_SHARE layak dilihat dosen.

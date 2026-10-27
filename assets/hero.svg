@@ -39,8 +39,8 @@
 <circle cx="868" cy="166" r="4.5" fill="#fff" stroke="#086361" stroke-width="2.5"/>
 <text x="662" y="250" font-size="11.5" font-weight="400" fill="#5B7377" text-anchor="start">47 menit  ·  6 revisi  ·  kata tumbuh bertahap</text>
 <rect x="900" y="150" width="262" height="138" rx="18" fill="#fff" stroke="#CFE3E1" stroke-width="2" filter="url(#sh)"/>
-<text x="920" y="182" font-size="16" font-weight="700" fill="#0F2F33" text-anchor="start">Mahasiswa 08</text>
-<text x="920" y="203" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">Ketimpangan antarwilayah</text>
+<text x="920" y="182" font-size="16" font-weight="700" fill="#0F2F33" text-anchor="start">Bambang Saputra</text>
+<text x="920" y="203" font-size="12" font-weight="400" fill="#5B7377" text-anchor="start">Bubble sort vs merge sort</text>
 <circle cx="960" cy="246" r="28" fill="none" stroke="#EEF7F6" stroke-width="8"/>
 <circle cx="960" cy="246" r="28" fill="none" stroke="#CC9B14" stroke-width="8" stroke-linecap="round" stroke-dasharray="121.4 175.9" transform="rotate(-90 960 246)"/>
 <text x="960" y="252" font-size="17" font-weight="800" fill="#CC9B14" text-anchor="middle">69</text>

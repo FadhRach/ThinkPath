@@ -148,6 +148,22 @@ class SuggestionTest(TestCase):
         text = " ".join(response.data["points"] + response.data["next_steps"] + response.data["caveats"]).lower()
         self.assertNotIn("sanksi", text.replace("tidak menjadi dasar sanksi", ""))
 
+    def test_pasted_answer_is_not_called_fine(self):
+        solo = self.make_submission(
+            Profile.objects.create(email="c@t.local", display_name="Cici", role=Role.STUDENT),
+            "pengamatan saya di lapangan menunjukkan harga komoditas berubah cepat sehingga petani "
+            "kecil sulit menyesuaikan pola tanam setiap musim hujan datang dan itu menurut saya wajar",
+            level=4,
+        )
+        self.allow_external(solo.student_profile, allowed=False)
+        url = f"/api/submissions/{solo.id}/suggestion"
+        self.assertEqual(_client(self.dosen).post(url).data["verdict"], "baik")
+
+        AnalysisResult.objects.filter(submission=solo).update(process_band="attention")
+        response = _client(self.dosen).post(url)
+        self.assertEqual(response.data["verdict"], "cekpaham")
+        self.assertIn("Pola pengerjaan", " ".join(response.data["points"]))
+
     def test_detail_exposes_style_markers_and_similar_answers(self):
         Submission.objects.filter(pk=self.sub_a.pk).update(text_answer=BASE + "\n• poin\n• poin dua")
         detail = _client(self.dosen).get(f"/api/submissions/{self.sub_a.id}").data

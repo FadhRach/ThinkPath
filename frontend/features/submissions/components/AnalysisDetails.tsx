@@ -125,7 +125,7 @@ export function AnalysisDetails({
           </SectionCard>
 
           <SectionCard eyebrow="Riwayat Analisis">
-            <AnalysisHistory runs={detail.analysis_history} />
+            <AnalysisHistory runs={detail.analysis_history} hasScore={analysis != null} />
           </SectionCard>
 
           <ReanalyzeButton submissionId={detail.id} busy={analysing} />

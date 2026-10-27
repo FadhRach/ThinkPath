@@ -46,6 +46,7 @@ function provenanceNote(source: AnalysisSource | undefined): string {
  *   membedahnya, tetapi sengaja tidak menyumbang skor — penilai eksternal dan
  *   sinyal ini membaca teks yang sama, dan menjumlahkan keduanya berarti
  *   menghitung ganda bukti yang sama.
+ * - **Pola pengerjaan** (`process_forensics`, bobot 0): tampil terpisah, bukan pembanding teks.
  *
  * Yang ditonjolkan adalah SUMBANGAN (nilai × bobot), bukan nilai mentah sinyal.
  */
@@ -55,8 +56,11 @@ export function SignalBreakdown({ breakdown, source }: Props) {
   const contributing = breakdown
     .filter((item) => item.weight > 0)
     .sort((a, b) => b.contribution - a.contribution);
-  const context = breakdown.filter((item) => item.weight === 0);
+  // Pola pengerjaan (bobot 0) bukan pembanding heuristik teks, jadi tampil terpisah.
+  const process = breakdown.find((item) => item.key === "process_forensics" && item.weight === 0);
+  const context = breakdown.filter((item) => item.weight === 0 && item !== process);
   const total = contributing.reduce((sum, item) => sum + item.contribution, 0);
+  const external = source === "detector" || source === "llm";
   const bandMid = midThreshold(source);
 
   return (
@@ -66,7 +70,8 @@ export function SignalBreakdown({ breakdown, source }: Props) {
           <div className="flex items-baseline justify-between text-caption text-muted-foreground">
             <span>Komposisi skor</span>
             <span className="font-semibold tabular-nums text-foreground">
-              {total.toFixed(1)} dari 100
+              {/* Dibulatkan seperti cincin skor supaya kedua angka sama. */}
+              {Math.round(total)} dari 100
             </span>
           </div>
           <div className="relative">
@@ -141,11 +146,13 @@ export function SignalBreakdown({ breakdown, source }: Props) {
           <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
             Pembanding heuristik, tidak menyumbang skor
           </p>
-          <p className="text-caption text-muted-foreground">
-            Skor di atas berasal dari penilai eksternal. Sinyal gaya teks di bawah tetap dihitung
-            sebagai pembanding; keduanya membaca teks yang sama, jadi menjumlahkannya berarti
-            menghitung bukti yang sama dua kali.
-          </p>
+          {external ? (
+            <p className="text-caption text-muted-foreground">
+              Skor di atas berasal dari penilai eksternal. Sinyal gaya teks di bawah tetap dihitung
+              sebagai pembanding; keduanya membaca teks yang sama, jadi menjumlahkannya berarti
+              menghitung bukti yang sama dua kali.
+            </p>
+          ) : null}
           <ul className="space-y-3">
             {context.map((item) => (
               <li key={item.key} className="space-y-0.5">
@@ -159,6 +166,21 @@ export function SignalBreakdown({ breakdown, source }: Props) {
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {process ? (
+        <div className="space-y-1 rounded-xl bg-muted/40 p-4">
+          <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+            Pola pengerjaan — tidak menyumbang skor (bobot 0)
+          </p>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-body-sm font-medium text-foreground">{process.label}</span>
+            <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
+              nilai {Math.round(process.value * 100)}
+            </span>
+          </div>
+          <p className="text-body-sm text-muted-foreground">{process.evidence}</p>
         </div>
       ) : null}
     </div>

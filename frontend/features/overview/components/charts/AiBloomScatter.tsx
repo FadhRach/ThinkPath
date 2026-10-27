@@ -17,11 +17,11 @@ import {
 import type { OverviewStudent } from "@/lib/types";
 import { CHART_COLORS } from "@/components/charts/colors";
 
-// Garis bantu mengikuti ambang band heuristik di backend
-// (academics/ai_score.py: MID_THRESHOLD 42 terukur, HIGH_THRESHOLD 70 belum).
-// Sumbu datar grafik ini RATA-RATA skor, jadi garisnya hanya penunjuk arah,
-// bukan band yang diberikan ke mahasiswa. Kalau ambang di backend bergeser,
-// angka di sini wajib ikut bergeser.
+// Garis bantu mengikuti ambang band Groq dan heuristik di backend
+// (analysis/engines/ai_score.py: MID_THRESHOLD 42 terukur, HIGH_THRESHOLD 70 belum;
+// Winston memakai 35/70). Sumbu datar grafik ini RATA-RATA skor, jadi garisnya hanya
+// penunjuk arah. Warna titik mengikuti band dari API (high_count), bukan garis ini.
+// Kalau ambang di backend bergeser, angka di sini wajib ikut bergeser.
 const BAND_MID = 42;
 const BAND_HIGH = 70;
 const GAP_THRESHOLD = -1;
@@ -89,7 +89,8 @@ function range(from: number, to: number): number[] {
 
 function dotColor(point: Point): string {
   const behind = point.y <= GAP_THRESHOLD;
-  const flagged = point.x >= BAND_HIGH;
+  // Band per tugas dari API sudah memakai ambang sumber skornya masing-masing.
+  const flagged = point.high_count > 0;
   // Warna mengikuti tindakan yang perlu diambil, bukan tingkat kecurigaan.
   // Tertinggal dari target diberi warna paling menonjol karena itu satu
   // satunya kuadran yang terukur, bukan dugaan.

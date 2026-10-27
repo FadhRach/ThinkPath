@@ -91,17 +91,18 @@ class StartTriggerTest(DraftBase):
 
 
 class SamplingTest(DraftBase):
-    def test_samples_are_at_least_twenty_seconds_apart_but_text_is_always_saved(self):
+    def test_samples_are_at_least_thirty_seconds_apart_but_text_is_always_saved(self):
+        """Kebijakan Privasi menjanjikan jumlah kata tiap 30 detik, tidak lebih rapat."""
         t0 = timezone.now() - timedelta(minutes=5)
         self.put(words(5), at=t0)
         self.put(words(8), at=t0 + timedelta(seconds=5))
-        self.put(words(12), at=t0 + timedelta(seconds=10))
+        self.put(words(12), at=t0 + timedelta(seconds=25))
         draft = SubmissionDraft.objects.get()
         self.assertEqual(len(draft.samples), 1)
         self.assertEqual(draft.text_answer, words(12))
-        self.put(words(20), at=t0 + timedelta(seconds=25))
+        self.put(words(20), at=t0 + timedelta(seconds=31))
         draft.refresh_from_db()
-        self.assertEqual(draft.samples[-1], {"t": 25, "w": 20})
+        self.assertEqual(draft.samples[-1], {"t": 31, "w": 20})
 
     def test_unchanged_text_adds_nothing(self):
         t0 = timezone.now() - timedelta(minutes=5)
@@ -151,8 +152,9 @@ class GuardsTest(DraftBase):
 class SubmitUsesTheDraftTest(DraftBase):
     def _type_gradually(self, minutes=12):
         t0 = timezone.now() - timedelta(minutes=minutes)
-        for i in range(minutes * 3):
-            self.put(words(min(i * 7 + 5, 200)), at=t0 + timedelta(seconds=i * 20))
+        # Satu simpan per jarak cuplikan server (30 detik), ±21 kata per menit.
+        for i in range(minutes * 2):
+            self.put(words(min(i * 10 + 5, 200)), at=t0 + timedelta(seconds=i * 30))
 
     def submit(self, text=None, **extra):
         return self.client_s.post(

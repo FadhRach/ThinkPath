@@ -108,6 +108,8 @@ def resolve_report(
                 raise ValidationError("Cek Paham ini sudah dibatalkan; coba ulang tidak bisa diberikan.")
             if attempt.status == AttemptStatus.VOIDED:
                 raise ValidationError("Coba ulang untuk sesi ini sudah diberikan.")
+            if attempt.status == AttemptStatus.PROCESSING:
+                raise ValidationError("Sesi ini masih diproses; tunggu hasilnya sebelum memberi coba ulang.")
             earliest_end = now + timedelta(seconds=cekpaham.answer_seconds + WINDOW_MARGIN_SECONDS)
             if extend_window_to is not None and extend_window_to < earliest_end:
                 raise ValidationError(

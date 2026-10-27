@@ -6,6 +6,7 @@ import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ApiError } from "@/lib/api/errors";
 import { getStudentProfile } from "@/lib/data";
 
 interface Props {
@@ -14,8 +15,14 @@ interface Props {
 
 export default async function StudentProfilePage({ params }: Props) {
   const { studentId } = await params;
-  const profile = await getStudentProfile(studentId).catch(() => null);
-  if (!profile) notFound();
+  let profile;
+  try {
+    profile = await getStudentProfile(studentId);
+  } catch (error) {
+    // Hanya "tidak ada / bukan hak Anda" yang jadi 404; galat lain ke error.tsx.
+    if (error instanceof ApiError && (error.status === 403 || error.status === 404)) notFound();
+    throw error;
+  }
 
   const belowTarget = profile.classes.filter(
     (series) =>

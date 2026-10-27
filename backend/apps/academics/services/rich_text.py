@@ -167,7 +167,8 @@ def _plain_lines(node: dict) -> list[str]:
     if kind in ("tableCell", "tableHeader"):
         return [" ".join(line for child in children for line in _plain_lines(child) if line)]
     if kind == "tableRow":
-        cells = [_plain_lines(child)[0] for child in children]
+        # Anak yang tidak menghasilkan baris (mis. bukan sel) dibaca sebagai sel kosong.
+        cells = [next(iter(_plain_lines(child)), "") for child in children]
         return ["\t".join(cells)]
     if kind in ("blockMath", "horizontalRule"):
         return []

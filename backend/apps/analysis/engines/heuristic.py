@@ -42,6 +42,9 @@ def band_to_recommendation(band: str) -> str:
     return "Disarankan diskusi 10-15 menit dengan mahasiswa untuk memverifikasi pemahaman."
 
 
+_GAP_WORDS = {2: "dua", 3: "tiga", 4: "empat", 5: "lima"}
+
+
 def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int) -> str:
     """Rekomendasi yang menggabungkan dua dimensi yang kini terpisah.
 
@@ -56,7 +59,7 @@ def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int)
     if gap <= -2:
         cognitive = (
             f"Level kognitif jawaban ada di L{bloom_level} ({BLOOM_LABELS[bloom_level]}), "
-            f"dua tingkat di bawah target L{expected_bloom_level}. "
+            f"{_GAP_WORDS.get(-gap, -gap)} tingkat di bawah target L{expected_bloom_level}. "
             "Pertimbangkan pengulangan konsep sebelum lanjut ke materi berikutnya."
         )
     elif gap == -1:

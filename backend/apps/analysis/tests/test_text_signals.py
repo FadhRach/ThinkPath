@@ -100,3 +100,16 @@ class BloomManipulationTest(SimpleTestCase):
         result = estimate_bloom_level(extract_features(essay))
         self.assertNotIn("bukan bahasa Indonesia", " ".join(result.evidence))
         self.assertNotIn("terlalu rapat", " ".join(result.evidence))
+
+
+class RecommendationGapTest(SimpleTestCase):
+    """Rekomendasi dulu selalu menulis "dua tingkat" untuk selisih berapa pun."""
+
+    def test_gap_is_written_as_the_real_distance(self):
+        from apps.analysis.engines.heuristic import build_recommendation
+
+        self.assertIn("satu tingkat di bawah target L4", build_recommendation(AiBand.LOW, 3, 4))
+        self.assertIn("dua tingkat di bawah target L4", build_recommendation(AiBand.LOW, 2, 4))
+        text = build_recommendation(AiBand.LOW, 1, 5)
+        self.assertIn("empat tingkat di bawah target L5", text)
+        self.assertNotIn("dua tingkat", text)

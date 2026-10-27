@@ -12,7 +12,7 @@ export function GradeReport({ studentClass }: { studentClass: StudentClassWithAs
     return (
       <EmptyState
         title="Belum ada tugas di kelas ini"
-        caption="Rapor terisi setelah dosen membuat tugas dan memeriksa jawabanmu."
+        caption="Daftar nilai terisi setelah dosen membuat tugas dan memeriksa jawabanmu."
       />
     );
   }

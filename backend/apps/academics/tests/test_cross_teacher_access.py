@@ -141,6 +141,20 @@ class CrossAccountAccessTest(TestCase):
         self.assertEqual(Assignment.objects.count(), 1)
         self.assertEqual(Material.objects.count(), 1)
 
+    def test_cognitive_profile_of_a_new_member_is_empty_not_404(self):
+        newcomer = Profile.objects.create(email="baru@test.local", role=Role.STUDENT)
+        ClassMembership.objects.create(class_ref=self.klass, student_profile=newcomer)
+
+        response = _client(self.teacher_a).get(f"/api/students/{newcomer.id}/profile")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["classes"], [])
+        self.assertIn(
+            _client(self.teacher_a).get(f"/api/students/{self.outsider.id}/profile").status_code, DENIED
+        )
+        self.assertIn(
+            _client(self.teacher_b).get(f"/api/students/{newcomer.id}/profile").status_code, DENIED
+        )
+
     def test_teacher_b_lists_are_empty(self):
         b = _client(self.teacher_b)
         for path, key in (

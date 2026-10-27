@@ -86,6 +86,11 @@ export function ClassOverviewSection({ data, showTitle = true, showOpenLink = tr
         </p>
 
         <AiBloomScatter students={data.students} />
+        <p className="text-caption text-muted-foreground">
+          Garis 42 dan 70 adalah ambang skor Groq dan heuristik; skor detektor Winston memakai 35
+          dan 70. Titik berwarna &ldquo;dugaan AI tinggi&rdquo; bila minimal satu tugasnya berband
+          tinggi menurut sumber skornya.
+        </p>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
           {QUADRANT_LEGEND.map((item) => (

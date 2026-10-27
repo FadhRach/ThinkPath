@@ -255,10 +255,13 @@ class StudentCekPahamFinalizeView(APIView):
     def post(self, request, cekpaham_id: str):
         cekpaham = require_own_cekpaham_student(request, cekpaham_id)
         upload = request.FILES.get("audio")
-        try:
-            events = json.loads(request.data.get("client_events") or "{}")
-        except ValueError:
-            events = {}
+        # Multipart mengirim string JSON; badan JSON bisa langsung berupa objek.
+        events = request.data.get("client_events")
+        if not isinstance(events, dict):
+            try:
+                events = json.loads(events or "{}")
+            except (TypeError, ValueError):
+                events = {}
         attempt, fresh = attempts.finalize_attempt(
             cekpaham,
             request_user_id(request),

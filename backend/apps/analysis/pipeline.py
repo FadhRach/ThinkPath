@@ -125,6 +125,20 @@ def _parse_llm_result(
         raise ValueError("summary kosong")
 
     ai_score, breakdown = _blend_with_process(llm_score, process)
+    if not breakdown:
+        # Tanpa metadata proses (mis. dokumen impor) model satu satunya penyumbang skor;
+        # rinciannya tetap ditulis berbobot penuh agar panel "Asal Skor AI" tidak kosong.
+        breakdown = [
+            SignalScore(
+                key="llm_text",
+                label="Penilaian teks oleh model",
+                value=llm_score / 100.0,
+                weight=1.0,
+                evidence=f"Model menilai indikasi AI pada teks sebesar {llm_score} dari 100",
+            )
+        ]
+    # Skor Groq sengaja meminjam ambang heuristik 42/70: belum ada ambang hasil ukur
+    # untuk sebaran skor Groq sendiri (lihat ai_experiment notebook 04).
     band = score_to_band(ai_score)
     return {
         "ai_score": ai_score,
@@ -325,7 +339,7 @@ def _heuristic_context_rows(text: str) -> list[dict]:
 
     Berbobot NOL dengan sengaja, dan itu bukan pilihan gaya. Penilai eksternal
     dan kelima sinyal ini membaca teks yang sama, sehingga memberi keduanya
-    bobot berarti menghitung ganda bukti yang sama. Ambang band 56 juga diukur
+    bobot berarti menghitung ganda bukti yang sama. Ambang band 42 juga diukur
     untuk ensemble heuristik murni; mencampur bobot membatalkan pengukurannya.
 
     Dosen tetap bisa membedah gaya teksnya, dan jumlah kontribusi panel "Asal

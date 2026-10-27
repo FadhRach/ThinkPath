@@ -28,6 +28,13 @@ export function gapToTarget(series: CognitiveClassSeries): number | null {
   return Math.round((series.current_level - series.average_target) * 100) / 100;
 }
 
+/** Keterangan selisih tiga tingkat. "Sesuai" hanya bila selisihnya tepat nol. */
+export function gapCaption(gap: number | null): string {
+  if (gap == null) return "Belum ada pembanding";
+  if (gap < 0) return "Di bawah target tugas";
+  return gap === 0 ? "Sesuai target tugas" : "Di atas target tugas";
+}
+
 /**
  * Kalimat yang menerjemahkan angka menjadi tindakan.
  *
@@ -53,7 +60,11 @@ export function trendNarrative(series: CognitiveClassSeries): string {
   }
 
   if (series.direction === "naik") {
-    return "Penalaran menaik secara konsisten dan sudah memenuhi target tugas.";
+    // "Memenuhi target" hanya bila selisihnya tidak negatif.
+    if (gap != null && gap >= 0) {
+      return "Penalaran menaik secara konsisten dan sudah memenuhi target tugas.";
+    }
+    return "Penalaran menaik secara konsisten, tetapi belum mencapai target tugas.";
   }
 
   return "Stabil di sekitar target tugas.";

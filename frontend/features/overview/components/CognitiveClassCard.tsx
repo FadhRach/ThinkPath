@@ -9,6 +9,7 @@ import { bloomShortLabel } from "@/features/bloom/lib/bloom";
 import {
   TREND_LABEL,
   TREND_TONE,
+  gapCaption,
   gapToTarget,
   toChartPoints,
   trendNarrative,
@@ -37,7 +38,7 @@ interface Props {
 export function CognitiveClassCard({ series, showBand = false, linkSubmissions = false }: Props) {
   const gap = gapToTarget(series);
   const TrendIcon = TREND_ICON[series.direction];
-  const belowTarget = gap != null && gap <= -1;
+  const belowTarget = gap != null && gap < 0;
   const subject = distinctSubject(series.class_name, series.subject);
 
   return (
@@ -61,7 +62,9 @@ export function CognitiveClassCard({ series, showBand = false, linkSubmissions =
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric
           label="Level saat ini"
-          value={series.current_level != null ? `L${series.current_level}` : "-"}
+          // Level ditampilkan bulat; angka rata-rata desimalnya cukup di tooltip.
+          value={series.current_level != null ? `L${Math.round(series.current_level)}` : "-"}
+          title={series.current_level != null ? `Rata-rata L${series.current_level}` : undefined}
           caption={
             series.current_level != null
               ? bloomShortLabel(Math.round(series.current_level))
@@ -70,13 +73,14 @@ export function CognitiveClassCard({ series, showBand = false, linkSubmissions =
         />
         <Metric
           label="Target rata-rata"
-          value={series.average_target != null ? `L${series.average_target}` : "-"}
+          value={series.average_target != null ? `L${Math.round(series.average_target)}` : "-"}
+          title={series.average_target != null ? `Rata-rata L${series.average_target}` : undefined}
           caption="Ditetapkan dosen per tugas"
         />
         <Metric
           label="Selisih"
           value={gap != null ? (gap > 0 ? `+${gap}` : `${gap}`) : "-"}
-          caption={belowTarget ? "Di bawah tuntutan tugas" : "Sesuai atau di atas target"}
+          caption={gapCaption(gap)}
           tone={belowTarget ? "warning" : "default"}
         />
       </div>
@@ -140,15 +144,17 @@ function Metric({
   label,
   value,
   caption,
+  title,
   tone = "default",
 }: {
   label: string;
   value: string;
   caption: string;
+  title?: string;
   tone?: "default" | "warning";
 }) {
   return (
-    <div className="rounded-xl border border-border bg-muted/30 px-3.5 py-3">
+    <div className="rounded-xl border border-border bg-muted/30 px-3.5 py-3" title={title}>
       <p className="text-caption text-muted-foreground">{label}</p>
       <p
         className={cn("text-xl font-bold", tone === "warning" ? "text-warning" : "text-foreground")}

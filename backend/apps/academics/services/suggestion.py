@@ -67,10 +67,13 @@ def _class_context(submission: Submission) -> dict:
     }
 
 
-def _verdict(*, target: int, level: int, ai_band: str, strong: int, similar_top: float) -> str:
+def _verdict(
+    *, target: int, level: int, ai_band: str, strong: int, similar_top: float, process_attention: bool
+) -> str:
     if similar_top >= SIMILAR_STRONG:
         return "bandingkan"
-    if ai_band == "high" or strong >= STRONG_MARKERS_FOR_CEKPAHAM:
+    # Jawaban yang ditempel sekaligus adalah bukti proses; jangan disebut "tidak ada bukti".
+    if ai_band == "high" or strong >= STRONG_MARKERS_FOR_CEKPAHAM or process_attention:
         return "cekpaham"
     if level < target:
         return "tinjau"
@@ -106,8 +109,10 @@ def rule_based(submission: Submission, analysis, markers: dict, similar: list[di
     level = analysis.bloom_level
     similar_top = similar[0]["score"] if similar else 0.0
     strong = markers["strong_total"]
+    process_attention = not submission.is_imported and analysis.process_band == "attention"
     verdict = _verdict(
-        target=target, level=level, ai_band=analysis.ai_band, strong=strong, similar_top=similar_top
+        target=target, level=level, ai_band=analysis.ai_band, strong=strong, similar_top=similar_top,
+        process_attention=process_attention,
     )
 
     points = [
@@ -125,7 +130,7 @@ def rule_based(submission: Submission, analysis, markers: dict, similar: list[di
         points.append(f"Kemiripan {round(top['score'] * 100)}% dengan jawaban {top['student_name']}.")
     if submission.is_imported:
         points.append("Jawaban diimpor dari dokumen: pola proses mengetik tidak dinilai.")
-    elif analysis.process_band == "attention":
+    elif process_attention:
         points.append("Pola pengerjaan (waktu dan kurva kata) layak dilihat.")
     if submission.revision_count:
         points.append(f"Direvisi {submission.revision_count} kali setelah dikumpulkan.")
