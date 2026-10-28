@@ -15,3 +15,9 @@ data/labels/
 # dibagikan cukup angka ringkasan di results/.
 data/asr_clips/
 data/cekpaham_gold/
+
+# Notebook 07-09: teks esai (hak cipta/privasi), audio FLEURS (besar), set Bloom dan lembar cek manusia.
+data/essays/
+data/asr_fleurs/
+data/bloom/
+data/bloom_soal/

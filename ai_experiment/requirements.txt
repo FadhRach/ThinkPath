@@ -11,3 +11,8 @@ matplotlib>=3.9
 ipykernel>=6.29
 nbclient>=0.10
 nbformat>=5.10
+
+# Notebook 08 (ASR FLEURS): baca Parquet dan WAV; faster-whisper untuk pembanding self-host (±460 MB model).
+pyarrow>=15
+soundfile>=0.12
+faster-whisper>=1.1

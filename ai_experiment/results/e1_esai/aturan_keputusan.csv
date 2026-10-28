@@ -1,0 +1,7 @@
+detektor,aturan,FPR,TPR
+groq,tinggi (skor 70+),0/5 [0%-43%],0/5 [0%-43%]
+groq,sedang ke atas (skor 42+),4/5 [38%-96%],5/5 [57%-100%]
+heuristik,tinggi (skor 70+),0/5 [0%-43%],0/5 [0%-43%]
+heuristik,sedang ke atas (skor 42+),1/5 [4%-62%],4/5 [38%-96%]
+winston,tinggi (skor 70+),0/5 [0%-43%],5/5 [57%-100%]
+winston,sedang ke atas (skor 35+),0/5 [0%-43%],5/5 [57%-100%]

@@ -1,0 +1,11 @@
+id,label,words,groq,heuristik,winston
+A01,ai,81,65,48,100
+A02,ai,86,60,55,100
+A03,ai,94,55,45,99
+A04,ai,88,55,55,99
+A05,ai,85,58,40,95
+H01,human,86,55,48,0
+H02,human,100,45,37,0
+H03,human,87,65,37,1
+H04,human,96,60,39,0
+H05,human,100,30,19,0

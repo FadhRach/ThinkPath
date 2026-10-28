@@ -237,18 +237,21 @@ EXPLANATORY_MARKERS = (
 )
 
 # Kata kerja operasional per level Bloom revisi (Anderson dan Krathwohl).
+# Pembagian level mengikuti proses kognitif Krathwohl (2002): membandingkan dan
+# mengklasifikasikan termasuk Memahami, memeriksa (checking) termasuk Mengevaluasi.
 # Dipakai bloom.py sebagai salah satu sumber bukti, bukan satu-satunya.
 BLOOM_VERBS: dict[int, tuple[str, ...]] = {
     1: ("menyebutkan", "menuliskan", "menyatakan", "mengingat", "mendaftar",
         "menamai", "menunjukkan", "melabeli", "definisi", "pengertian"),
     2: ("menjelaskan", "menguraikan", "merangkum", "mencontohkan", "menerangkan",
-        "mengartikan", "menceritakan", "mengelompokkan", "memahami"),
+        "mengartikan", "menceritakan", "mengelompokkan", "memahami",
+        "membandingkan", "mengklasifikasikan"),
     3: ("menerapkan", "menghitung", "menggunakan", "menyelesaikan", "mempraktikkan",
         "mendemonstrasikan", "menghubungkan", "mengoperasikan", "menyusun langkah"),
-    4: ("menganalisis", "membandingkan", "membedakan", "mengklasifikasikan",
-        "memeriksa", "menelaah", "menguji", "faktor", "hubungan antara", "mengapa"),
+    4: ("menganalisis", "membedakan", "menelaah", "menguji", "faktor",
+        "hubungan antara", "mengapa"),
     5: ("menilai", "mengevaluasi", "mengkritik", "memutuskan", "mempertimbangkan",
-        "membuktikan", "menyanggah", "mendukung", "membenarkan"),
+        "membuktikan", "menyanggah", "mendukung", "membenarkan", "memeriksa"),
     6: ("merancang", "menciptakan", "memodifikasi", "mengusulkan", "mengembangkan",
         "merumuskan", "membangun", "mendesain", "menggabungkan"),
 }

@@ -77,10 +77,25 @@ class FasterWhisperAdapter:
         self._model = self._model or self._load()
         started = time.monotonic()
         segments, _ = self._model.transcribe(
-            str(path), language=language, temperature=0, initial_prompt=", ".join(keyterms) or None
+            _audio_input(path), language=language, temperature=0, initial_prompt=", ".join(keyterms) or None
         )
         text = " ".join(segment.text.strip() for segment in segments)
         return AsrResult(text, text, time.monotonic() - started)
+
+
+def _audio_input(path: Path):
+    """WAV/FLAC 16 kHz dibaca langsung sebagai array.
+
+    Dekoder bawaan faster-whisper (PyAV) tidak cocok dengan sebagian versi PyAV
+    terbaru; berkas WAV tidak perlu dekoder itu. Format lain tetap lewat path.
+    """
+    if path.suffix.lower() in {".wav", ".flac"}:
+        import soundfile as sf
+
+        audio, rate = sf.read(path, dtype="float32")
+        if rate == 16_000:
+            return audio if audio.ndim == 1 else audio.mean(axis=1)
+    return str(path)
 
 
 def build_adapter(name: str):
