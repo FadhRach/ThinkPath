@@ -1,12 +1,12 @@
-# ASR Cek Paham pada FLEURS id_id (test, 100 klip)
+# ASR Cek Paham pada FLEURS id_id (test, 687 klip)
 
 ## Hasil
 
 | model | WER | CER | latensi median | RTF median | tunggu 60 dtk audio | tunggu 90 dtk audio |
 |---|---|---|---|---|---|---|
-| groq-turbo | 0.066 | 0.024 | 0.96 | 0.075 | 3.122 | 4.482 |
-| groq-large-v3 | 0.061 | 0.02 | 1.048 | 0.082 | 3.78 | 5.426 |
-| faster-whisper-small | 0.141 | 0.039 | 1.89 | 0.162 | 6.27 | 8.98 |
+| groq-turbo | 0.071 | 0.023 | 0.868 | 0.069 | 3.07 | 4.456 |
+| groq-large-v3 | 0.063 | 0.02 | 1.092 | 0.089 | 4.981 | 7.289 |
+| faster-whisper-small | 0.161 | 0.046 | 2.283 | 0.195 | 6.999 | 9.9 |
 
 ## Dilewati
 
@@ -14,8 +14,8 @@
 
 ## Temuan
 
-- WER terendah: groq-large-v3 (6.1%).
-- Tercepat: groq-turbo (median 0.96 detik per klip).
+- WER terendah: groq-large-v3 (6.3%).
+- Tercepat: groq-turbo (median 0.87 detik per klip).
 - Model produksi saat ini adalah groq-turbo.
 
 ## Batasan
