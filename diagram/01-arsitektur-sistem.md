@@ -45,7 +45,7 @@ flowchart TB
     CC -->|"mutasi"| API
     API --> AUTH
     API --> AN
-    AN -.->|"tenggat 12 dtk<br/>cadangan heuristik"| LLM
+    AN -.->|"Bloom, tenggat 12 dtk<br/>cadangan heuristik"| LLM
     AN -.->|"tenggat 8 dtk<br/>lewat cache DetectorScore"| WIN
     API --> PG
 

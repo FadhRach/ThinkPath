@@ -34,14 +34,14 @@ flowchart TB
     PROC["Metadata proses"] --> PS["<b>process_signals.py</b><br/>assess_process"]
     PS --> PB["process_band<br/>bukti terpisah, bobot 0 di skor AI"]
 
-    E1 --> BASE["<b>jalur dasar</b><br/>Groq bila ada kunci dan tanpa pola injeksi,<br/>kalau tidak heuristik"]
+    E1 --> BASE["<b>jalur dasar</b><br/>skor AI selalu heuristik;<br/>Bloom dari Groq bila ada kunci dan tanpa pola injeksi"]
     E2 --> BASE
     BASE --> DET{"detector_cache<br/>menjawab?"}
     DET -->|"ya"| OVL["Timpa SKOR AI saja"]
     DET -->|"tidak"| KEEP["Pakai jalur dasar apa adanya"]
-    OVL --> CMP["Skor dari Groq/Winston:<br/>tambah 5 sinyal heuristik<br/>sebagai pembanding bobot 0"]
-    KEEP --> CMP
+    OVL --> CMP["Skor dari Winston:<br/>tambah 5 sinyal heuristik<br/>sebagai pembanding bobot 0"]
     CMP --> R[("AnalysisResult")]
+    KEEP --> R
     PB --> R
 
     BLOOM["Level Bloom TIDAK pernah<br/>ikut penimpaan ini"]
@@ -95,10 +95,12 @@ flowchart TB
     class NONE,PASS aman
 ```
 
-Urutannya: Groq jalan lebih dulu (atau heuristik bila kunci kosong, Groq gagal,
-atau teks memuat kalimat untuk penilai otomatis), lalu Winston menimpa skor AI
-bila ia menjawab. Heuristik selalu ada: sebagai skor bila tidak ada penilai luar
-yang menjawab, dan sebagai baris pembanding berbobot 0 bila ada. Tanpa butir
+Urutan skor AI mengikuti salah tuduh terendah pada uji E1 (notebook 12): Winston
+menimpa skor bila ia menjawab, kalau tidak skornya heuristik. Groq tidak lagi
+memberi skor AI (AUC 0,60, salah tuduh 60%) dan hanya menaksir level Bloom
+(heuristik bila kunci kosong, Groq gagal, atau teks memuat kalimat untuk penilai
+otomatis). Heuristik selalu ada: sebagai skor bila Winston tidak menjawab, dan
+sebagai baris pembanding berbobot 0 bila ia menjawab. Tanpa butir
 persetujuan `analisis_luar_negeri`, `run_analysis(allow_external=False)` melewati
 Groq, Winston, dan cache detektor sekaligus, sehingga skornya murni heuristik.
 

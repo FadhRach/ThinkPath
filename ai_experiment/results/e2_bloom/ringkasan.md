@@ -9,18 +9,18 @@
 | penilai | n | tepat | selisih 1 | Spearman | kappa kuadrat |
 |---|---|---|---|---|---|
 | heuristik | 58.0 | 0.276 | 0.69 | 0.571 | 0.43 |
-| groq | 58.0 | 0.293 | 0.69 | 0.724 | 0.484 |
+| groq | 58.0 | 0.31 | 0.741 | 0.761 | 0.558 |
 
 ## Akurasi per level
 
 | level | heuristik | groq |
 |---|---|---|
 | L1 Mengingat | 0.22 | 0.0 |
-| L2 Memahami | 0.0 | 0.0 |
+| L2 Memahami | 0.0 | 0.1 |
 | L3 Menerapkan | 0.1 | 0.1 |
-| L4 Menganalisis | 0.9 | 0.2 |
+| L4 Menganalisis | 0.9 | 0.3 |
 | L5 Mengevaluasi | 0.33 | 0.78 |
-| L6 Mencipta | 0.1 | 0.7 |
+| L6 Mencipta | 0.1 | 0.6 |
 
 ## Batasan
 

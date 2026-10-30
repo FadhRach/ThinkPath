@@ -17,7 +17,7 @@ import {
 import type { OverviewStudent } from "@/lib/types";
 import { CHART_COLORS } from "@/components/charts/colors";
 
-// Garis bantu mengikuti ambang band Groq dan heuristik di backend
+// Garis bantu mengikuti ambang band heuristik di backend
 // (analysis/engines/ai_score.py: MID_THRESHOLD 42 terukur, HIGH_THRESHOLD 70 belum;
 // Winston memakai 35/70). Sumbu datar grafik ini RATA-RATA skor, jadi garisnya hanya
 // penunjuk arah. Warna titik mengikuti band dari API (high_count), bukan garis ini.

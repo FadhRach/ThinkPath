@@ -81,16 +81,18 @@ class PipelineGuardTest(SimpleTestCase):
 
     def test_clean_text_still_uses_groq(self):
         raw = {
-            "ai_probability": 20, "bloom_level": 4, "confidence": "medium", "bloom_confidence": "medium",
-            "signals": ["variasi kalimat wajar"], "summary": "Ringkas.",
+            "bloom_level": 4, "bloom_confidence": "medium",
+            "signals": ["membandingkan dua kebijakan"], "summary": "Ringkas.",
         }
         result, call = self._run(ESSAY, raw)
         call.assert_called_once()
-        self.assertEqual(result["analysis_source"], AnalysisSource.LLM)
+        self.assertEqual(result["bloom_level"], 4)
+        # Skor AI tetap heuristik walau Groq menjawab.
+        self.assertEqual(result["analysis_source"], AnalysisSource.HEURISTIC)
 
     def test_bloom_far_from_text_markers_is_flagged_not_replaced(self):
         raw = {
-            "ai_probability": 10, "bloom_level": 6, "confidence": "high", "bloom_confidence": "high",
+            "bloom_level": 6, "bloom_confidence": "high",
             "signals": [], "summary": "Ringkas.",
         }
         result, _ = self._run("Kucing itu tidur di atas kasur yang empuk sepanjang hari ini juga.", raw)

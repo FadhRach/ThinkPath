@@ -285,8 +285,8 @@ class SubmissionProcessApiTest(TestCase):
             (*REQUIRED_ITEMS[Role.STUDENT], ITEM_EXTERNAL_AI),
         )
         invalid_scores = (
-            '{"ai_probability": 1e309, "bloom_level": 2}',
-            '{"ai_probability": 40, "bloom_level": 1e309}',
+            '{"bloom_level": "tinggi"}',
+            '{"bloom_level": 1e309}',
         )
         payloads = (
             {"choices": []},

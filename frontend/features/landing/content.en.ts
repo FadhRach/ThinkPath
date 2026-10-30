@@ -140,7 +140,7 @@ export const enCopy: Copy = {
       { name: "Next.js", role: "Interface" },
       { name: "Django", role: "API" },
       { name: "PostgreSQL", role: "Database" },
-      { name: "Groq", role: "AI analysis" },
+      { name: "Groq", role: "Bloom and oral check" },
       { name: "Winston AI", role: "AI detector" },
       { name: "IDCloudHost", role: "Jakarta server" },
       { name: "Vercel", role: "Web hosting" },

@@ -27,10 +27,10 @@ function segmentColor(index: number): string {
 
 function provenanceNote(source: AnalysisSource | undefined): string {
   if (source === "detector") {
-    return "Porsi teks berasal dari detektor eksternal yang ketepatannya belum kami ukur sendiri. Ambang 35 dan 70 untuk detektor, juga bobot forensik proses, belum dikalibrasi.";
+    return "Porsi teks berasal dari detektor eksternal. Pada uji kami ambang 35 salah menuduh 2 dari 18 tulisan manusia; sampelnya kecil. Ambang 70 dan bobot forensik proses belum dikalibrasi.";
   }
   if (source === "llm") {
-    return "Porsi teks berasal dari model bahasa yang ketepatannya belum kami ukur sendiri. Ambangnya meminjam 42 dan 70 dari heuristik, dan bobot forensik proses belum terukur.";
+    return "Hasil versi lama: porsi teks berasal dari model bahasa, yang pada uji kami hampir setara tebakan. Analisis Ulang memakai rantai yang baru.";
   }
   return "Bobot sinyal teks dan ambang sedang 42 diukur pada 999 abstrak akademik publik, bukan pada esai mahasiswa berlabel dosen. Bobot forensik proses dan ambang tinggi 70 belum terukur.";
 }
@@ -42,7 +42,7 @@ function provenanceNote(source: AnalysisSource | undefined): string {
  * - **Penyumbang skor** (bobot > 0): jumlah kontribusinya merekonstruksi skor
  *   akhir, supaya panel ini tidak pernah berbohong soal asal angkanya.
  * - **Pembanding heuristik** (bobot 0): muncul ketika skor datang dari
- *   detektor/Groq. Kelima sinyal gaya teks tetap dihitung agar dosen bisa
+ *   detektor eksternal (atau model bahasa pada hasil lama). Kelima sinyal gaya teks tetap dihitung agar dosen bisa
  *   membedahnya, tetapi sengaja tidak menyumbang skor — penilai eksternal dan
  *   sinyal ini membaca teks yang sama, dan menjumlahkan keduanya berarti
  *   menghitung ganda bukti yang sama.

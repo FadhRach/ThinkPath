@@ -28,7 +28,7 @@ Internet ──HTTPS──> caddy ──HTTP──> api (gunicorn + Django) ─�
 | Komponen | Untuk apa |
 |---|---|
 | **gunicorn** | Server aplikasi produksi yang menjalankan Django. `runserver` hanya untuk dev. Konfigurasinya 1 worker × 8 thread. Analisis tidak berjalan di sini, jadi submit tidak pernah menunggu Groq + Winston |
-| **worker** | `manage.py run_analysis_worker` (3 thread): mengerjakan antrean `analysis_jobs` dan memanggil Groq, Winston, atau heuristik. Lihat [Analisis di worker](#analisis-di-worker) |
+| **worker** | `manage.py run_analysis_worker` (3 thread): mengerjakan antrean `analysis_jobs` dan memanggil Winston dan heuristik untuk skor AI, Groq untuk Bloom. Lihat [Analisis di worker](#analisis-di-worker) |
 | **Caddy** | Pintu depan dari internet: sertifikat HTTPS otomatis (Let's Encrypt), redirect HTTP→HTTPS, kompresi, lalu meneruskan ke gunicorn |
 | **PostgreSQL** | Datanya di Docker volume `thinkpath_pgdata`, tetap ada walau container dibuat ulang. Hanya `docker compose down -v` yang menghapusnya |
 
@@ -244,11 +244,11 @@ Aturan sederhananya: **view tipis** (HTTP saja) → baca lewat `selectors.py`, t
 **Analisis dikerjakan worker**, bukan di dalam request submit (lihat [Analisis di worker](#analisis-di-worker)). Worker memanggil `apps.analysis.pipeline.run_analysis`:
 
 ```
-Skor AI     : Groq (providers/groq.py) atau heuristik (engines/ai_score.py), lalu Winston (providers/winston.py) menimpa bila menjawab
+Skor AI     : Winston (providers/winston.py) bila menjawab, kalau tidak heuristik (engines/ai_score.py); Groq tidak memberi skor AI
 Level Bloom : Groq -> heuristik (engines/bloom.py); Winston tidak pernah menyentuhnya
 ```
 
-Jalur dasar jalan lebih dulu: Groq bila kuncinya ada dan teks tidak memuat pola injeksi, selain itu heuristik. Winston (lewat `detector_cache`) menyusul dan hanya menimpa skor AI bila ia menjawab. Saat skor datang dari Groq atau Winston, kelima sinyal heuristik tetap ditulis sebagai baris pembanding berbobot 0. Ambang band per sumber: heuristik dan Groq 42/70 (Groq sengaja meminjam ambang heuristik), Winston 35/70 (sementara, belum terukur). Kunci yang kosong atau API yang gagal cukup menjatuhkan ke lapisan berikutnya — tidak pernah menggagalkan pengumpulan tugas. **Level Bloom tidak pernah menyentuh detektor**, dan itu dijaga uji AST, bukan sekadar konvensi. Panggilan API terjadi di worker, di luar transaksi pengumpulan, jadi tidak ada baris yang terkunci selama menunggu Groq + Winston (12 + 8 detik kasus terburuk).
+Jalur dasar jalan lebih dulu: skor AI heuristik, level Bloom dari Groq bila kuncinya ada dan teks tidak memuat pola injeksi (selain itu heuristik). Winston (lewat `detector_cache`) menyusul dan hanya menimpa skor AI bila ia menjawab. Saat skor datang dari Winston, kelima sinyal heuristik tetap ditulis sebagai baris pembanding berbobot 0. Ambang band per sumber: heuristik 42/70, Winston 35/70 (salah tuduh 2/18 pada uji E1, sampel kecil). Kunci yang kosong atau API yang gagal cukup menjatuhkan ke lapisan berikutnya — tidak pernah menggagalkan pengumpulan tugas. **Level Bloom tidak pernah menyentuh detektor**, dan itu dijaga uji AST, bukan sekadar konvensi. Panggilan API terjadi di worker, di luar transaksi pengumpulan, jadi tidak ada baris yang terkunci selama menunggu Groq + Winston (12 + 8 detik kasus terburuk).
 
 Dua jebakan yang dikunci tes:
 
@@ -362,7 +362,7 @@ Submit/revisi hanya menyimpan jawaban dan satu `AnalysisJob` (antrean di Postgre
 
 ### Skor: teks dan pola pengerjaan dipisah
 
-`ai_score`/`ai_band` dihitung **dari teks saja** (Groq atau heuristik, ditimpa Winston bila menjawab; bobot proses `PROCESS_WEIGHT = 0`). Pola pengerjaan (`process_band`: `normal`, `partial`, `attention`, `unrecorded`; kosong untuk jawaban diimpor) adalah bukti tersendiri dan tidak menjumlah ke skor. Alasan: ambang skor diukur pada bobot teks murni, tidak ada data berlabel untuk bobot proses, dan mahasiswa yang menempel dari Word menghasilkan lonjakan yang sama dengan penyalin. Lonjakan = ≥ 60 kata dengan laju ≥ 80 kata/menit antar cuplikan; porsi < 35% wajar, ≥ 60% perlu dilihat. Setiap analisis tersimpan di `analysis_runs` bersama masukan prosesnya (bahan kalibrasi kelak). Teks yang memuat kalimat untuk penilai otomatis ("abaikan instruksi…") tidak dikirim ke Groq (`apps/analysis/injection.py`).
+`ai_score`/`ai_band` dihitung **dari teks saja** (heuristik, ditimpa Winston bila menjawab; Groq hanya menaksir Bloom karena pada uji E1 skor AI-nya hampir setara tebakan; bobot proses `PROCESS_WEIGHT = 0`). Pola pengerjaan (`process_band`: `normal`, `partial`, `attention`, `unrecorded`; kosong untuk jawaban diimpor) adalah bukti tersendiri dan tidak menjumlah ke skor. Alasan: ambang skor diukur pada bobot teks murni, tidak ada data berlabel untuk bobot proses, dan mahasiswa yang menempel dari Word menghasilkan lonjakan yang sama dengan penyalin. Lonjakan = ≥ 60 kata dengan laju ≥ 80 kata/menit antar cuplikan; porsi < 35% wajar, ≥ 60% perlu dilihat. Setiap analisis tersimpan di `analysis_runs` bersama masukan prosesnya (bahan kalibrasi kelak). Teks yang memuat kalimat untuk penilai otomatis ("abaikan instruksi…") tidak dikirim ke Groq (`apps/analysis/injection.py`).
 
 ### Sesi dan token
 

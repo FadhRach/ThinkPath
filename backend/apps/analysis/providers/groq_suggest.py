@@ -1,6 +1,6 @@
 """Narasi saran untuk dosen lewat Groq: ringkasan jawaban terhadap instruksi tugas.
 
-Modul terpisah dari groq.py (penilai skor AI dan level Bloom): saran ini hanya merangkum bukti
+Modul terpisah dari groq.py (penilai level Bloom): saran ini hanya merangkum bukti
 yang sudah dihitung dan TIDAK mengubah skor, level, maupun nilai apa pun. Dipanggil hanya bila
 mahasiswa mengizinkan analisis di luar negeri (lihat services/suggestion.py).
 """

@@ -34,8 +34,8 @@ export interface ReportOverview {
   analysed_count: number;
   cognitive_gap: { below: number; on_target: number; above: number };
   ai_band: { low: number; mid: number; high: number };
-  /** Berapa banyak angka berasal dari detektor eksternal, analisis penuh,
-   *  cadangan, atau data demo. */
+  /** Asal skor AI: detektor eksternal, sinyal teks (heuristik), model bahasa
+   *  (hanya hasil versi lama), atau data demo. */
   provenance: { llm: number; detector: number; heuristic: number; seed: number };
 }
 

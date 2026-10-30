@@ -155,7 +155,16 @@ def collect_scores(
 
 
 def production_llm():
-    """Antarmuka kecil atas lapisan Groq produksi (dipakai fetch_ai_probability dan dipalsukan tes)."""
+    """Antarmuka kecil atas lapisan Groq produksi (dipakai fetch_ai_probability dan dipalsukan tes).
+
+    Sejak uji E1 (notebook 12) prompt produksi hanya menaksir Bloom dan tidak lagi
+    mengembalikan ai_probability, jadi angka Groq di notebook 04 bersifat historis.
+    Gagal di sini lebih baik daripada lima panggilan sia-sia per teks.
+    """
+    raise RuntimeError(
+        "Groq produksi tidak lagi memberi ai_probability (prompt khusus Bloom); "
+        "angka Groq E1 di notebook 04 adalah hasil historis."
+    )
     from types import SimpleNamespace
 
     from apps.analysis import pipeline

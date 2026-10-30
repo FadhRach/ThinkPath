@@ -53,7 +53,7 @@ FPR = salah tuduh dari semua tulisan manusia. FDR = salah tuduh dari semua teks 
 | uji | n | akurasi | presisi makro | recall makro | F1 makro | F1 berbobot | selisih maks. 1 | kappa kuadrat |
 |---|---|---|---|---|---|---|---|---|
 | Jawaban terkontrol (09), heuristik | 58 | 27.6% | 44.1% | 27.6% | 22.2% | 21.9% | 69.0% | 0.43 |
-| Jawaban terkontrol (09), Groq | 58 | 29.3% | 39.5% | 29.6% | 25.6% | 25.8% | 69.0% | 0.484 |
+| Jawaban terkontrol (09), Groq | 58 | 31.0% | 33.0% | 31.3% | 27.8% | 28.0% | 74.1% | 0.558 |
 | Soal Indonesia (11), Groq | 216 | 35.2% | 40.6% | 33.7% | 32.0% | 32.0% | 67.6% | 0.387 |
 | Soal Yahya (11), Groq | 240 | 57.1% | 57.1% | 57.1% | 56.8% | 56.8% | 77.5% | 0.682 |
 | Soal Indonesia (11), kamus kata kerja | 21 | 19.0% | 40.7% | 20.0% | 24.8% | 23.6% | 33.3% | -0.0 |
@@ -63,11 +63,11 @@ FPR = salah tuduh dari semua tulisan manusia. FDR = salah tuduh dari semua teks 
 | level | Jawaban terkontrol (09), heuristik | Jawaban terkontrol (09), Groq | Soal Indonesia (11), Groq | Soal Yahya (11), Groq | Soal Indonesia (11), kamus kata kerja |
 |---|---|---|---|---|---|
 | L1 | 0.33 | 0.0 | 0.46 | 0.76 | 0.0 |
-| L2 | 0.0 | 0.0 | 0.21 | 0.53 | 0.4 |
-| L3 | 0.17 | 0.18 | 0.49 | 0.35 | 0.22 |
-| L4 | 0.37 | 0.13 | 0.2 | 0.55 | 0.0 |
-| L5 | 0.29 | 0.4 | 0.23 | 0.58 | 0.33 |
-| L6 | 0.18 | 0.82 | 0.33 | 0.63 | 0.29 |
+| L2 | 0.0 | 0.13 | 0.21 | 0.53 | 0.4 |
+| L3 | 0.17 | 0.15 | 0.49 | 0.35 | 0.22 |
+| L4 | 0.37 | 0.19 | 0.2 | 0.55 | 0.0 |
+| L5 | 0.29 | 0.44 | 0.23 | 0.58 | 0.33 |
+| L6 | 0.18 | 0.75 | 0.33 | 0.63 | 0.29 |
 
 ## Cek Paham: ASR (WER)
 

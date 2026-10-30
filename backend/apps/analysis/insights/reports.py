@@ -63,9 +63,8 @@ def build_overview(classes: QuerySet[Class]) -> dict:
         band_low=Count("id", filter=Q(analysis__ai_band=AiBand.LOW)),
         band_mid=Count("id", filter=Q(analysis__ai_band=AiBand.MID)),
         band_high=Count("id", filter=Q(analysis__ai_band=AiBand.HIGH)),
-        # Berapa banyak angka yang sebenarnya berasal dari hitungan cadangan
-        # atau data contoh. Tanpa ini, laporan terbaca seolah semuanya hasil
-        # analisis penuh.
+        # Asal skor AI per sumber. llm hanya ada pada hasil versi lama (Groq
+        # tidak lagi memberi skor AI); seed adalah data contoh.
         src_llm=Count("id", filter=Q(analysis__analysis_source=AnalysisSource.LLM)),
         src_heuristic=Count(
             "id", filter=Q(analysis__analysis_source=AnalysisSource.HEURISTIC)

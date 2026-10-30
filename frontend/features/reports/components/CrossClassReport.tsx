@@ -25,9 +25,9 @@ export function CrossClassReport({ report }: { report: ReportPayload }) {
 
   const belowRatio = analysed > 0 ? overview.cognitive_gap.below / analysed : 0;
   // Detektor eksternal sengaja tidak ikut dihitung di sini. Yang dimaksud
-  // "belum terverifikasi" adalah angka yang berasal dari hitungan cadangan atau
-  // data contoh, bukan angka yang berasal dari jalur analisis nyata.
-  const unverified = overview.provenance.heuristic + overview.provenance.seed;
+  // "Belum tervalidasi": skor dari versi lama (model bahasa, hampir setara tebakan
+  // pada uji E1) atau data demo. Heuristik dan detektor sudah diukur pada uji E1.
+  const unverified = overview.provenance.llm + overview.provenance.seed;
 
   return (
     <div className="space-y-6">
@@ -73,7 +73,7 @@ export function CrossClassReport({ report }: { report: ReportPayload }) {
           icon={FlaskConical}
           label="Belum tervalidasi"
           value={unverified}
-          hint="dihitung cadangan atau data demo"
+          hint="skor versi lama atau data demo"
           tone={unverified > 0 ? "warning" : "brand"}
         />
       </div>

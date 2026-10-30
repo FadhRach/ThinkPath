@@ -141,7 +141,7 @@ export const idCopy: Copy = {
       { name: "Next.js", role: "Antarmuka" },
       { name: "Django", role: "API" },
       { name: "PostgreSQL", role: "Basis data" },
-      { name: "Groq", role: "Analisis AI" },
+      { name: "Groq", role: "Bloom dan Cek Paham" },
       { name: "Winston AI", role: "Detektor AI" },
       { name: "IDCloudHost", role: "Server Jakarta" },
       { name: "Vercel", role: "Hosting web" },

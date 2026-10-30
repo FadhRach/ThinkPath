@@ -32,7 +32,7 @@ __all__ = [
 def band_to_recommendation(band: str) -> str:
     """Tindak lanjut berdasarkan band AI saja.
 
-    Dipertahankan karena llm.py memakainya. Untuk rekomendasi yang juga
+    Dipertahankan karena modul lain memakainya. Untuk rekomendasi yang juga
     memperhitungkan kesenjangan kognitif, pakai build_recommendation().
     """
     if band == AiBand.LOW:
@@ -110,10 +110,10 @@ def overall_confidence(word_count: int) -> str:
     Jalur heuristik tidak pernah mencapai keyakinan tinggi: sinyalnya terlalu
     dangkal, dan menaikkannya ke high akan menyesatkan dosen.
 
-    Dipakai juga oleh jalur detektor eksternal di llm.py, yang punya alasan
+    Dipakai juga oleh jalur detektor eksternal di pipeline.py, yang punya alasan
     berbeda dengan kesimpulan sama. Detektor memang tidak mengembalikan
-    keyakinan sama sekali, dan ketepatannya pada teks berbahasa Indonesia belum
-    pernah diukur.
+    keyakinan sama sekali, dan ketepatannya pada teks berbahasa Indonesia baru
+    diukur pada sampel kecil.
     """
     return Confidence.LOW if word_count < 80 else Confidence.MEDIUM
 
@@ -125,7 +125,7 @@ def analyze_text(
 ) -> dict:
     """Hasil analisis heuristik untuk satu jawaban mahasiswa.
 
-    Bentuk dict yang dikembalikan sama persis dengan jalur LLM sehingga
+    Jalur Groq hanya menimpa field Bloom pada dict ini, dan bentuknya
     langsung bisa dipakai sebagai kwargs AnalysisResult.
 
     process bersifat opsional supaya modul ini tetap bisa diuji tanpa database.

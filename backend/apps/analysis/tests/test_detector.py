@@ -191,17 +191,29 @@ class HappyPathTest(TestCase):
         self.assertEqual(result["signal_breakdown"][0]["weight"], 1.0)
         self.assertEqual(result["ai_score"], 61)
 
-    def test_groq_breakdown_present_even_without_process_metadata(self):
-        """Jalur Groq dengan process=None (dokumen impor) dulu menulis rincian kosong."""
+    def test_groq_only_sets_bloom_and_keeps_the_heuristic_ai_score(self):
+        """Groq hampir setara tebakan pada uji E1, jadi ia tidak boleh menyentuh skor AI."""
+        from apps.analysis.engines.heuristic import analyze_text
         from apps.analysis.pipeline import _parse_llm_result
 
-        raw = {"ai_probability": 63, "bloom_level": 3, "confidence": "medium", "signals": [], "summary": "Ringkas."}
-        result = _parse_llm_result(raw, 3, None)
-        self.assertEqual(result["ai_score"], 63)
-        self.assertEqual(len(result["signal_breakdown"]), 1)
-        row = result["signal_breakdown"][0]
-        self.assertEqual((row["key"], row["weight"]), ("llm_text", 1.0))
-        self.assertAlmostEqual(row["contribution"], result["ai_score"], delta=1.0)
+        heuristic = analyze_text(ANSWER, 3, None)
+        raw = {"ai_probability": 99, "bloom_level": 5, "bloom_confidence": "medium", "signals": [], "summary": "Ringkas."}
+        result = _parse_llm_result(raw, heuristic, 3)
+        for key in ("ai_score", "ai_band", "confidence", "signal_breakdown", "analysis_source"):
+            self.assertEqual(result[key], heuristic[key], key)
+        self.assertEqual((result["bloom_level"], result["bloom_confidence"]), (5, "medium"))
+        self.assertEqual(result["signals"], heuristic["signals"][:2])
+        self.assertIn("L5", result["summary"])
+
+    def test_groq_bloom_survives_the_winston_overlay(self):
+        raw = {"bloom_level": 5, "bloom_confidence": "medium", "signals": ["menilai dua kebijakan"]}
+        with _with_key(GROQ_API_KEY="g"), _winston_says(10), patch(
+            "apps.analysis.providers.groq.call", return_value=raw
+        ):
+            result = _analyse()
+        self.assertEqual(result["bloom_level"], 5)
+        self.assertEqual(result["analysis_source"], AnalysisSource.DETECTOR)
+        self.assertIn("L5", result["summary"])
 
     def test_prose_follows_the_number(self):
         """summary dan recommendation disusun ulang mengikuti band baru."""

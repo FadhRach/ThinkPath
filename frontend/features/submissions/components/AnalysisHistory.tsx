@@ -9,9 +9,9 @@ const TRIGGER_LABEL: Record<AnalysisRunView["trigger"], string> = {
 };
 
 const SOURCE_LABEL: Record<AnalysisSource, string> = {
-  llm: "analisis penuh",
+  llm: "model bahasa (versi lama)",
   detector: "detektor eksternal",
-  heuristic: "cadangan",
+  heuristic: "sinyal teks",
   seed: "data demo",
 };
 

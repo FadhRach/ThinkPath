@@ -406,8 +406,8 @@ export function PolicyArticle({ className }: { className?: string }) {
             <>
               <b>Indikasi penggunaan AI (0-100)</b>, yang dihitung dari teks polos jawaban saja;
               gambar, rumus, dan format tidak ikut dianalisis. Skor ini berasal dari detektor
-              Winston AI atau model Groq; bila layanan itu tidak tersedia, dari heuristik di server
-              ThinkPath.
+              Winston AI; bila layanan itu tidak tersedia, dari heuristik di server ThinkPath. Model
+              Groq hanya menaksir level Bloom.
             </>,
             <>
               <b>Pola pengerjaan</b>, yang ditampilkan terpisah dari skor dan tidak mengubahnya:
@@ -595,7 +595,7 @@ export function PolicyArticle({ className }: { className?: string }) {
             ],
             [
               "Groq, Inc.",
-              "Analisis teks (taksiran level Bloom dan indikasi AI), pembacaan teks dari gambar halaman dokumen, serta pengenalan suara dan penilaian jawaban Cek Paham.",
+              "Analisis teks (taksiran level Bloom), pembacaan teks dari gambar halaman dokumen, serta pengenalan suara dan penilaian jawaban Cek Paham.",
               "Teks jawaban dan jenjang studi, gambar halaman dokumen scan atau foto yang Anda unggah, audio jawaban Cek Paham beserta transkripnya, dan, bila dosen meminta saran, judul dan instruksi tugas serta ringkasan hasil analisis jawaban Anda, tanpa nama atau email.",
               <>
                 Amerika Serikat. Menurut dokumentasinya, Groq secara bawaan tidak menyimpan data
