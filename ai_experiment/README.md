@@ -2,7 +2,7 @@
 
 Ruang kerja validasi dan kalibrasi model ThinkPath. **Bukan** untuk melatih detektor dari nol: riset
 lintas-dataset menunjukkan model terlatih anjlok di konteks baru, dan tidak ada korpus jawaban esai Indonesia
-berlabel Bloom. Produksi tetap memakai rantai LLM dan heuristik; folder ini mengukur seberapa benar
+berlabel Bloom. Produksi memakai Winston lalu heuristik untuk skor AI, Groq lalu heuristik untuk Bloom; folder ini mengukur seberapa benar
 bobot dan ambang di `backend/apps/analysis/engines/`.
 
 Seluruh eksperimen disajikan sebagai **notebook bertahap** di [`notebooks/`](./notebooks). Urutannya
@@ -14,9 +14,15 @@ adalah alurnya: tiap notebook menjawab satu pertanyaan, dan hasilnya menjadi mas
 | [`01_gold_set`](./notebooks/01_gold_set.ipynb) | Label manusia vs AI tanpa anotator, dan empat jebakan kebocoran |
 | [`02_baseline_heuristik`](./notebooks/02_baseline_heuristik.ipynb) | ROC-AUC, mahasiswa jujur yang tertuduh (FPR), ambang aman, sinyal mati/terbalik |
 | [`03_tuning_bobot`](./notebooks/03_tuning_bobot.ipynb) | Bobot sinyal dari data, tanpa membocorkan test |
-| [`04_rantai_llm_dan_detektor`](./notebooks/04_rantai_llm_dan_detektor.ipynb) | Apakah lapisan Groq dan detektor berbayar mengungguli heuristik? |
+| [`04_rantai_llm_dan_detektor`](./notebooks/04_rantai_llm_dan_detektor.ipynb) | Apakah lapisan Groq dan detektor berbayar mengungguli heuristik? (bagian Groq kini historis: prompt produksi khusus Bloom) |
 | [`05_validasi_bloom`](./notebooks/05_validasi_bloom.ipynb) | Kesepakatan antar penilai (langit-langit) lalu akurasi E2 |
 | [`06_cekpaham_asr_dan_penilai`](./notebooks/06_cekpaham_asr_dan_penilai.ipynb) | Model ASR dan penilai jawaban lisan terhadap manusia |
+| [`07_e1_deteksi_ai`](./notebooks/07_e1_deteksi_ai.ipynb) | E1 pilot: Winston, heuristik, dan Groq pada esai manusia vs AI |
+| [`08_cekpaham_asr_fleurs`](./notebooks/08_cekpaham_asr_fleurs.ipynb) | WER, CER, dan latensi ASR Cek Paham pada 687 rekaman FLEURS |
+| [`09_e2_bloom`](./notebooks/09_e2_bloom.ipynb) | E2: level Bloom heuristik vs Groq pada jawaban terkontrol |
+| [`10_e1_salah_tuduh`](./notebooks/10_e1_salah_tuduh.ipynb) | E1 lanjutan: salah tuduh pada 40 potongan artikel manusia |
+| [`11_e2_bloom_soal`](./notebooks/11_e2_bloom_soal.ipynb) | E2 tambahan: soal berlabel Bloom (Indonesia dan Yahya dkk.) |
+| [`12_laporan_metrik`](./notebooks/12_laporan_metrik.ipynb) | Keluarga F1 E1/E2 dan WER, ditulis ke [`results/laporan_uji.md`](./results/laporan_uji.md). Tanpa panggilan API |
 
 Tahap yang butuh data, kunci API, atau label manusia melewati dirinya sendiri dengan pesan jelas bila
 prasyaratnya belum ada; `00` menampilkan statusnya.

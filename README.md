@@ -149,20 +149,21 @@ Dari kurva kata ini dosen melihat bentuk pengerjaan: **bertahap** (menulis sendi
 Dua mesin, **saling bebas**. Level Bloom tidak pernah memengaruhi skor AI, dan itu dijaga uji otomatis.
 
 <p align="center">
-  <img src="assets/analysis-layers.svg" alt="Dua mesin analisis: E1 indikasi AI (Groq, ditimpa Winston bila menjawab, heuristik sebagai cadangan dan pembanding) dan E2 level Bloom" width="100%">
+  <img src="assets/analysis-layers.svg" alt="Dua mesin analisis: E1 indikasi AI (Winston bila menjawab, selain itu heuristik lokal; Groq tidak memberi skor AI) dan E2 level Bloom" width="100%">
 </p>
 
-**Skor indikasi AI (0-100)** disusun dari tiga lapis. Layanan luar yang gagal atau kuncinya kosong dilewati. Pengumpulan tugas tidak pernah terblokir.
+**Skor indikasi AI (0-100)** disusun dari dua lapis, diurutkan menurut salah tuduh terendah pada uji E1 ([laporan](ai_experiment/results/laporan_uji.md)). Layanan luar yang gagal atau kuncinya kosong dilewati. Pengumpulan tugas tidak pernah terblokir.
 
-1. **Groq**, model bahasa yang menilai probabilitas AI. Jalan lebih dulu bila kuncinya ada dan teks tidak memuat kalimat yang ditujukan ke penilai otomatis.
-2. **Winston AI**, detektor eksternal. Bila menjawab, skornya **menimpa** skor Groq. Ia memberi skor "manusia", jadi ThinkPath membaliknya tepat satu kali.
-3. **Heuristik lokal**, lima sinyal teks yang dihitung di server sendiri. Menjadi skor bila Groq dan Winston tidak menjawab; selain itu tetap tampil sebagai **pembanding** berbobot 0.
+1. **Winston AI**, detektor eksternal. Salah tuduh 2 dari 18 tulisan manusia (sampel kecil). Ia memberi skor "manusia", jadi ThinkPath membaliknya tepat satu kali.
+2. **Heuristik lokal**, lima sinyal teks yang dihitung di server sendiri. Menjadi skor bila Winston tidak menjawab (F1 0,74, salah tuduh 11 dari 45); bila Winston menjawab, tetap tampil sebagai **pembanding** berbobot 0.
+
+Groq **tidak** memberi skor AI: pada uji yang sama ia hampir setara tebakan (AUC 0,60, salah tuduh 60%). Tokennya dipakai untuk level Bloom dan Cek Paham.
 
 Skor lalu dibagi tiga pita, dengan ambang per sumber skor:
 
 | Sumber skor | Rendah | Sedang | Tinggi |
 |---|---|---|---|
-| Heuristik dan Groq | di bawah 42 | 42 sampai 69 | 70 ke atas |
+| Heuristik | di bawah 42 | 42 sampai 69 | 70 ke atas |
 | Winston | di bawah 35 | 35 sampai 69 | 70 ke atas |
 
 Hanya dosen yang melihatnya. Pola pengerjaan **berbobot 0** di skor ini dan dilaporkan terpisah.
@@ -254,10 +255,10 @@ Jujur apa adanya:
 | Aspek | Status |
 |---|---|
 | Bobot sinyal teks dan ambang sedang 42 | **Terukur.** ROC-AUC uji 0,884 naik ke 0,912 pada gold set 999 sampel. FPR di bawah 5%. |
-| Ambang tinggi 70, ambang Winston 35/70, lapisan Winston dan Groq | Belum terukur pada teks Indonesia. |
-| Level Bloom | Berjalan, **belum divalidasi penilai manusia**. |
-| Cek Paham | Berjalan. Rubrik dan ambang **belum dikalibrasi**, UI selalu memberi label itu. |
-| Uji otomatis | 558 tes backend dan 85 tes ai_experiment, semuanya lolos. |
+| Urutan lapis skor AI (uji E1, 70 teks Indonesia) | **Terukur, sampel kecil.** Winston salah tuduh 11% (18 teks manusia), heuristik 24% (45), Groq 60%, jadi Groq dicabut dari skor AI. Ambang tinggi 70 belum terukur. |
+| Level Bloom | **Terukur kasar.** Groq tepat 31% dan meleset maksimal satu level 74% pada 58 jawaban terkontrol, tepat 57% pada 240 soal berlabel (Yahya dkk.). Belum divalidasi pada jawaban mahasiswa berlabel dosen. |
+| Cek Paham | Transkripsi terukur: WER 7,1% pada 687 rekaman FLEURS (whisper-large-v3-turbo). Rubrik dan ambang penilai **belum dikalibrasi**, UI selalu memberi label itu. |
+| Uji otomatis | 559 tes backend dan 96 tes ai_experiment, semuanya lolos. |
 
 > Gold set berisi **abstrak akademik**, bukan esai mahasiswa. Angka sah untuk membandingkan sinyal, tapi **bukan klaim akurasi pada jawaban tugas**. Seluruh eksperimen ada di [`ai_experiment/notebooks`](./ai_experiment/notebooks), disajikan bertahap dari gold set sampai evaluasi.
 
