@@ -136,7 +136,7 @@ export function EditorToolbar({
           ref={scroller}
           role="toolbar"
           aria-label="Format tulisan"
-          className="flex items-center gap-0.5 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex items-center gap-0.5 scrollbar-none overflow-x-auto overscroll-x-contain px-2 py-1.5"
         >
           <ToolbarButton
             icon={Undo2}
@@ -236,7 +236,7 @@ export function EditorToolbar({
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={run}
-              className="rounded-md border border-border bg-card px-2 py-1 font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-lg border border-border bg-card px-2 py-1 font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {label}
             </button>
@@ -245,7 +245,7 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => chain().deleteTable().run()}
-            className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Trash2 className="h-3 w-3" aria-hidden="true" /> Hapus tabel
           </button>

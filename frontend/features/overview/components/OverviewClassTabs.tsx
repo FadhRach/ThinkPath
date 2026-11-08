@@ -17,14 +17,7 @@ interface Props {
   initialId?: string;
 }
 
-/**
- * Satu kelas terlihat pada satu waktu.
- *
- * Dulu seluruh set grafik (peta, sebaran, tren, tabel) diulang ke bawah untuk
- * setiap kelas, sehingga halaman memanjang dan kelas kedua tampak seperti
- * salinan kelas pertama. Kelas terpilih disimpan di query `?kelas=` supaya
- * bertahan saat halaman dimuat ulang atau tautannya dibagikan.
- */
+/** Satu kelas per tampilan; pilihan disimpan di `?kelas=` agar bertahan saat dimuat ulang atau dibagikan. */
 export function OverviewClassTabs({ tabs, initialId }: Props) {
   const first = tabs[0]?.id ?? "";
   const [active, setActive] = useState(
@@ -40,9 +33,8 @@ export function OverviewClassTabs({ tabs, initialId }: Props) {
 
   return (
     <Tabs value={active} onValueChange={handleChange} className="space-y-5">
-      {/* Nama kelas panjang di layar sempit: daftar tab bergulir di wadahnya
-          sendiri, halaman tidak ikut melebar. */}
-      <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+      {/* Nama kelas panjang di ponsel: tab bergulir di wadahnya sendiri, halaman tidak melebar. */}
+      <div className="scrollbar-none -mx-4 overflow-x-auto overscroll-x-contain scroll-smooth px-4 pb-1 sm:mx-0 sm:px-0">
         <TabsList
           aria-label="Pilih kelas"
           className="h-auto w-max gap-1 rounded-xl border border-border bg-card p-1 shadow-soft"

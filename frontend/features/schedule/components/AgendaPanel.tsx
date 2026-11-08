@@ -59,7 +59,7 @@ export function AgendaPanel({ title, items, today, now, emptyText }: Props) {
   const cekpaham = items.length - deadlines;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-soft">
       <div className="border-b border-border px-4 py-3">
         <h2 className="font-bold text-foreground">{title}</h2>
         <p className="text-caption text-muted-foreground">

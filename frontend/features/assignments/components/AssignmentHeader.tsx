@@ -50,7 +50,7 @@ export function AssignmentHeader({ detail, achievedLevel }: AssignmentHeaderProp
         </div>
 
         {grade !== null ? (
-          <div className="shrink-0 rounded-2xl bg-success-soft px-8 py-5 text-center lg:min-w-44">
+          <div className="shrink-0 rounded-xl bg-success-soft px-8 py-5 text-center lg:min-w-44">
             <p className="text-xs font-semibold text-success">Nilai dari dosen</p>
             <p className="mt-1 text-5xl font-bold tabular-nums text-foreground">
               {grade}

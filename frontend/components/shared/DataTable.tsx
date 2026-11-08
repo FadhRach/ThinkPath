@@ -10,7 +10,7 @@ interface DataTableProps {
 /** Kerangka tabel standar; isi sel tetap ditulis pemakai lewat <td>. */
 export function DataTable({ headers, minWidthClass, children }: DataTableProps) {
   return (
-    <div className="overflow-x-auto">
+    <div className="scrollbar-thin overflow-x-auto overscroll-x-contain">
       <table className={cn("w-full border-collapse text-body-sm", minWidthClass)}>
         <thead>
           <tr className="border-b border-border text-left text-muted-foreground">

@@ -28,7 +28,7 @@ export function AuthHero() {
           {STATS.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3"
+              className="rounded-xl border border-white/20 bg-white/10 px-5 py-3"
             >
               <p className="text-2xl font-extrabold">{stat.value}</p>
               <p className="text-sm text-white/75">{stat.label}</p>

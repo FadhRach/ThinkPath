@@ -26,7 +26,7 @@ const MAX_CHIPS = 3;
 
 export function MonthGrid({ range, today, byDay, now, dayHref }: Props) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-soft">
       <div className="grid grid-cols-7 border-b border-border bg-muted/40">
         {WEEKDAY_SHORT.map((name) => (
           <p

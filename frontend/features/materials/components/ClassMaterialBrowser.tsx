@@ -94,10 +94,7 @@ function useActiveTopic(anchorKey: string): string | null {
   return active;
 }
 
-/**
- * Deretan chip topik di ponsel. Chip yang aktif digeser ke dalam layar,
- * hanya ke samping, supaya halaman tidak ikut melompat naik-turun.
- */
+/** Chip topik di ponsel; chip aktif digeser masuk hanya ke samping agar halaman tidak melompat. */
 function TopicChips({ groups, active }: { groups: TopicGroup[]; active: string | null }) {
   const listRef = useRef<HTMLUListElement>(null);
   useEffect(() => {
@@ -112,10 +109,7 @@ function TopicChips({ groups, active }: { groups: TopicGroup[]; active: string |
   }, [active]);
 
   return (
-    <ul
-      ref={listRef}
-      className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
+    <ul ref={listRef} className="scrollbar-none flex gap-2 overflow-x-auto overscroll-x-contain">
       {groups.map((group) => {
         const current = group.anchor === active;
         return (

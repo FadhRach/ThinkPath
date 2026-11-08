@@ -54,7 +54,7 @@ function DayBadge({
 /** Satu pekan: tujuh kolom di layar lebar, daftar per hari di layar sempit. */
 export function WeekBoard({ range, today, byDay, now }: Props) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-soft">
       <div className="hidden lg:grid lg:grid-cols-7 lg:gap-px lg:bg-border">
         {range.days.map((key, index) => {
           const items = byDay.get(key) ?? [];

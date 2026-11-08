@@ -15,7 +15,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-auto w-full items-center justify-start gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1.5 shadow-sm sm:w-fit",
+      // scroll-px-1 = gap-1: tab sebelumnya berhenti tepat di tepi, tidak menyisakan serpihan.
+      "scrollbar-none inline-flex h-auto w-full snap-x snap-proximity scroll-px-1 items-center justify-start gap-1 overflow-x-auto overscroll-x-contain scroll-smooth rounded-xl border border-border bg-card p-1.5 shadow-sm sm:w-fit",
       className,
     )}
     {...props}

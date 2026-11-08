@@ -118,7 +118,7 @@ export function PolicyConsent({ role, checked, onChange, policy }: Props) {
             aria-label="Isi Kebijakan Privasi"
             className="min-h-0 flex-1 space-y-8 overflow-y-auto px-5 py-5"
           >
-            <section className="rounded-2xl border border-brand-mint bg-secondary/40 p-4">
+            <section className="rounded-xl border border-brand-mint bg-secondary/40 p-4">
               <p className="font-bold text-foreground">
                 Dengan menyetujui, {you} mengizinkan ThinkPath memproses data untuk:
               </p>

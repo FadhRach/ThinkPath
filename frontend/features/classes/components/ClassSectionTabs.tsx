@@ -19,13 +19,12 @@ export function ClassSectionTabs({
 }: {
   classId: string;
   active: ClassSection;
-  /** Jumlah isi per bagian; Analitik tidak punya hitungan. */
   counts: Record<Exclude<ClassSection, "analitik">, number>;
 }) {
   return (
     <nav
       aria-label="Bagian kelas"
-      className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1.5 shadow-sm"
+      className="scrollbar-none flex snap-x snap-proximity scroll-px-1 gap-1 overflow-x-auto overscroll-x-contain scroll-smooth rounded-xl border border-border bg-card p-1.5 shadow-sm"
     >
       {TABS.map(({ id, label, icon: Icon }) => (
         <Link

@@ -2,17 +2,15 @@ import { Children, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * Kartu kelas berjajar ke samping. Dua kartu pas selebar baris; lebih dari dua, kartu ketiga
- * mengintip supaya jelas bahwa daftarnya bisa digeser. Dipakai mahasiswa dan dosen.
- */
+/** Lebih dari dua kelas: kartu ketiga sengaja mengintip, tanda bahwa deret ini bisa digeser. */
 export function ClassCarousel({ label, children }: { label: string; children: ReactNode }) {
   const items = Children.toArray(children);
   const scrolls = items.length > 2;
   return (
     <ul
       className={cn(
-        "-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1",
+        // scroll-px sama dengan padding: kartu berhenti utuh, tepi dan sudutnya tidak terpotong.
+        "scrollbar-thin -m-1 flex snap-x snap-mandatory scroll-px-1 gap-4 overflow-x-auto overscroll-x-contain scroll-smooth rounded-xl p-1",
         scrolls && "pb-3",
       )}
       aria-label={label}

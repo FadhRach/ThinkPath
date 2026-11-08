@@ -72,7 +72,7 @@ export function PolicyArticle({ className }: { className?: string }) {
     <article className={cn("min-w-0 max-w-3xl space-y-12", className)}>
       <section
         id="ringkasan"
-        className="scroll-mt-6 rounded-2xl border border-brand-mint bg-secondary/40 p-5 sm:p-6"
+        className="scroll-mt-6 rounded-xl border border-brand-mint bg-secondary/40 p-5 sm:p-6"
       >
         <h2 className="text-xl font-bold tracking-tight">Ringkasan</h2>
         <div className="mt-3 text-body leading-relaxed text-foreground/90">
