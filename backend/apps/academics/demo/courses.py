@@ -58,7 +58,7 @@ ALGO = Course(
     teacher="budi",
     name="Algorithm & Programming LA01",
     subject="Algorithm & Programming",
-    day_offset=4,
+    day_offset=1,  # pertemuan ke-10 kemarin: tugas singkat demo bertenggat ~6 hari lagi
     graded_through=7,
     partially_graded=(8,),
     sessions=(
@@ -138,12 +138,12 @@ ALGO = Course(
                 ex="pencarian NIM di 10.000 data", pick="binary search", alt="linear search", why="tiap langkah membuang separuh data")),
         _S("Sorting",
            ("Algoritma pengurutan", "Bubble sort, selection sort, dan merge sort beserta visualisasinya.", "https://en.wikipedia.org/wiki/Sorting_algorithm"),
-           "Bubble sort vs merge sort",
-           "Implementasikan bubble sort, lalu bandingkan waktunya dengan merge sort untuk 1.000 dan 10.000 data. Tarik kesimpulan dari hasilmu.",
-           5, "kode",
+           # Tugas singkat yang dikerjakan mhs01 secara langsung saat demo (QUICK_TASK di seed).
+           "Bubble sort atau merge sort?",
+           "Jawab singkat (3-5 kalimat): untuk mengurutkan 10.000 nilai mahasiswa, kamu memilih bubble sort atau merge sort? Jelaskan alasanmu.",
+           5, "esai",
            dict(topic="algoritma pengurutan", c=["jumlah pertukaran", "pembagian data", "waktu eksekusi", "ukuran data"],
-                ex="pengurutan 10.000 data acak", pick="merge sort", alt="bubble sort", why="waktunya tumbuh jauh lebih lambat saat data membesar"),
-           code="def {fn}({arr}):\n    n = len({arr})\n    for i in range(n):\n        for j in range(n - i - 1):\n            if {arr}[j] > {arr}[j + 1]:\n                {arr}[j], {arr}[j + 1] = {arr}[j + 1], {arr}[j]\n    return {arr}"),
+                ex="pengurutan 10.000 data acak", pick="merge sort", alt="bubble sort", why="waktunya tumbuh jauh lebih lambat saat data membesar")),
         _S("Record dan file",
            ("Membaca dan menulis file", "Membuka, membaca, dan menulis file teks serta CSV dengan aman memakai with.", "https://docs.python.org/3/tutorial/inputoutput.html"),
            "Menyimpan data mahasiswa ke CSV",
@@ -371,7 +371,7 @@ BIZ = Course(
     teacher="hendra",
     name="Business Creation LA01",
     subject="Business Creation",
-    day_offset=1,
+    day_offset=4,
     graded_through=6,
     partially_graded=(7,),
     sessions=(

@@ -39,7 +39,7 @@ class Persona:
 
 L, M, H = AiBand.LOW, AiBand.MID, AiBand.HIGH
 
-# Urutan = mhs01..mhs20. Indeks 5, 6, 7 dipakai seed Cek Paham, jadi tidak pernah absen.
+# Urutan = mhs01..mhs20. Indeks 0, 5, 7 dipakai seed Cek Paham: skip 0.0, jadi selalu mengumpulkan.
 STUDENTS = (
     Persona("Aditya Pratama", L, "naik", (25, 45), "tulis", False, 0.0, 0.5),
     Persona("Nabila Putri Ramadhani", L, "kuat", (35, 60), "tulis", True, 0.0, 0.7),

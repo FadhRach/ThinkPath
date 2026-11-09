@@ -12,7 +12,9 @@ _NAMESPACE = uuid.UUID("c0ffee00-0000-4000-8000-0000000070d0")
 
 # (kunci, judul, hari menuju tenggat atau None, selesai)
 _ITEMS = [
-    ("rekursi", "Latihan soal rekursi sebelum asistensi", 2, False),
+    ("sorting", "Kerjakan tugas bubble sort atau merge sort", 1, False),
+    ("cekpaham", "Ikuti Cek Paham binary search (siapkan mikrofon)", 2, False),
+    ("rekursi", "Latihan soal rekursi sebelum asistensi", 3, False),
     ("colab", "Rapikan notebook Colab decision tree", 4, False),
     ("pitch", "Bagi tugas slide pitch deck dengan kelompok", 6, False),
     ("strace", "Pasang strace di WSL", None, False),

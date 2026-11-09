@@ -1,12 +1,12 @@
 """Data demo Cek Paham untuk `seed_demo_data` (idempoten lewat uuid5).
 
-Tiga keadaan pada satu tugas (Linear search vs binary search), supaya seluruh alur bisa
-didemokan tanpa mikrofon sungguhan:
-- terbuka untuk mhs07 (semua akun demo sudah menyetujui kebijakan, jadi bisa langsung mencoba);
+Tiga keadaan pada satu tugas (Linear search vs binary search):
+- terbuka untuk mhs01 sampai OPEN_DAYS lagi, siap didemokan langsung;
 - sudah dinilai, dengan transkrip fixture (mhs08);
 - sudah dinilai dan ada laporan terbuka "transkrip tidak sesuai" (mhs06).
 
-Tidak ada audio asli. Transkrip dan penilaian adalah fixture, ditandai [DATA DEMO].
+Tidak ada audio asli. Transkrip dan penilaian adalah fixture, ditandai [DATA DEMO]. Seed ulang
+menghapus sesi latihan mhs01 supaya Cek Paham-nya bisa dimulai lagi.
 """
 from __future__ import annotations
 
@@ -29,6 +29,9 @@ from apps.cekpaham.models import (
 )
 
 NAMESPACE = uuid.UUID("3b1c0f5e-6a0d-4c46-9a52-0b9d5a1c7e21")
+OPEN_DAYS = 5
+# (label, indeks mahasiswa); indeks harus selalu mengumpulkan CEKPAHAM_TASK (lihat demo/answers.py).
+PLANS = (("open", 0), ("scored", 7), ("reported", 5))
 DEMO_NOTE = "[DATA DEMO] "
 QUESTION = "Di jawabanmu kamu memilih binary search. Jelaskan kenapa, dan bagaimana kamu menguji bahwa hasilnya benar."
 TRANSCRIPT = (
@@ -42,6 +45,7 @@ EVIDENCE = {
     "depth": "NIM yang tidak ada sama sekali",
     "ownership": "Untuk mengujinya saya coba cari NIM yang ada di awal",
 }
+
 
 def _id(label: str) -> uuid.UUID:
     return uuid.uuid5(NAMESPACE, label)
@@ -85,24 +89,18 @@ def _scored_attempt(label, cekpaham, *, started) -> CekPahamAttempt:
 
 
 def seed_cekpaham_demo(teacher: Profile, students: Sequence[Profile], assignment: Assignment) -> int:
-    if len(students) < 8:
-        return 0
     now = timezone.now()
-
     count = 0
-    plans = [
-        ("open", students[6], dict(window=(now - timedelta(hours=1), now + timedelta(days=3)))),
-        ("scored", students[7], dict(window=(now - timedelta(days=2), now + timedelta(days=1)))),
-        ("reported", students[5], dict(window=(now - timedelta(days=2), now + timedelta(days=1)))),
-    ]
-    for label, student, options in plans:
-        submission = Submission.objects.filter(assignment=assignment, student_profile=student).first()
+    for label, index in PLANS:
+        submission = Submission.objects.filter(assignment=assignment, student_profile=students[index]).first()
         if submission is None:
             continue
-        cekpaham = _request(f"cp-{label}", submission, teacher, **options)
         count += 1
         if label == "open":
+            cekpaham = _request("cp-open", submission, teacher, window=(now - timedelta(hours=1), now + timedelta(days=OPEN_DAYS)))
+            cekpaham.attempts.all().delete()  # sisa latihan demo
             continue
+        cekpaham = _request(f"cp-{label}", submission, teacher, window=(now - timedelta(days=2), now + timedelta(days=1)))
         attempt = _scored_attempt(f"cp-{label}-attempt", cekpaham, started=now - timedelta(hours=5))
         if label == "reported":
             CekPahamReport.objects.update_or_create(
