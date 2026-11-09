@@ -37,6 +37,8 @@ mv "$media.tmp" "$media"
 
 if [ -n "$remote" ]; then
     rclone copy "$file" "$remote" && rclone copy "$media" "$remote"
+    # Kebijakan privasi menjanjikan cadangan hanya 7 hari, termasuk salinan remote.
+    rclone delete --min-age 8d "$remote"
 fi
 
 find backups \( -name 'thinkpath-*.sql.gz*' -o -name 'media-*.tar.gz*' \) -mtime +7 -delete

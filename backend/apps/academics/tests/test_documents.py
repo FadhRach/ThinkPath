@@ -246,6 +246,25 @@ class UploadTest(DocumentTestCase):
         self.assertIn("Kebijakan Privasi", str(response.data))
         transcribe.assert_not_called()
 
+    def test_oversized_images_are_refused_before_decoding(self):
+        self.allow_external()
+        pdf = pymupdf.open()
+        pdf.new_page().insert_image(pymupdf.Rect(0, 0, 300, 200), stream=make_png())
+        with patch.object(documents, "MAX_IMAGE_PIXELS", 1000), patch.object(
+            documents.groq_vision, "transcribe"
+        ) as transcribe:
+            for name, data in (("foto.png", make_png()), ("scan.pdf", pdf.tobytes())):
+                with self.subTest(name=name):
+                    response = self.upload(data, name)
+                    self.assertEqual(response.status_code, 400)
+                    self.assertIn("Resolusi gambar", str(response.data))
+        transcribe.assert_not_called()
+
+    def test_image_size_is_read_from_the_header(self):
+        pixmap = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 70, 30), False)
+        self.assertEqual(documents._header_pixels(pixmap.tobytes("png"), "png"), 2100)
+        self.assertEqual(documents._header_pixels(pixmap.tobytes("jpeg"), "jpeg"), 2100)
+
     def test_file_type_comes_from_content_not_name(self):
         for name, data in (
             ("laporan.pdf", b"MZ\x90\x00 bukan pdf"),
