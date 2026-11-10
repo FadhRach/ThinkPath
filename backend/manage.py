@@ -4,8 +4,7 @@ import sys
 
 
 def main() -> None:
-    # Tes SELALU memakai settings test (SQLite in-memory), apa pun isi env,
-    # supaya `manage.py test` tidak pernah menyentuh basis data sungguhan.
+    # Tes SELALU memakai settings test (SQLite in-memory), apa pun isi env (dijaga common/tests.py).
     if sys.argv[1:2] == ["test"]:
         os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.test"
     else:

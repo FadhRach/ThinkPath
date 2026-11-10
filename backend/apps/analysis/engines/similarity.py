@@ -1,10 +1,4 @@
-"""Kemiripan antar jawaban dalam satu tugas, lewat irisan potongan lima kata berurutan.
-
-Potongan lima kata yang sama persis antara dua tulisan mandiri sangat jarang; lazimnya itu
-tanda salin-tempel dari satu sumber atau dari satu sama lain. Hasilnya petunjuk untuk
-dibandingkan, bukan vonis: dua mahasiswa yang menyalin dari buku yang sama juga akan mirip, dan
-kalimat yang dikutip dari soal tugas ikut dihitung.
-"""
+"""Kemiripan antar jawaban satu tugas: irisan potongan 5 kata berurutan. Petunjuk, bukan vonis."""
 from __future__ import annotations
 
 import re

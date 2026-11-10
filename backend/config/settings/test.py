@@ -1,13 +1,9 @@
-"""Dipaksa untuk `manage.py test`. POSTGRES_* sengaja diabaikan: dulu tes
-memakai database dari .env dan nyaris menghapus DB server produksi."""
+"""Dipaksa manage.py untuk `test` (SQLite in-memory); POSTGRES_* diabaikan agar tes tak menyentuh DB sungguhan."""
 import os
 
 from config.settings.base import *  # noqa: F403
 
-# Kunci dari .env tidak boleh sampai ke tes: tes yang lupa menirukan penyedia
-# akan menagih kredit sungguhan (Winston per kata). Groq diisi kunci palsu
-# karena tes Cek Paham mensyaratkan kunci ada (503 bila kosong) dan menirukan
-# panggilannya sendiri; panggilan yang lolos tiruan ditolak 401, tanpa biaya.
+# Kunci .env tidak boleh sampai ke tes (Winston menagih per kata); Groq palsu karena Cek Paham butuh kunci ada.
 os.environ["GROQ_API_KEY"] = "kunci-palsu-untuk-tes"
 os.environ["WINSTON_API_KEY"] = ""
 

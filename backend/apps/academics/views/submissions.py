@@ -110,8 +110,7 @@ class TeacherSubmissionQueueView(APIView):
         rows = rows.select_related(
             "student_profile", "assignment__class_ref", "analysis"
         ).order_by("-submitted_at", "-created_at")
-        # Dibatasi: tanpa batas, dosen dengan ribuan pengumpulan menerima dan
-        # merender semuanya. Total sebenarnya ada di header untuk penanda "terpotong".
+        # Dibatasi; total sebenarnya di header untuk penanda "terpotong".
         total = rows.count()
         limit = _page_size(request.query_params.get("limit"))
         raw_offset = request.query_params.get("offset", "0")
@@ -146,10 +145,7 @@ class SubmissionDetailView(APIView):
 
 
 class SubmissionReanalyzeView(APIView):
-    """POST antrekan analisis ulang satu submission (dosen pemilik).
-
-    Membalas 202: hasilnya dikerjakan worker. Layar dosen memuat ulang sampai
-    `analysis_state` kembali "done"."""
+    """POST antrekan analisis ulang (dosen pemilik); 202, layar memuat ulang sampai analysis_state "done"."""
 
     permission_classes = [IsTeacher]
     throttle_classes = [PerUserScopedThrottle]
@@ -165,10 +161,7 @@ class SubmissionReanalyzeView(APIView):
 
 
 class SubmissionSuggestionView(APIView):
-    """POST saran untuk dosen atas satu jawaban (aturan lokal, plus narasi bila diizinkan).
-
-    Dosen yang menekan tombolnya, satu kali per permintaan: tidak ada pemanggilan otomatis, jadi
-    jawaban tidak dikirim ke luar negeri tanpa tindakan dosen dan izin mahasiswa."""
+    """POST saran untuk dosen atas satu jawaban; hanya atas klik dosen, jadi tak ada kiriman ke luar tanpa tindakan."""
 
     permission_classes = [IsTeacher]
     throttle_classes = [PerUserScopedThrottle]

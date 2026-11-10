@@ -71,8 +71,7 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        # Persetujuan dicatat bersama akun; token dibuat sesudahnya sehingga
-        # sudah memuat klaim persetujuan dan pengguna langsung masuk aplikasi.
+        # Token dibuat setelah persetujuan dicatat agar langsung memuat klaimnya.
         profile = register_profile(
             email=data["email"],
             password=data["password"],
@@ -84,13 +83,7 @@ class RegisterView(APIView):
 
 
 class AccountLoginThrottle(SimpleRateThrottle):
-    """Batas percobaan login per email, di samping batas per IP.
-
-    Batas per IP saja membiarkan satu penyerang yang berpindah-pindah IP
-    menebak sandi satu akun tanpa henti. Konsekuensi yang diterima: orang lain
-    bisa membuat satu akun tidak bisa login selama satu menit; itu lebih murah
-    daripada membiarkan tebakan tanpa batas.
-    """
+    """Batas percobaan login per email, di samping per IP (penyerang yang berganti IP tetap tertahan)."""
 
     scope = "auth_login_account"
 
@@ -117,8 +110,7 @@ class LoginView(APIView):
                 {"detail": "Email atau kata sandi salah."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        # Diperiksa SETELAH kata sandi terbukti benar. Kalau urutannya dibalik,
-        # siapa pun bisa menebak peran sebuah email tanpa tahu kata sandinya.
+        # Diperiksa SETELAH sandi benar, agar peran sebuah email tidak bisa ditebak.
         requested_role = data.get("role")
         if requested_role and requested_role != profile.role:
             return Response(
@@ -196,13 +188,7 @@ class DeletionImpactView(APIView):
 
 
 class ConsentView(APIView):
-    """Persetujuan pemrosesan data pribadi milik pemanggil.
-
-    GET: keadaan yang berlaku beserta riwayatnya.
-    POST: menyetujui ulang versi kebijakan yang berlaku (akun lama, versi baru,
-    atau setelah ditarik). Pendaftaran baru mencatat persetujuan sendiri di
-    RegisterView. Token baru dikembalikan karena klaim di token lama usang.
-    """
+    """GET: persetujuan berlaku + riwayat. POST: setujui ulang versi berlaku; token baru dikembalikan."""
 
     def get(self, request):
         profile = get_request_profile(request)
@@ -212,8 +198,7 @@ class ConsentView(APIView):
         profile = get_request_profile(request)
         serializer = ConsentGiveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # Idempoten: klik ganda atau tab basi tidak boleh menambah baris GIVEN
-        # dan menggeser tanggal bukti persetujuan yang sudah berlaku.
+        # Idempoten: klik ganda tidak boleh menambah baris GIVEN atau menggeser tanggal bukti.
         if current_consent(profile.id) is not None:
             return Response(
                 {"token": create_access_token(profile, request.user.sid), "consent": consent_status(profile.id)}
@@ -231,12 +216,7 @@ class ConsentView(APIView):
 
 
 class ConsentWithdrawView(APIView):
-    """POST menarik persetujuan (Pasal 9 UU PDP).
-
-    Berlaku seketika untuk pemrosesan baru: pengumpulan jawaban dan analisis
-    ulang memeriksa basis data, bukan klaim token. Pasal 40 memberi batas
-    paling lambat 3 x 24 jam; di sini tidak ada jeda sama sekali.
-    """
+    """POST menarik persetujuan (Pasal 9 UU PDP); berlaku seketika karena pemrosesan memeriksa DB, bukan token."""
 
     def post(self, request):
         profile = get_request_profile(request)
@@ -258,12 +238,7 @@ class LogoutView(APIView):
 
 
 class UploadTicketView(APIView):
-    """POST tiket pendek untuk mengunggah/mengambil berkas langsung ke API.
-
-    Fungsi Vercel membatasi badan permintaan 4,5 MB, sedangkan dokumen bisa 10 MB
-    dan audio 5 MB. Tiket hanya diterima endpoint yang menyatakan
-    `accepts_upload_ticket`, dan tiket tidak bisa meminta tiket lagi.
-    """
+    """POST tiket pendek untuk unggah/ambil berkas langsung ke API (proxy Vercel dibatasi 4,5 MB)."""
 
     throttle_classes = [PerUserScopedThrottle]
     throttle_scope = "upload_ticket"

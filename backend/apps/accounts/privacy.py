@@ -1,14 +1,7 @@
-"""Persetujuan pemrosesan data pribadi menurut UU No. 27 Tahun 2022 (UU PDP).
+"""Persetujuan pemrosesan data pribadi (UU No. 27 Tahun 2022).
 
-Satu versi Kebijakan Privasi berlaku pada satu waktu. Isinya ada di frontend
-(`/kebijakan-privasi`), dan versinya harus sama dengan konstanta di bawah;
-tes memeriksa keduanya supaya tidak menyimpang diam-diam.
-
-Pengguna menyetujui satu kali, di form daftar. Tiap tujuan tetap tercatat
-sebagai butir tersendiri di bukti persetujuan dan dijelaskan terpisah di
-halaman kebijakan, karena Pasal 22 ayat (4) mewajibkan tujuan yang berbeda
-dapat dibedakan secara jelas. Persetujuan yang tidak memenuhi ketentuan itu
-batal demi hukum (ayat (5)).
+Satu centang di form daftar, tiap tujuan tetap butir tersendiri (Pasal 22 ayat (4)).
+Versi harus sama dengan frontend/lib/privacy.ts (diperiksa tes).
 """
 from __future__ import annotations
 
@@ -20,31 +13,20 @@ from django.utils import timezone
 
 from apps.accounts.models import ConsentAction, ConsentRecord, Role
 
-# Tanggal berlaku versi kebijakan. Mengubahnya membuat semua persetujuan lama
-# tidak berlaku, sehingga setiap pengguna diminta membaca dan menyetujui ulang
-# sebelum pemrosesan berlanjut dengan ketentuan baru (Pasal 21 ayat (2)).
+# Mengubahnya membatalkan semua persetujuan lama; pengguna menyetujui ulang (Pasal 21 ayat (2)).
 PRIVACY_POLICY_VERSION = "2026-10-26"
 
-# Data akun, kelas, jawaban, nilai, dan umpan balik untuk perkuliahan,
-# termasuk dokumen yang diunggah, penyimpanannya di VPS Jakarta, dan
-# penyajian halaman oleh Vercel.
+# Data akun, kelas, jawaban, nilai, umpan balik, dokumen; disimpan di VPS Jakarta, dirender Vercel.
 ITEM_COURSE_DATA = "data_perkuliahan"
-# Perekaman jumlah kata tiap 30 detik dan analisis otomatis (level Bloom dan
-# indikasi penggunaan AI) sebagai bahan tinjau dosen.
+# Rekaman jumlah kata tiap 30 detik dan analisis otomatis (Bloom, indikasi AI) untuk tinjauan dosen.
 ITEM_PROCESS_ANALYSIS = "analisis_proses"
 # Berusia 18 tahun ke atas, atau orang tua/wali sudah menyetujui (Pasal 25).
 ITEM_AGE = "usia_atau_izin_wali"
-# Dosen: memakai data mahasiswa hanya untuk kelasnya, menjaga kerahasiaan,
-# dan tidak menjatuhkan sanksi hanya berdasarkan skor.
+# Dosen: data mahasiswa hanya untuk kelasnya, rahasia, tanpa sanksi hanya karena skor.
 ITEM_TEACHER_DUTIES = "tanggung_jawab_dosen"
-# Teks jawaban dikirim ke Groq (AS) dan Winston AI (Kanada), begitu pula
-# gambar halaman dokumen scan/foto yang diunggah untuk dibaca. Tanpa butir ini
-# di catatan persetujuan, jawaban hanya dianalisis heuristik di server
-# ThinkPath dan dokumen yang butuh pembacaan gambar ditolak.
+# Teks/gambar dokumen ke Groq (AS) dan Winston (Kanada); tanpa butir ini: heuristik saja, OCR gambar ditolak.
 ITEM_EXTERNAL_AI = "analisis_luar_negeri"
-# Suara mahasiswa direkam saat menjawab Cek Paham, disimpan di VPS Jakarta, dan
-# dikirim ke Groq (AS) untuk ditranskripsi. Berlaku bersama ITEM_EXTERNAL_AI
-# karena pengiriman audio itu transfer ke luar negeri.
+# Rekaman suara Cek Paham ke Groq (AS); berlaku bersama ITEM_EXTERNAL_AI (transfer ke luar negeri).
 ITEM_VOICE_CEKPAHAM = "rekaman_suara_cekpaham"
 
 # Semua butir wajib: satu centang di form daftar menyetujui seluruhnya.
@@ -82,11 +64,7 @@ def latest_record(profile_id: UUID) -> ConsentRecord | None:
 def record_consent(
     profile_id: UUID, action: str, items: Iterable[str], *, source: str = ""
 ) -> ConsentRecord:
-    """Tambahkan satu peristiwa persetujuan untuk versi kebijakan yang berlaku.
-
-    Waktunya dipaksa selalu naik: dua peristiwa berurutan yang kebetulan
-    tercatat pada mikrodetik yang sama akan membuat "baris terbaru" ambigu.
-    """
+    """Tambah satu peristiwa persetujuan; waktunya dipaksa naik agar "baris terbaru" tidak ambigu."""
     now = timezone.now()
     latest = latest_record(profile_id)
     if latest is not None and now <= latest.created_at:
@@ -102,12 +80,7 @@ def record_consent(
 
 
 def current_consent(profile_id: UUID) -> ConsentRecord | None:
-    """Persetujuan yang berlaku sekarang, atau None.
-
-    None berarti belum pernah memberi, sudah menarik, atau yang diberikan
-    untuk versi kebijakan lama. Ketiganya sama akibatnya: pemrosesan baru
-    tidak boleh berjalan sampai pengguna menyetujui versi yang berlaku.
-    """
+    """Persetujuan berlaku, atau None (belum pernah, ditarik, atau versi lama): pemrosesan baru diblokir."""
     record = latest_record(profile_id)
     if (
         record is None

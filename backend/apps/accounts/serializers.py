@@ -21,10 +21,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 def validate_policy_version(value: str) -> str:
-    """Versi dikirim frontend dan wajib sama dengan versi backend, supaya yang
-    tercatat benar-benar versi kebijakan yang dibaca pengguna. Selisih versi
-    hanya terjadi sesaat ketika frontend dan backend belum sama-sama diperbarui.
-    """
+    """Versi kiriman frontend wajib sama dengan backend agar yang tercatat benar versi yang dibaca."""
     if value != privacy.PRIVACY_POLICY_VERSION:
         raise serializers.ValidationError(
             "Kebijakan Privasi baru saja diperbarui. Muat ulang halaman, baca "
@@ -33,14 +30,11 @@ def validate_policy_version(value: str) -> str:
     return value
 
 
-# Pesan untuk bundel frontend lama yang belum mengirim kolom persetujuan:
-# frontend (Vercel) dan backend (VPS) dideploy terpisah.
+# Untuk bundel frontend lama tanpa kolom persetujuan (frontend dan backend dideploy terpisah).
 STALE_BUNDLE = {"required": "Halaman sudah usang. Muat ulang halaman, lalu coba lagi."}
 
 
-# Pesan bawaan validator Django ada di locale django.contrib.auth, yang tidak
-# terpasang di sini (identitas dikelola sendiri), jadi tampil berbahasa Inggris.
-# Dipetakan lewat kode galatnya supaya pengguna membaca bahasa Indonesia.
+# Locale django.contrib.auth tidak terpasang; pesan validator dipetakan ke bahasa Indonesia lewat kodenya.
 PASSWORD_MESSAGES = {
     "password_too_short": "Kata sandi minimal 10 karakter.",
     "password_too_common": "Kata sandi ini terlalu umum dipakai. Pilih yang lebih unik.",
@@ -65,8 +59,7 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=128)
     display_name = serializers.CharField(max_length=120)
     role = serializers.ChoiceField(choices=Role.choices)
-    # Satu centang di form daftar. Kedua field ini hanya untuk pemeriksaan dan
-    # dibuang sebelum akun dibuat; yang tersimpan adalah baris persetujuan.
+    # Hanya untuk pemeriksaan, dibuang sebelum akun dibuat; yang tersimpan baris persetujuan.
     accept_policy = serializers.BooleanField(error_messages=STALE_BUNDLE)
     policy_version = serializers.CharField(max_length=20, error_messages=STALE_BUNDLE)
 
@@ -97,19 +90,12 @@ class RegisterSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(max_length=128)
-    # Peran yang dipilih di layar login. Bila dikirim, wajib sama dengan peran
-    # akun. Sengaja opsional: frontend (Vercel) dan backend (VPS) di-deploy
-    # terpisah, dan frontend lama yang belum mengirim peran tidak boleh
-    # ikut gagal login. Ini penjaga pengalaman pengguna, bukan kontrol akses; hak
-    # akses tetap ditentukan klaim peran di token.
+    # Opsional (frontend lama); bila dikirim wajib sama dengan peran akun. Penjaga UX, bukan kontrol akses.
     role = serializers.ChoiceField(choices=Role.choices, required=False)
 
 
 class ConsentGiveSerializer(serializers.Serializer):
-    """Persetujuan ulang dari layar persetujuan (versi baru atau setelah ditarik).
-
-    Butir yang disetujui ditentukan server dari peran, bukan dikirim klien.
-    """
+    """Persetujuan ulang (versi baru/setelah ditarik); butirnya ditentukan server dari peran."""
 
     policy_version = serializers.CharField(max_length=20)
 

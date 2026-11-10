@@ -31,8 +31,7 @@ from apps.accounts.permissions import IsStudent
 from apps.accounts.services import get_request_profile
 from common.http import request_user_id
 
-# Rentang kalender terlebar per permintaan: tampilan bulan memuat paling
-# banyak enam pekan, jadi satu permintaan tidak bisa menyapu setahun penuh.
+# Maksimal enam pekan (tampilan bulan) per permintaan.
 SCHEDULE_MAX_RANGE = timedelta(days=62)
 
 
@@ -150,12 +149,7 @@ def _parse_instant(raw: str | None) -> datetime | None:
 
 
 class StudentScheduleView(APIView):
-    """GET agenda mahasiswa: tenggat tugas dan batas waktu Cek Paham.
-
-    Tanpa parameter: agenda mendatang (kartu beranda). Dengan start & end
-    (ISO 8601 berzona): seluruh agenda di rentang itu (kalender). Batas hari
-    dihitung frontend pada zona tampilan.
-    """
+    """GET agenda: tanpa parameter = mendatang (beranda); start & end ISO 8601 berzona = rentang kalender."""
 
     permission_classes = [IsStudent]
 
@@ -169,8 +163,7 @@ class StudentScheduleView(APIView):
         start, end = _parse_instant(raw_start), _parse_instant(raw_end)
         if start is None or end is None:
             raise ValidationError("start dan end wajib berupa waktu ISO 8601 lengkap dengan zona.")
-        # Dibandingkan lewat selisih, bukan start + 62 hari: penjumlahan itu
-        # meluap untuk tanggal dekat tahun 9999 dan berakhir sebagai galat 500.
+        # Lewat selisih, bukan start + 62 hari: penjumlahan meluap dekat tahun 9999 (galat 500).
         if not (start < end and end - start <= SCHEDULE_MAX_RANGE):
             raise ValidationError("Rentang jadwal harus maju dan paling panjang 62 hari.")
         return Response(build_student_calendar(student_id, start, end))

@@ -1,8 +1,4 @@
-"""Notifikasi di dalam aplikasi untuk dosen dan mahasiswa.
-
-Disimpan per penerima, bukan dihitung ulang tiap kali dibuka, karena status
-"sudah dibaca" hanya bisa dilacak pada baris yang benar-benar ada.
-"""
+"""Notifikasi dalam aplikasi, disimpan per penerima agar status "sudah dibaca" bisa dilacak."""
 from __future__ import annotations
 
 import uuid
@@ -42,12 +38,9 @@ class Notification(models.Model):
     body = models.CharField(max_length=300, blank=True, default="")
     # Rute frontend yang dibuka ketika notifikasi diklik.
     link = models.CharField(max_length=300, blank=True, default="")
-    # Waktu yang dibicarakan notifikasi, misalnya tenggat tugas atau batas Cek Paham.
-    # Disimpan sebagai waktu, tidak dirakit ke dalam kalimat: backend berjalan
-    # pada UTC dan jam hanya boleh diformat di frontend, di zona pembacanya.
+    # Disimpan sebagai waktu, bukan di kalimat: backend UTC, jam diformat frontend di zona pembaca.
     event_at = models.DateTimeField(null=True, blank=True)
-    # Kunci penggabung. Notifikasi berkunci sama yang belum dibaca digabung
-    # ("3 pengumpulan baru"), dan pengingat tenggat hanya dikirim sekali.
+    # Kunci penggabung (notify_grouped) dan pengingat sekali kirim (notify_once).
     group_key = models.CharField(max_length=120, blank=True, default="")
     count = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(default=timezone.now)
@@ -58,8 +51,7 @@ class Notification(models.Model):
         indexes = [
             models.Index(fields=["recipient", "-created_at"], name="notif_recipient_recent_idx"),
             models.Index(fields=["recipient", "group_key"], name="notif_recipient_group_idx"),
-            # Lonceng menghitung yang belum dibaca di setiap halaman; index
-            # parsial ini hanya memuat baris yang belum dibaca, jadi tetap kecil.
+            # Index parsial hanya baris belum dibaca: hitungan lonceng tetap murah.
             models.Index(
                 fields=["recipient"],
                 condition=models.Q(read_at__isnull=True),
@@ -67,12 +59,7 @@ class Notification(models.Model):
             ),
         ]
         constraints = [
-            # Pengingat tenggat hanya boleh ada satu per mahasiswa per tugas.
-            # Pemeriksaan di notify_once saja tidak cukup: lonceng dimuat saat
-            # halaman dibuka, saat jendela kembali aktif, dan saat diklik, dan
-            # dua permintaan yang tiba bersamaan di worker berbeda sama-sama
-            # lolos pemeriksaan itu. Kunci lain sengaja tidak diikat, karena
-            # notify_grouped membuat baris baru berkunci sama setelah dibaca.
+            # Satu pengingat tenggat per mahasiswa per tugas; cek di notify_once saja kalah balapan antar permintaan.
             models.UniqueConstraint(
                 fields=["recipient", "group_key"],
                 condition=models.Q(kind="deadline_soon"),

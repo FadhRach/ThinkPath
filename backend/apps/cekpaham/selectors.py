@@ -1,9 +1,4 @@
-"""Query baca untuk Cek Paham.
-
-Seperti academics.selectors: kepemilikan dicek di memori setelah satu query,
-dan objek milik orang lain dibalas 404 (bukan 403) agar keberadaannya tidak
-bocor. Selector sendiri dipakai karena require_member_assignment membalas 403.
-"""
+"""Query baca Cek Paham; milik orang lain -> 404 (bukan 403 seperti require_member_assignment)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -76,11 +71,7 @@ def require_report_for_teacher(request, report_id: str) -> CekPahamReport:
 
 
 def live_attempt(cekpaham: CekPaham) -> CekPahamAttempt | None:
-    """Attempt yang masih berlaku (belum di-void dosen), atau None.
-
-    Dibaca lewat `.all()` supaya hasil prefetch terpakai dan antrean tidak
-    menjalankan satu query per baris. Tanpa prefetch, ini satu query biasa.
-    """
+    """Attempt yang belum di-void, atau None; lewat .all() agar prefetch terpakai."""
     live = [a for a in cekpaham.attempts.all() if a.status != AttemptStatus.VOIDED]
     return max(live, key=lambda a: a.number) if live else None
 

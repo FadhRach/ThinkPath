@@ -1,8 +1,4 @@
-"""Klien Groq untuk membaca teks dari gambar (OCR lewat model visual).
-
-Dipisah dari groq.py karena permintaannya berbeda (gambar, bukan JSON skor)
-dan model-nya pun berbeda. Memakai kunci Groq yang sama dengan penilaian.
-"""
+"""Klien Groq untuk OCR gambar lewat model visual (kunci Groq sama, model berbeda)."""
 from __future__ import annotations
 
 import base64
@@ -12,15 +8,12 @@ import requests
 
 from apps.analysis.providers.groq import GROQ_API_URL
 
-# Katalog Groq berubah (llama-4-scout sudah hilang); qwen ini diuji menerima
-# gambar pada Oktober 2026. Ganti lewat GROQ_VISION_MODEL bila dipensiunkan.
+# Diuji menerima gambar (Oktober 2026); ganti lewat GROQ_VISION_MODEL bila dipensiunkan.
 DEFAULT_MODEL = "qwen/qwen3.8-27b"
-# Beberapa halaman dibaca paralel dan seluruh request harus selesai jauh
-# sebelum timeout gunicorn (60 detik).
+# Halaman dibaca paralel; seluruh request harus selesai jauh sebelum timeout gunicorn 60 s.
 REQUEST_TIMEOUT_SECONDS = 20
 
-# Titik penutup wajib: analisis teks memecah kalimat dari tanda baca akhir,
-# bukan dari baris baru, jadi daftar berpoin tanpa titik terbaca satu kalimat.
+# Titik penutup wajib: pemecah kalimat membaca tanda baca, bukan baris baru.
 PROMPT = """Transkripsikan SELURUH teks pada gambar halaman tugas mahasiswa Indonesia ini, apa adanya tanpa menambah, merangkum, atau menafsirkan.
 
 Aturan:

@@ -1,73 +1,25 @@
-"""E1 sinyal 4: forensik proses pengerjaan.
+"""Forensik proses pengerjaan: nilai 0-1 dari kurva pertumbuhan kata (atau laju mengetik).
 
-Ini sinyal terkuat yang dimiliki ThinkPath, dan satu satunya dari empat sinyal
-blueprint yang datanya sudah tersedia penuh tanpa model, dataset, atau GPU.
-Alasannya: sinyal ini tidak membaca teks sama sekali. Parafrase, humanizer, dan
-penulisan ulang tidak mengubah fakta bahwa 412 kata muncul dalam 4 menit lewat
-satu lonjakan tanpa pengetikan bertahap.
-
-Yang TIDAK diskor di sini, dan itu disengaja:
-
-Jam pengumpulan. Mengumpulkan pukul 02.37 memang layak dilaporkan ke dosen, tetapi
-sebagai pembeda ia buruk. Mahasiswa rajin yang begadang dan mahasiswa yang menyalin akan
-terlihat sama. Menghukum jam pengerjaan juga menghukum mahasiswa yang hanya punya
-waktu malam hari. Jam tetap ditampilkan di layar dosen, tetapi tidak menambah
-skor.
-
-Jumlah revisi. Yang tersedia hanya berapa kali tombol Simpan Revisi ditekan
-SETELAH jawaban dikumpulkan, bukan penyuntingan saat menulis. Submit pertama
-selalu bernilai nol revisi, sehingga ketika revisi masih diskor, setiap jawaban
-sepanjang 100 kata ke atas otomatis mendapat +7,5 poin skor AI, dan esai yang
-sama bisa pindah band hanya karena tombol yang ditekan. Jumlah revisi tetap
-ditulis di bukti untuk dosen, sama seperti jam: ditampilkan, tidak diskor.
-
-Tindakan menempel. Mahasiswa wajar menempel kutipan, definisi, atau data dari
-artikel yang ia rujuk, jadi menempel sendiri bukan tanda apa pun dan hanya
-menambah bising. Form tidak merekamnya, dan skor tidak membacanya. Yang tetap
-dibaca adalah bentuk kurva pertumbuhan kata: seluruh jawaban yang muncul dalam
-satu lonjakan lalu datar tetap terlihat, tetapi sumbangannya sebanding dengan
-porsinya, sehingga satu kutipan pendek di tengah esai hanya bergeser sedikit.
-
-Sinyal ini TIDAK menjumlah ke skor AI (lihat PROCESS_WEIGHT di ai_score.py).
-Ia dilaporkan terpisah sebagai "pola pengerjaan" (assess_process). Alasannya
-terukur: ambang skor AI diukur pada teks saja; tidak ada data berlabel untuk
-bobot proses; dan mahasiswa yang menulis di Word lalu menempel menghasilkan
-lonjakan yang sama dengan penyalin tanpa menjadi penyalin. Dosen yang membaca
-dua bukti terpisah bisa menimbang konteksnya sendiri.
-
-Jam dinding juga tidak dirakit di modul ini. Backend berjalan pada TIME_ZONE UTC
-sedangkan frontend merender waktu ke zona lokal pembaca, sehingga jam yang
-ditanam di string dari sini akan berbeda dengan jam di layar. Modul ini hanya
-menghasilkan besaran yang bebas zona waktu: durasi, laju, dan jumlah kata.
+Berbobot 0 di skor AI (PROCESS_WEIGHT); dilaporkan terpisah sebagai process_band lewat assess_process.
+Jam pengumpulan, jumlah revisi, dan tindakan menempel sengaja tidak diskor (hanya ditampilkan).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Laju mengarang berkelanjutan untuk mahasiswa. Di bawah batas bawah dianggap wajar,
-# di atas batas atas praktis mustahil untuk teks yang disusun sendiri.
+# Laju mengarang (kata/menit): <= 25 wajar, >= 80 praktis mustahil untuk teks yang disusun sendiri.
 PLAUSIBLE_WPM = 25.0
 IMPLAUSIBLE_WPM = 80.0
 
-
-# Lonjakan = sedikitnya BURST_WORDS kata yang tiba dengan laju minimal BURST_WPM
-# antar dua cuplikan. Dua syarat, bukan satu: cuplikan sekarang dicatat server
-# pada jarak tidak tetap, dan 60 kata dalam 5 menit (12 kata/menit) bukan
-# lonjakan sama sekali. Ambang lajunya sama dengan IMPLAUSIBLE_WPM: cuplikan
-# berjarak minimal 30 detik (drafts.SAMPLE_INTERVAL_SECONDS), jadi 60 kata yang
-# ditempel tepat sebelum cuplikan berikutnya tiba dalam ~33 detik (~110 kata/menit).
-# Ambang 120 yang dulu dipakai untuk jarak 20 detik akan meloloskannya.
+# Lonjakan = >= 60 kata antar dua cuplikan dengan laju >= 80 kata/menit (cuplikan server >= 30 detik).
 BURST_WORDS = 60
 BURST_WPM = IMPLAUSIBLE_WPM
 
-# Porsi jawaban akhir yang tiba lewat lonjakan: di bawah NORMAL_SHARE dianggap
-# wajar (kutipan pendek), di atas ATTENTION_SHARE layak dilihat dosen.
+# Porsi jawaban dari lonjakan: < 0,35 normal, 0,35-0,6 sebagian, >= 0,6 perlu perhatian.
 NORMAL_SHARE = 0.35
 ATTENTION_SHARE = 0.6
 
-# Di bawah jumlah cuplikan ini deretnya terlalu pendek untuk dibaca sebagai
-# pola. Mahasiswa yang membuka form lalu langsung mengumpulkan memang tidak
-# meninggalkan jejak, dan itu bukan bukti apa apa.
+# Kurang dari ini, jejak terlalu pendek untuk dibaca sebagai pola.
 MIN_SAMPLES = 4
 
 
@@ -89,9 +41,7 @@ class ProcessContext:
     char_count: int
     # Kosong berarti tidak terekam, bukan berarti mencurigakan.
     progress: tuple[ProgressSample, ...] = ()
-    # Kata baru (tidak ada di teks sebelumnya) yang masuk lewat revisi. Tanpa
-    # ini, jawaban asli yang diketik lalu diganti seluruhnya saat revisi masih
-    # tampak sebagai kurva yang wajar.
+    # Kata baru yang masuk lewat revisi (mengganti isi saat revisi tidak boleh lolos).
     inserted_words: int = 0
 
     @property
@@ -111,15 +61,12 @@ def _clamp01(value: float) -> float:
 
 def _pace_value(context: ProcessContext) -> tuple[float, str]:
     if context.duration_seconds == 0 and context.word_count >= BURST_WORDS:
-        # Nol yang TERUKUR (server tidak pernah melihat teks ini ditulis), bukan
-        # durasi yang tidak diketahui: seluruh teks tiba saat dikumpulkan.
+        # Durasi nol terukur: seluruh teks tiba saat dikumpulkan, bukan durasi tidak diketahui.
         return 1.0, f"{context.word_count} kata tiba sekaligus saat dikumpulkan, tanpa penulisan di editor ThinkPath"
     wpm = context.words_per_minute
     if wpm is None:
         return 0.5, "Durasi pengerjaan tidak terekam"
     if context.word_count < BURST_WORDS:
-        # Jawaban pendek diketik dalam hitungan detik tanpa mencurigakan; laju
-        # agregat baru bermakna bila ada cukup kata untuk disebut lonjakan.
         return 0.0, f"{context.word_count} kata, terlalu pendek untuk menilai laju mengetik"
     if wpm <= PLAUSIBLE_WPM:
         value = 0.0
@@ -138,18 +85,9 @@ def _revision_note(context: ProcessContext) -> str:
 
 
 def _growth_value(context: ProcessContext) -> tuple[float, str]:
-    """Bentuk kurva pertumbuhan kata, bukan sekadar berapa lama duduk.
+    """value = (jumlah kata dari SEMUA lonjakan) / kata akhir, dijepit 0-1.
 
-    Ini satu satunya sub-indikator yang tidak bisa dikalahkan dengan menunggu.
-    Menempel lalu diam menghasilkan satu lonjakan tegak diikuti garis datar;
-    menulis sungguhan menghasilkan tanjakan bertahap. Dua bentuk yang mustahil
-    tertukar, berapa lama pun jendelanya dibiarkan terbuka.
-
-    Yang diukur porsi teks akhir yang tiba lewat lonjakan, dijumlahkan dari
-    SELURUH selang yang melonjak, bukan hanya yang terbesar. Mengambil yang
-    terbesar saja membuka siasat memecah tempelan menjadi beberapa potong:
-    empat tempelan seratus kata masing masing terlihat kecil terhadap jawaban
-    empat ratus kata, padahal tidak satu pun diketik.
+    Menjumlah semua lonjakan (bukan yang terbesar) agar tempelan yang dipecah tetap terhitung.
     """
     if not context.has_progress:
         return 0.5, "Jejak pengerjaan tidak terekam"
@@ -159,13 +97,8 @@ def _growth_value(context: ProcessContext) -> tuple[float, str]:
     burst_count = 0
     largest = 0
 
-    # Cuplikan pertama diperlakukan sebagai lonjakan dari nol. Kata yang sudah
-    # ada sebelum pengamatan pertama tidak pernah terlihat diketik, dan tanpa
-    # aturan ini menempel sebelum cuplikan perdana menghasilkan garis datar
-    # sejak awal yang justru terbaca paling wajar. Jawaban yang benar benar
-    # ditulis di sini dimulai dari nol atau mendekatinya.
-    # Pasangan (selisih kata, detik antar cuplikan). Detik minimal 1 agar dua
-    # cuplikan di detik yang sama tidak membagi dengan nol.
+    # Cuplikan pertama = langkah dari nol (tempelan sebelum cuplikan perdana tetap terlihat);
+    # detik minimal 1 agar tidak membagi nol.
     steps = [(samples[0].word_count, max(samples[0].offset_seconds, 1))] + [
         (after.word_count - before.word_count, max(after.offset_seconds - before.offset_seconds, 1))
         for before, after in zip(samples, samples[1:])
@@ -194,22 +127,9 @@ def _growth_value(context: ProcessContext) -> tuple[float, str]:
 
 
 def evaluate_process(context: ProcessContext) -> tuple[float, str]:
-    """Nilai 0 sampai 1 untuk sinyal proses, beserta ringkasan buktinya.
+    """(value 0-1, bukti): kurva pertumbuhan bila >= 4 cuplikan, kalau tidak laju agregat.
 
-    Satu sub-indikator saja: bentuk kurva pertumbuhan kata bila jejaknya
-    terekam, atau laju mengetik agregat bila tidak. Keduanya menjawab pertanyaan
-    yang sama, yaitu apakah teks ini benar benar disusun di sini. Laju agregat
-    kalah oleh satu siasat sederhana, menempel lalu membiarkan jendela terbuka
-    sampai durasinya terlihat wajar; bentuk kurva tidak, karena menunggu justru
-    memperpanjang garis datarnya. Karena itu kurva menggantikan laju sepenuhnya
-    begitu tersedia.
-
-    Kata yang masuk lewat revisi dihitung sebagai lonjakan tersendiri: menukar
-    seluruh isi jawaban saat "Simpan Revisi" tidak boleh lolos hanya karena
-    kurva pengerjaan aslinya wajar.
-
-    Jumlah revisi hanya ditulis sebagai keterangan, dan tindakan menempel tidak
-    dibaca sama sekali. Alasan keduanya ada di docstring modul.
+    Kata baru lewat revisi >= 60 menaikkan value ke porsinya bila lebih besar.
     """
     if context.has_progress:
         value, evidence = _growth_value(context)
@@ -245,12 +165,7 @@ class ProcessAssessment:
 
 
 def assess_process(context: ProcessContext | None) -> ProcessAssessment:
-    """Pola pengerjaan sebagai bukti tersendiri, terpisah dari skor AI.
-
-    "unrecorded" hanya bila server benar-benar tidak punya dasar menilai
-    (durasi tidak diketahui dan jejak tak cukup). Durasi nol yang terukur
-    dengan teks panjang adalah bukti, bukan ketiadaan bukti.
-    """
+    """process_band: >= 0,6 attention, >= 0,35 partial, selainnya normal; unrecorded bila tanpa dasar."""
     if context is None:
         return ProcessAssessment(ProcessBand.NOT_APPLICABLE, 0.0, "")
     value, evidence = evaluate_process(context)

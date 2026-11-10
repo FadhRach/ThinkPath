@@ -8,8 +8,7 @@ from config.settings.base import *  # noqa: F403
 if not SECRET_KEY:  # noqa: F405
     raise ImproperlyConfigured("DJANGO_SECRET_KEY wajib diisi di .env produksi.")
 if len(SECRET_KEY) < 32:  # noqa: F405
-    # HS256 dengan kunci pendek mudah ditebak offline dari satu token; PyJWT
-    # juga memperingatkan di bawah 32 byte.
+    # HS256 dengan kunci pendek bisa ditebak offline dari satu token.
     raise ImproperlyConfigured(
         'DJANGO_SECRET_KEY minimal 32 karakter. Buat: python3 -c "import secrets; print(secrets.token_urlsafe(50))"'
     )
@@ -17,12 +16,10 @@ if len(SECRET_KEY) < 32:  # noqa: F405
 # localhost dipakai healthcheck Docker di dalam container.
 ALLOWED_HOSTS = [os.environ["API_DOMAIN"], "localhost", "127.0.0.1"]
 
-# Di belakang Caddy, IP klien asli ada di X-Forwarded-For. Tanpa ini throttle
-# login menghitung semua pengguna sebagai satu IP.
+# IP klien dari X-Forwarded-For (Caddy); tanpa ini semua pengguna berbagi satu IP throttle login.
 REST_FRAMEWORK = {**REST_FRAMEWORK, "NUM_PROXIES": 1}  # noqa: F405
 
-# Caddy yang mengurus HTTPS + redirect. Django tidak ikut redirect, kalau ikut
-# healthcheck internal (http://localhost) terpental 301.
+# Caddy yang me-redirect ke HTTPS; bila Django ikut, healthcheck internal terpental 301.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = 31536000

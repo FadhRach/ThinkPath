@@ -21,9 +21,7 @@ class AnalysisResult(models.Model):
     ai_score = models.SmallIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
-    # Disimpan walau bisa diturunkan dari ai_score: ambang band berbeda per
-    # sumber (heuristik vs detektor), jadi menghitung ulang dari angka saja
-    # bisa memberi band yang berbeda dari yang dilihat dosen saat itu.
+    # Sengaja didenormalisasi: ambang band berbeda per sumber (heuristik 42/70, Winston 35/70).
     ai_band = models.CharField(max_length=8, choices=AiBand.choices)
     bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],
@@ -31,8 +29,7 @@ class AnalysisResult(models.Model):
     confidence = models.CharField(
         max_length=8, choices=Confidence.choices, blank=True, default=""
     )
-    # Keyakinan taksiran Bloom, terpisah dari keyakinan skor AI: teks bisa
-    # jelas di satu dimensi dan ambigu di dimensi lain.
+    # Terpisah dari keyakinan skor AI: teks bisa jelas di satu dimensi, ambigu di lainnya.
     bloom_confidence = models.CharField(
         max_length=8, choices=Confidence.choices, blank=True, default=""
     )
@@ -47,9 +44,7 @@ class AnalysisResult(models.Model):
         choices=AnalysisSource.choices,
         default=AnalysisSource.HEURISTIC,
     )
-    # Pola pengerjaan, bukti tersendiri yang TIDAK menjumlah ke ai_score
-    # (lihat PROCESS_WEIGHT di engines/ai_score.py). Kosong untuk jawaban yang
-    # diimpor dari dokumen dan untuk baris lama.
+    # Pola pengerjaan, TIDAK menjumlah ke ai_score (PROCESS_WEIGHT = 0); kosong untuk jawaban dokumen.
     process_band = models.CharField(max_length=16, blank=True, default="")
     process_evidence = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -69,25 +64,15 @@ class AnalysisResult(models.Model):
 
 
 class DetectorScore(models.Model):
-    """Skor detektor eksternal yang sudah dibayar, supaya tidak dibayar dua kali.
-
-    Detektor menagih per kata. Tanpa tabel ini setiap "Analisis Ulang" pada
-    teks yang sama membayar penuh lagi. Cache di basis data (bukan locmem)
-    karena harus bertahan lintas worker dan restart.
-
-    Hanya SHA-256 teks yang disimpan, bukan teksnya: jawaban sudah ada di
-    submissions.text_answer dan tidak perlu digandakan.
-    """
+    """Cache skor detektor (ditagih per kata) agar teks sama tidak dibayar dua kali; kunci SHA-256 teks."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     text_hash = models.CharField(max_length=64)
-    # provider, model_version, dan language ikut menjadi kunci: menaikkan
-    # MODEL_VERSION di providers/winston.py otomatis membatalkan skor lama.
+    # Versi model ikut kunci: menaikkan winston.MODEL_VERSION otomatis membatalkan skor lama.
     provider = models.CharField(max_length=32)
     model_version = models.CharField(max_length=16)
     language = models.CharField(max_length=8)
-    # SUDAH dibalik menjadi probabilitas AI 0..1. Menyimpan "human score"
-    # mentah Winston di sini membuat semua baris terbaca terbalik tanpa gejala.
+    # SUDAH dibalik menjadi probabilitas AI 0..1 (jangan simpan "human score" mentah Winston).
     ai_probability = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
     )
@@ -116,16 +101,7 @@ class AnalysisTrigger(models.TextChoices):
 
 
 class AnalysisRun(models.Model):
-    """Satu analisis, disimpan permanen. Tidak pernah diubah atau ditimpa.
-
-    AnalysisResult adalah keadaan terkini dan ditimpa tiap analisis ulang, jadi
-    skor yang pernah dilihat dosen hilang tanpa jejak. Baris di sini menjaga
-    riwayatnya: apa hasilnya, kapan, karena apa, dan atas permintaan siapa.
-    payload memuat dict hasil lengkap; kolom lain hanya untuk disaring cepat.
-    process_context menyimpan masukan proses (durasi, jumlah cuplikan, kata
-    sisipan) supaya bobot sinyal proses kelak bisa dikalibrasi terhadap label
-    dosen tanpa menjalankan ulang apa pun.
-    """
+    """Riwayat permanen setiap analisis (AnalysisResult ditimpa); payload = dict hasil lengkap."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     submission = models.ForeignKey(
@@ -156,19 +132,12 @@ class JobStatus(models.TextChoices):
     RUNNING = "running", "Berjalan"
     DONE = "done", "Selesai"
     FAILED = "failed", "Gagal"
-    # Digantikan job yang lebih baru untuk submission yang sama (mis. direvisi
-    # lagi sebelum sempat dianalisis); hasilnya tidak berguna lagi.
+    # Digantikan job lebih baru untuk submission yang sama (direvisi sebelum sempat dianalisis).
     SUPERSEDED = "superseded", "Digantikan"
 
 
 class AnalysisJob(models.Model):
-    """Antrean analisis, disimpan di Postgres (tanpa broker).
-
-    VPS 1 GB tidak punya ruang untuk Redis/Celery; satu proses worker kecil
-    yang mengklaim baris dengan SELECT ... FOR UPDATE SKIP LOCKED cukup untuk
-    beban kelas. Pengumpulan jawaban hanya menyimpan baris ini, sehingga
-    request mahasiswa selesai dalam milidetik walau Winston dan Groq lambat.
-    """
+    """Antrean analisis di Postgres (tanpa Redis), diklaim worker dengan SELECT ... FOR UPDATE SKIP LOCKED."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     submission = models.ForeignKey(

@@ -16,8 +16,7 @@ from apps.analysis.models import AnalysisResult, AnalysisRun
 class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
     document_id = serializers.UUIDField(source="source_document", read_only=True)
 
-    # Sengaja tanpa ai_score/signals: mahasiswa tidak melihat hasil analisis AI,
-    # hanya jawabannya sendiri, status, nilai, dan umpan balik dosen.
+    # Sengaja tanpa ai_score/signals: hasil analisis AI tidak pernah ditampilkan ke mahasiswa.
     class Meta:
         model = Submission
         fields = [
@@ -35,12 +34,7 @@ class StudentSubmissionStatusSerializer(serializers.ModelSerializer):
 
 
 class StudentSubmissionStatusListSerializer(StudentSubmissionStatusSerializer):
-    """Varian listing: tanpa text_answer.
-
-    Daftar kelas mahasiswa tidak menampilkan isi esai, jadi mengirimnya berarti
-    mengangkut seluruh tulisan yang pernah dibuat mahasiswa pada setiap buka
-    halaman. Teks tetap tersedia lewat endpoint detail tugas.
-    """
+    """Varian listing tanpa text_answer (isi esai hanya lewat endpoint detail)."""
 
     class Meta(StudentSubmissionStatusSerializer.Meta):
         fields = [
@@ -111,11 +105,7 @@ class ProgressSampleSerializer(serializers.Serializer):
 
 
 def _resolve_answer(attrs: dict) -> dict:
-    """Satukan jawaban kaya dan teks polos: teks polos SELALU diturunkan server dari dokumen.
-
-    Klien yang mengirim `rich_answer` tidak bisa menyelipkan `text_answer` yang berbeda dari yang
-    dilihat dosen; bila hanya `text_answer` yang dikirim (klien lama), jawabannya teks polos.
-    """
+    """text_answer SELALU diturunkan server dari rich_answer, agar tak bisa beda dari yang dilihat dosen."""
     rich = attrs.get("rich_answer")
     if rich is not None:
         cleaned = clean_rich_doc(rich)
@@ -141,20 +131,15 @@ class DraftSaveSerializer(serializers.Serializer):
 class SubmissionCreateSerializer(serializers.Serializer):
     text_answer = serializers.CharField(required=False, trim_whitespace=False)
     rich_answer = serializers.JSONField(required=False, allow_null=True)
-    # Hasil unggahan dokumen (DocumentImportView); server memeriksa bahwa teks
-    # memang berasal darinya, jadi klaim ini tidak membuat apa pun dilewati.
+    # Server memeriksa teks memang berasal dari dokumen ini; klaimnya tidak melewatkan apa pun.
     document_id = serializers.UUIDField(required=False)
-    # DITERIMA TETAPI DIABAIKAN: bundel frontend lama masih mengirim keduanya
-    # (frontend dan backend dideploy terpisah). Jejak pengerjaan kini dicatat
-    # server dari draf (lihat services/drafts.py); hapus dua kolom ini bila
-    # semua klien sudah memakai penyimpanan otomatis.
+    # Diterima tetapi DIABAIKAN (bundel frontend lama); jejak dicatat server dari draf.
     started_at = serializers.DateTimeField(required=False)
     progress = ProgressSampleSerializer(many=True, required=False, max_length=240)
 
     def validate(self, attrs):
         attrs = _resolve_answer(attrs)
-        # Jawaban dari dokumen: ketikan boleh hanya nama dan NIM; batasnya diperiksa layanan
-        # setelah teks dokumen digabung.
+        # Jawaban dari dokumen: ketikan boleh hanya nama/NIM; batasnya diperiksa setelah teks digabung.
         if (
             attrs.get("document_id") is None
             and len(attrs["text_answer"].split()) < MIN_ANSWER_WORDS
@@ -273,8 +258,7 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
         return find_style_markers(obj.text_answer)
 
     def get_similar_submissions(self, obj: Submission) -> list:
-        # Import di dalam fungsi: services.suggestion mengimpor model, bukan serializer, tetapi
-        # menjaga modul serializer tetap ringan saat dimuat oleh banyak view.
+        # Import lokal agar modul serializer tetap ringan saat dimuat banyak view.
         from apps.academics.services.suggestion import peers_of
 
         return most_similar(obj.text_answer, peers_of(obj))
@@ -288,8 +272,7 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
         return AnalysisRunSerializer(obj.analysis_runs.all(), many=True).data
 
     def get_reasoning_events(self, obj: Submission) -> list:
-        # Urutan occurred_at berasal dari Prefetch di views. .order_by() di
-        # sini akan membuang hasil prefetch dan memicu query baru per baris.
+        # Urutan dari Prefetch di views; .order_by() di sini membuang prefetch (query per baris).
         events = obj.reasoning_events.all()
         return ReasoningEventSerializer(events, many=True).data
 

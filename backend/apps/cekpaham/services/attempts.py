@@ -1,8 +1,6 @@
-"""Alur satu sesi menjawab: mulai, caption live, finalisasi, dan proses ulang.
+"""Sesi menjawab: mulai, caption live, finalisasi, proses ulang.
 
-Finalisasi sinkron di dalam request (pola run_analysis): STT lalu penilai dijalankan
-DI LUAR transaksi supaya tidak ada baris terkunci selama menunggu API. Kasus
-terburuk ~50 detik, di bawah timeout gunicorn 60 detik.
+Finalisasi sinkron; STT + penilai DI LUAR transaksi (tak ada baris terkunci menunggu API), terburuk ~50 s.
 """
 from __future__ import annotations
 
@@ -109,8 +107,7 @@ def clean_events(raw: object) -> dict:
     """Konteks dari klien: hanya kunci dikenal dengan angka wajar. Tidak pernah diskor."""
     if not isinstance(raw, dict):
         return {}
-    # math.isfinite: json.loads menerima NaN/Infinity, dan int() atasnya melempar
-    # ValueError/OverflowError sehingga finalisasi berakhir HTTP 500.
+    # json.loads menerima NaN/Infinity; int() atasnya melempar dan berakhir HTTP 500.
     events = {
         key: min(max(int(raw[key]), 0), 100_000)
         for key in EVENT_KEYS
@@ -159,8 +156,7 @@ def finalize_attempt(
         attempt.client_events = clean_events(client_events)
         attempt.live_transcript = (live_transcript or "")[:LIVE_TRANSCRIPT_MAX]
         if data is not None:
-            # Audio disimpan SEBELUM status berubah di basis data: bila penyimpanan
-            # gagal, transaksi batal dan sesi tetap in_progress sehingga bisa dikirim ulang.
+            # Audio disimpan SEBELUM status berubah: bila gagal, transaksi batal dan sesi bisa dikirim ulang.
             attempt.audio_path = audio.store(student_id, attempt.id, data, mime)
             attempt.audio_mime, attempt.audio_bytes = mime, len(data)
         attempt.save()

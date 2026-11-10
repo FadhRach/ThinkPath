@@ -1,26 +1,7 @@
-"""E2: taksiran level kognitif Bloom dari teks jawaban mahasiswa.
+"""E2: taksiran level Bloom heuristik dari TextFeatures saja.
 
-Dua aturan yang tidak boleh dilanggar modul ini:
-
-1. Tidak membaca ai_score. Level kognitif dan dugaan penggunaan AI adalah dua
-   hal yang berbeda. Mahasiswa bisa menulis analisis tajam dengan bantuan AI, dan
-   bisa juga menulis jawaban lemah sepenuhnya sendiri.
-
-2. Tidak membaca expected_bloom_level. Target dosen adalah harapan, bukan hasil
-   pengukuran. Kalau target dipakai sebagai dasar taksiran, sistem hanya
-   memantulkan kembali asumsi dosen dan tidak akan pernah bisa memberi tahu
-   bahwa targetnya terlalu tinggi atau terlalu rendah untuk kelas itu.
-
-Perbandingan terhadap target tetap dilakukan, tetapi di heuristic.py, setelah
-level ditaksir secara mandiri.
-
-Metode: bukti berjenjang. Tiap level punya penanda sendiri, dan level tinggi
-menuntut struktur pendukung. Menilai tanpa alasan bukan mengevaluasi, jadi L5
-mensyaratkan adanya konektor sebab akibat. Panjang teks membatasi level maksimum
-karena level kognitif tinggi tidak mungkin ditunjukkan dalam beberapa kalimat.
-
-Sama seperti E1, ini baseline yang dapat dijelaskan, bukan model tervalidasi.
-Angka akurasi hanya boleh diklaim setelah diuji terhadap gold set berlabel dosen.
+level = level tertinggi dengan skor bukti >= 2.0 (jatuh ke L1), lalu dibatasi panjang teks.
+Tidak membaca ai_score maupun expected_bloom_level (target dibandingkan nanti di heuristic.py).
 """
 from __future__ import annotations
 
@@ -38,13 +19,7 @@ BLOOM_LABELS = {
     6: "Mencipta",
 }
 
-# Batas level maksimum menurut panjang teks. Jawaban pendek tidak bisa
-# menunjukkan evaluasi bertingkat, sepanjang apa pun kata kerjanya.
-#
-# Ambang dinaikkan saat fokus pindah ke mahasiswa. Sebelumnya 25, 50, 80, dan
-# 120 kata, yang wajar untuk jawaban singkat anak sekolah. Esai tugas mahasiswa
-# rutin melewati 120 kata, sehingga batas lama praktis tidak pernah aktif dan
-# kehilangan fungsinya sebagai pengaman.
+# Level maksimum menurut jumlah kata: < 50 -> L1, < 90 -> L2, < 140 -> L3, < 200 -> L4, < 280 -> L5.
 LENGTH_CAPS = (
     (50, 1),
     (90, 2),
@@ -53,8 +28,7 @@ LENGTH_CAPS = (
     (280, 5),
 )
 
-# Daftar kata kunci tanpa uraian (uji: 450 kata konektor berturut-turut menghasilkan
-# L6) dan teks bukan bahasa Indonesia sama-sama tidak bisa dinilai penanda ini.
+# Daftar kata kunci (kepadatan penanda > 0,25) dibatasi L2; teks bukan Indonesia diberi keyakinan rendah.
 STUFFING_DENSITY = 0.25
 STUFFED_LEVEL_CAP = 2
 MIN_INDONESIAN_RATIO = 0.12
@@ -92,19 +66,16 @@ def _length_cap(word_count: int) -> int:
 
 
 def _level_scores(features: TextFeatures) -> dict[int, float]:
-    """Bukti yang terkumpul untuk tiap level. Nilai lebih tinggi berarti lebih kuat."""
+    """Skor bukti per level = jumlah kata kerja Bloom level itu + penanda berbobot (lihat README)."""
     verbs = features.bloom_verb_hits
 
     scores = {
         1: float(verbs.get(1, 0)),
-        # Mengurutkan isi catatan adalah bentuk mendeskripsikan, bukan menerapkan.
         2: (
             verbs.get(2, 0)
             + features.explanatory_count * 0.8
             + features.ordinal_count * 0.3
         ),
-        # Penanda urutan hanya menambah bukti penerapan kalau ada prosedur nyata
-        # yang dijalankan. Sendirian, bobotnya sengaja kecil.
         3: (
             verbs.get(3, 0)
             + features.procedural_count * 1.0
@@ -119,11 +90,9 @@ def _level_scores(features: TextFeatures) -> dict[int, float]:
         6: verbs.get(6, 0) + features.creative_count * 1.2,
     }
 
-    # Level tinggi menuntut struktur pendukung, bukan sekadar kata kunci.
-    # Menilai tanpa memberi alasan bukan mengevaluasi.
+    # Menilai tanpa alasan bukan mengevaluasi; mengusulkan tanpa penalaran bukan mencipta.
     if features.causal_count == 0:
         scores[5] *= 0.4
-    # Mengusulkan sesuatu tanpa penalaran apa pun bukan mencipta.
     if features.causal_count == 0 and features.procedural_count == 0:
         scores[6] *= 0.4
 
@@ -187,11 +156,7 @@ def _evidence_lines(
 
 
 def estimate_bloom_level(features: TextFeatures) -> BloomResult:
-    """Taksir level Bloom dari fitur teks saja.
-
-    Mengambil level tertinggi yang buktinya melewati ambang, lalu membatasinya
-    dengan panjang teks. Kalau tidak ada level yang melewati ambang, jatuh ke L1.
-    """
+    """Level tertinggi yang skornya >= EVIDENCE_THRESHOLD, dibatasi panjang teks; default L1."""
     scores = _level_scores(features)
     cap = _length_cap(features.word_count)
 

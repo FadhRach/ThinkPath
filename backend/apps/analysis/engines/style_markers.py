@@ -1,22 +1,7 @@
-"""Penanda gaya teks yang sering tertinggal saat jawaban ditempel dari obrolan AI.
+"""Penanda gaya sisa salinan obrolan AI, untuk ditunjukkan ke dosen; TIDAK ikut skor AI.
 
-Modul ini murni deskriptif dan TIDAK ikut menghitung skor AI. Ia hanya menunjuk bagian teks
-yang layak dilihat dosen, dengan dua tingkat:
-
-* strong: sisa salinan dari antarmuka obrolan yang jarang muncul di tulisan manusia: sintaks
-  markdown (**tebal**, ## judul), simbol poin "•", kalimat penutup yang ditujukan kepada
-  pengguna ("beri tahu saya", "semoga membantu"), emoji, dan karakter tak terlihat.
-* weak: kebiasaan gaya yang juga dipakai penulis manusia (tanda pisah panjang, label
-  berhuruf besar diikuti titik dua di tengah paragraf). Hanya dihitung, tidak pernah dijadikan
-  alasan sendirian.
-
-Yang TIDAK bisa dilakukan: membaca tanda air statistik (watermark) milik penyedia model.
-Itu hanya bisa diverifikasi dengan kunci milik penyedia. Yang terlihat dari luar hanyalah
-jejak salinan di atas.
-
-Komentar penutup soal akurasi: daftar frasa ini sengaja sempit. Frasa umum seperti "berikut ini"
-atau "dengan demikian" lazim di tulisan akademik dan tidak dihitung (lihat catatan di
-text_features.py tentang mengapa menghukum bahasa akademik yang baik adalah kesalahan).
+strong: markdown, "•", kalimat penutup ke pengguna, emoji, karakter tak terlihat. weak: kebiasaan
+yang juga dipakai manusia (tanda pisah panjang, label kapital + titik dua), tidak pernah alasan sendirian.
 """
 from __future__ import annotations
 

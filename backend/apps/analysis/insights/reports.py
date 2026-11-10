@@ -1,21 +1,6 @@
-"""Agregasi lintas kelas untuk layar Laporan.
+"""Laporan lintas kelas: kesenjangan Bloom terhadap target di depan, sebaran band AI hanya konteks.
 
-Prinsip yang menentukan bentuk berkas ini:
-
-**Kesenjangan kognitif di depan, skor AI di belakang.** Angka agregat jauh lebih
-berbahaya daripada angka per submission. Kalimat seperti "Prodi X: 40% indikasi
-AI tinggi" gampang berubah menjadi stigma, padahal skornya sendiri belum
-dikalibrasi terhadap data berlabel. Karena itu metrik utama laporan ini adalah
-selisih antara level Bloom yang teramati dan target dosen, yang menjawab
-"materi mana yang belum tersampaikan", bukan "siapa yang menyontek".
-
-Sebaran band AI tetap dilaporkan karena dosen berhak melihatnya, tetapi sebagai
-konteks dan selalu disertai jumlah submission yang belum tervalidasi.
-
-Cakupan ditentukan pemanggil lewat queryset, bukan di dalam modul ini. Sekarang
-pemanggilnya membatasi ke kelas milik dosen sendiri. Ketika peran Kaprodi
-dibangun, cukup ganti querysetnya menjadi seluruh kelas satu prodi tanpa
-menulis ulang perhitungan di sini.
+Cakupan ditentukan queryset pemanggil (kini kelas milik dosen sendiri).
 """
 from __future__ import annotations
 
@@ -35,14 +20,7 @@ def submissions_for_classes(classes: QuerySet[Class]) -> QuerySet[Submission]:
 
 
 def build_overview(classes: QuerySet[Class]) -> dict:
-    """Ringkasan seluruh kelas dalam cakupan.
-
-    Seluruh hitungan dirangkum dalam SATU aggregate, bukan enam query terpisah.
-    Ke database remote, biaya endpoint ini hampir seluruhnya jumlah round trip,
-    bukan berat query-nya. Filter ANALYSED hanya perlu di analysed_count:
-    perbandingan kolom analysis pada baris tanpa analisis bernilai NULL dan
-    otomatis tidak terhitung.
-    """
+    """Ringkasan seluruh kelas dalam cakupan, dalam SATU aggregate (biaya utamanya round trip)."""
     submissions = submissions_for_classes(classes)
 
     stats = submissions.aggregate(
@@ -63,8 +41,7 @@ def build_overview(classes: QuerySet[Class]) -> dict:
         band_low=Count("id", filter=Q(analysis__ai_band=AiBand.LOW)),
         band_mid=Count("id", filter=Q(analysis__ai_band=AiBand.MID)),
         band_high=Count("id", filter=Q(analysis__ai_band=AiBand.HIGH)),
-        # Asal skor AI per sumber. llm hanya ada pada hasil versi lama (Groq
-        # tidak lagi memberi skor AI); seed adalah data contoh.
+        # llm hanya ada di baris lama; seed = data contoh.
         src_llm=Count("id", filter=Q(analysis__analysis_source=AnalysisSource.LLM)),
         src_heuristic=Count(
             "id", filter=Q(analysis__analysis_source=AnalysisSource.HEURISTIC)
@@ -99,14 +76,7 @@ def build_overview(classes: QuerySet[Class]) -> dict:
 
 
 def _metrics_by(analysed: QuerySet[Submission], key_path: str) -> dict:
-    """Hitung metrik dari sisi submission, lalu kelompokkan menurut satu kolom.
-
-    Sengaja TIDAK menganotasi langsung di Class. Class terhubung ke Submission
-    lewat Assignment, dan menganotasi beberapa agregat sekaligus melewati dua
-    relasi bertingkat membuat baris terduplikasi sehingga hitungannya
-    menggelembung. Mengelompokkan dari sisi submission menghindari jebakan itu
-    sepenuhnya: satu submission selalu satu baris.
-    """
+    """Metrik dihitung dari sisi Submission lalu dikelompokkan (anotasi di Class menggandakan baris)."""
     grouped = analysed.values(key=F(key_path)).annotate(
         analysed_count=Count("id"),
         below_target_count=Count(
@@ -124,19 +94,12 @@ def _ratio(part: int, whole: int) -> float | None:
 
 
 def build_per_class(classes: QuerySet[Class]) -> list[dict]:
-    """Satu baris per kelas, diurutkan dari yang paling butuh perhatian.
-
-    Urutan ditentukan porsi jawaban di bawah target, bukan porsi indikasi AI.
-    Ini penerapan langsung dari prinsip di docstring modul: yang naik ke atas
-    adalah kelas yang materinya belum tersampaikan, bukan kelas yang paling
-    dicurigai.
-    """
+    """Satu baris per kelas, diurutkan dari porsi jawaban di bawah target terbesar (bukan porsi indikasi AI)."""
     analysed = submissions_for_classes(classes).filter(ANALYSED)
     metrics = _metrics_by(analysed, "assignment__class_ref_id")
 
     rows = []
-    # Anotasi jumlah tugas menumpang pada query daftar kelas yang memang sudah
-    # dibutuhkan, alih-alih menjadi round trip kedua.
+    # Jumlah tugas dianotasi di query daftar kelas, bukan round trip kedua.
     for item in classes.annotate(assignment_count=Count("assignments")):
         stat = metrics.get(item.id, {})
         total = stat.get("analysed_count", 0)
@@ -159,8 +122,7 @@ def build_per_class(classes: QuerySet[Class]) -> list[dict]:
             }
         )
 
-    # Rasio None (kelas tanpa submission teranalisis) selalu di bawah, karena
-    # tidak ada yang bisa disimpulkan dari kelas kosong.
+    # Rasio None (kelas tanpa data) selalu di bawah.
     rows.sort(
         key=lambda row: (
             row["below_target_ratio"] is None,
@@ -201,8 +163,7 @@ def build_per_program(classes: QuerySet[Class]) -> list[dict]:
 
 def build_per_semester(classes: QuerySet[Class]) -> list[dict]:
     rows = _group_rows(classes, "semester", "semester")
-    # Semester None (kelas lintas semester) diletakkan paling akhir supaya
-    # tabelnya terbaca urut 1, 2, 3, lalu "tidak ditentukan".
+    # Semester None (lintas semester) paling akhir.
     rows.sort(key=lambda row: (row["semester"] is None, row["semester"] or 0))
     return rows
 

@@ -1,13 +1,6 @@
-"""Forum kelas: pengumuman dosen dan diskusi, dengan balasan.
+"""Forum kelas: pengumuman (hanya dosen pemilik, memicu notifikasi) dan diskusi, keduanya bisa dibalas.
 
-Satu tempat untuk dua hal yang dulu terpisah. Pengumuman adalah topik berjenis
-`announcement` yang hanya boleh diterbitkan dosen pemilik kelas, tampil di atas,
-dan memicu notifikasi ke seluruh mahasiswa. Diskusi adalah topik yang boleh dibuka
-dosen maupun mahasiswa anggota kelas. Keduanya bisa dibalas.
-
-Penulis dikosongkan (SET_NULL) saat akunnya dihapus. Untuk dosen, kelas menjadi
-arsip dan tulisannya tetap ada; untuk mahasiswa, tulisannya dihapus eksplisit di
-`apps.accounts.deletion` karena itu data pribadinya.
+Penulis SET_NULL saat akun dihapus; tulisan mahasiswa dihapus eksplisit di apps.accounts.deletion.
 """
 from __future__ import annotations
 

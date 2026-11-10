@@ -66,26 +66,23 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "UNAUTHENTICATED_USER": None,
-    # Hanya endpoint auth yang dibatasi; penghitungnya di memori proses (LocMemCache).
+    # Penghitung di LocMemCache (memori proses): kebijakan privasi menjanjikan IP tidak disimpan di DB.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {
         "auth_register": "30/hour",
         "auth_login": "20/min",
-        # Per akun, bukan per IP: menahan tebakan sandi terhadap satu email
-        # dari banyak IP, tanpa mengunci IP kampus yang dipakai bersama.
+        # Per akun, bukan per IP: tidak mengunci IP kampus yang dipakai bersama.
         "auth_login_account": "10/min",
         # Tiap unggahan bisa memicu hingga 6 panggilan OCR berbayar ke Groq.
         "document_import": "30/hour",
-        # Setiap pengumpulan memicu analisis berbayar (Winston + Groq); revisi
-        # sebelum tenggat tetap leluasa, skrip pembakar kredit tidak.
+        # Setiap pengumpulan memicu analisis berbayar (Winston + Groq).
         "submission_submit": "10/hour",
         "submission_reanalyze": "20/hour",
         # Saran AI untuk dosen: bisa memanggil Groq, jadi dibatasi seperti analisis ulang.
         "ai_suggestion": "40/hour",
         # Ruang kode kelas ±6e8; 10/menit membuat menebak tidak layak.
         "class_join": "10/min",
-        # Penyimpanan otomatis berkala (debounce klien); jauh di atas pemakaian
-        # sah, jauh di bawah skrip yang membanjiri tabel draf.
+        # Simpan otomatis berkala; jauh di atas pemakaian sah.
         "draft_save": "30/min",
         "password_change": "5/min",
         # Per IP; jeda 60 detik per akun ada di password_reset.py.
@@ -93,8 +90,7 @@ REST_FRAMEWORK = {
         "password_reset_confirm": "20/hour",
         "account_delete": "5/hour",
         "upload_ticket": "30/min",
-        # Caption live (best-effort, satu potongan ~4 detik) dan finalisasi
-        # (STT + penilai berbayar). Satu sesi sah jauh di bawah batas ini.
+        # Caption live (potongan ~4 detik) dan finalisasi (STT + penilai berbayar).
         "cekpaham_live": "40/min",
         "cekpaham_finalize": "30/hour",
         # Menulis topik/balasan forum dan butir to-do; jauh di atas pemakaian sah.
@@ -103,13 +99,11 @@ REST_FRAMEWORK = {
     },
 }
 
-# Produksi: False, analisis dikerjakan worker terpisah (run_analysis_worker).
-# development.py dan test.py menyalakannya agar tidak butuh proses ketiga.
+# Produksi: worker terpisah (run_analysis_worker); development/test menyalakannya (inline).
 ANALYSIS_INLINE = False
 
 AUTH_TOKEN_LIFETIME_DAYS = 7
-# Tiket unggah: token pendek yang hanya berlaku di endpoint unggah/ambil berkas
-# (fungsi Vercel membatasi badan permintaan 4,5 MB, sedangkan dokumen 10 MB).
+# Tiket unggah langsung ke API: proxy Vercel membatasi badan permintaan 4,5 MB, dokumen 10 MB.
 UPLOAD_TICKET_SECONDS = 600
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -130,8 +124,7 @@ CORS_ALLOWED_ORIGINS = os.getenv(
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
-# Email reset sandi lewat SMTP biasa (Brevo, Resend, Gmail, dll). EMAIL_HOST
-# kosong = pesan dicetak ke log (cukup untuk dev dan demo tanpa penyedia email).
+# Email reset sandi lewat SMTP; EMAIL_HOST kosong = pesan dicetak ke log.
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True

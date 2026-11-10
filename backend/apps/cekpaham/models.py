@@ -1,13 +1,6 @@
-"""Cek Paham: tes lisan singkat yang diminta dosen atas satu submission.
+"""Cek Paham: tes lisan singkat atas satu submission; skor LLM hanya SARAN, tak pernah ke E1/Bloom/nilai.
 
-Dosen menulis satu soal, mahasiswa menjawab hanya dengan suara dalam waktu
-pendek, lalu LLM memberi skor SARAN beserta kutipan bukti. Nilai tugas tetap
-diputuskan dosen; skor di sini tidak pernah dialirkan ke skor E1, level Bloom,
-atau nilai: skor yang keliru tidak boleh membenarkan dirinya sendiri lewat
-keputusan yang ia picu sendiri.
-
-Transkrip yang dinilai hanya berasal dari audio utuh di server. live_transcript
-kiriman klien tidak tepercaya dan tidak pernah sampai ke penilai.
+Transkrip yang dinilai hanya dari audio utuh di server; live_transcript klien tidak tepercaya.
 """
 from __future__ import annotations
 
@@ -70,8 +63,7 @@ class CekPaham(models.Model):
     created_by = models.ForeignKey(
         Profile, null=True, blank=True, on_delete=models.SET_NULL, related_name="cekpaham_created"
     )
-    # Panjang soal (10-1000) dan jendela >= answer_seconds + 60 dtk divalidasi
-    # di service; CHECK aritmetika datetime tidak portabel ke SQLite tes.
+    # Panjang soal dan jendela divalidasi di service; CHECK aritmetika datetime tak portabel ke SQLite.
     question_text = models.TextField()
     language = models.CharField(max_length=2, choices=Language.choices)
     answer_seconds = models.PositiveSmallIntegerField()

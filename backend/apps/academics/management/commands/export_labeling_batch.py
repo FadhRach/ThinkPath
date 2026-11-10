@@ -1,21 +1,7 @@
-"""Ekspor jawaban mahasiswa menjadi batch pelabelan Bloom yang tersamar.
+"""Ekspor jawaban jadi batch pelabelan Bloom tersamar (untuk ai_experiment/tools/label.html dan evaluate_bloom).
 
-Perintah ini menjembatani produksi dan ai_experiment. Keluarannya langsung bisa
-dibuka di ai_experiment/tools/label.html, dan berkas yang sama dipakai sebagai
---answers pada src.evaluate_bloom, sehingga id pada label dan id pada teks
-dijamin cocok tanpa penjodohan manual.
-
-**Penyamaran bukan hiasan, melainkan syarat sahnya angka.** Berkas batch hanya
-memuat id dan teks. Nama mahasiswa, soal tugasnya, target Bloom yang ditetapkan
-dosen, dan seluruh keluaran analisis sengaja ditahan di berkas kunci terpisah.
-Alasannya sama dengan alasan E2 tidak boleh membaca ai_score: penilai yang tahu
-tugasnya menargetkan C4 akan condong menuliskan C4, dan kesepakatan yang
-terbentuk dari anchor bersama itu hanya mengukur anchor-nya, bukan jawabannya.
-
-Contoh:
-
-    python manage.py export_labeling_batch --out ../ai_experiment/data/labels
-    python manage.py export_labeling_batch --limit 60 --class-name "Metodologi"
+Batch hanya berisi id + teks; nama, soal, target Bloom, dan hasil analisis di berkas kunci terpisah
+agar penilai tidak ter-anchor. Contoh: python manage.py export_labeling_batch --out ../ai_experiment/data/labels
 """
 from __future__ import annotations
 
@@ -27,8 +13,7 @@ from django.core.management.base import BaseCommand
 
 from apps.academics.models import Submission
 
-# Jawaban yang terlalu pendek tidak memuat cukup penalaran untuk dinilai, dan
-# hanya menambah item "X / tidak bisa dinilai" yang membuang waktu penilai.
+# Jawaban terlalu pendek hanya menambah item "tidak bisa dinilai".
 MIN_WORDS = 40
 
 
@@ -77,10 +62,7 @@ class Command(BaseCommand):
             if len(submission.text_answer.split()) >= MIN_WORDS
         ]
 
-        # Urutan diacak supaya penilai tidak menghadapi seluruh jawaban satu
-        # tugas berturut turut. Membaca sepuluh jawaban dari soal yang sama
-        # membuat penilai membandingkan antar mahasiswa, padahal yang diminta
-        # rubrik adalah menilai tiap jawaban terhadap rubrik itu sendiri.
+        # Diacak agar penilai tidak membandingkan jawaban satu tugas berturut-turut.
         random.Random(options["seed"]).shuffle(rows)
         if options["limit"] > 0:
             rows = rows[: options["limit"]]
@@ -101,8 +83,7 @@ class Command(BaseCommand):
             for index, submission in enumerate(rows, start=1):
                 writer.writerow([f"J{index:03d}", submission.text_answer])
 
-        # Kunci tetap terpisah dan tidak pernah dibuka penilai. Berkas ini yang
-        # nanti dipakai menautkan hasil pelabelan kembali ke submission aslinya.
+        # Kunci terpisah, tidak dibuka penilai; dipakai menautkan label ke submission asli.
         with key_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.writer(handle)
             writer.writerow(

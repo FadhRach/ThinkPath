@@ -1,32 +1,6 @@
-"""Detektor AI eksternal, dipakai untuk skor E1 saja.
+"""Detektor AI eksternal (Winston AI) untuk skor E1 saja; tidak pernah menyentuh level Bloom.
 
-Penyedia sekarang: **Winston AI**. Penyedia sudah terbukti bisa gugur
-(Sapling dibatalkan karena English-only), jadi pemanggil hanya tahu
-`detect()`, `score_to_band()`, dan konstanta PROVIDER_NAME/MODEL_VERSION.
-Pindah penyedia cukup menulis modul baru dengan antarmuka yang sama.
-
-Kenapa detektor eksternal dipakai sama sekali. Heuristik di ai_score.py sudah
-diukur terhadap gold set 921 sampel dan hasilnya lemah: pada ambang produksi saat
-itu (35; kini 42 setelah dikalibrasi ulang) presisinya 0,498 dengan FPR 0,838, artinya 84 persen tulisan manusia ikut
-tertuduh dan tebakan koin sama bagusnya. Tiga dari lima sinyal teksnya diam
-sepanjang pengukuran itu. Detail lengkapnya ada di bagian "Status kalibrasi"
-pada README.
-
-Yang TIDAK berubah karena modul ini ada:
-
-- Sinyal forensik proses tetap dicatat, tetapi berbobot 0: ditampilkan terpisah
-  sebagai pola pengerjaan dan tidak menyumbang skor (ambang diukur pada bobot
-  teks murni). Detektor mana pun membaca teks, dan apa pun yang membaca teks bisa
-  dikalahkan parafrase. Forensik proses tidak membaca teks sama sekali.
-- Level Bloom tidak pernah menyentuh modul ini, dan modul ini tidak pernah
-  menyentuh level Bloom. Dijaga pemeriksaan AST di test_analysis_decoupling.py.
-
-PERINGATAN KEJUJURAN. Winston mencantumkan `id` di daftar bahasa API-nya, tetapi
-itu klaim penyedia, bukan hasil ukur kita. Sampai
-ai_experiment/src/evaluate_detector.py memberi angka pada gold set berbahasa
-Indonesia, tidak boleh ada klaim bahwa Winston lebih akurat daripada heuristik.
-Yang boleh dikatakan sekarang hanya: skornya berasal dari detektor yang memang
-dilatih untuk tugas ini dan mengaku mendukung bahasanya.
+Pemanggil hanya memakai detect(), score_to_band(), PROVIDER_NAME, MODEL_VERSION.
 """
 from __future__ import annotations
 
@@ -43,64 +17,35 @@ logger = logging.getLogger(__name__)
 PROVIDER_NAME = "Winston AI"
 API_URL = "https://api.gowinston.ai/v2/ai-content-detection"
 
-# Versi model dikunci eksplisit, bukan dibiarkan mengikuti default penyedia.
-# Skor yang tersimpan di database hari ini harus masih bisa dijelaskan enam
-# bulan lagi. Menggesernya adalah keputusan sadar yang menuntut kalibrasi ulang,
-# bukan sesuatu yang terjadi diam diam pada suatu Selasa pagi.
+# Versi dikunci: skor tersimpan harus tetap bisa dijelaskan; mengganti versi = kalibrasi ulang.
 MODEL_VERSION = "4.18"
 
-# Bahasa yang diminta secara eksplisit. Winston bisa mendeteksi sendiri kalau
-# field ini dikosongkan, tetapi jawaban mahasiswa Indonesia sering mencampur
-# istilah Inggris, dan deteksi otomatis pada teks campuran bisa memilih "en"
-# lalu menilainya dengan model yang salah.
+# Eksplisit: deteksi otomatis pada teks campuran Indonesia-Inggris bisa memilih "en".
 LANGUAGE = "id"
 
-# Sengaja lebih pendek daripada timeout Groq (12 detik) di providers/groq.py. Analisis
-# jalan sinkron di dalam request pengumpulan tugas, dan sejak modul ini ada
-# kedua API dipanggil berurutan. 8 + 12 = 20 detik masih jauh di bawah timeout
-# gunicorn 60 detik, sehingga worker tidak pernah dibunuh di tengah jalan.
+# Winston 8 s + Groq 12 s tetap jauh di bawah timeout gunicorn 60 s.
 REQUEST_TIMEOUT_SECONDS = 8
 
-# Batas keras dari Winston. Teks di bawah ini ditolak API, jadi tidak usah
-# dikirim: kredit terpakai per kata dan permintaan yang pasti gagal tetap
-# menghabiskan waktu request mahasiswa.
+# Di bawah ini API menolak; tidak dikirim karena kredit ditagih per kata.
 MIN_CHARS = 300
 
-# Winston menyatakan sendiri hasilnya belum andal di bawah ambang ini. Teksnya
-# tetap dinilai, tetapi hasilnya ditandai tidak andal supaya pemanggil bisa
-# menurunkan keyakinan. Membuang diam diam akan menghilangkan bukti, sedangkan
-# memakainya seolah andal akan menuduh dengan dasar yang penyedianya sendiri
-# tidak percayai.
+# Di bawah ini Winston sendiri menyatakan hasilnya belum andal: tetap dipakai, ditandai tidak andal.
 RELIABLE_MIN_CHARS = 600
 
 MAX_CHARS = 150_000
 
-# Ambang band MILIK DETEKTOR EKSTERNAL SENDIRI.
-#
-# Jangan pernah memakai ambang 42/70 dari ai_score.py di sini. Angka itu
-# dikalibrasi (dengan buruk) untuk sebaran skor ensemble heuristik, dan sebaran
-# skor detektor terlatih sama sekali berbeda bentuknya. Menyalin ambang antar
-# dua sebaran yang berbeda adalah persis kesalahan yang diperingatkan di README:
-# ambang pinjaman terdengar masuk akal dan menyesatkan tanpa suara.
-#
-# Kedua angka di bawah adalah TITIK AWAL SEMENTARA, bukan hasil ukur. Ganti
-# dengan keluaran ai_experiment/src/evaluate_detector.py sebelum mengklaim apa
-# pun tentang presisi atau recall.
+# Ambang band Winston 35/70, milik detektor sendiri: JANGAN pakai ambang heuristik 42/70 di sini
+# (sebaran skornya berbeda). Titik awal sementara, belum hasil ukur.
 MID_THRESHOLD = 35
 HIGH_THRESHOLD = 70
 
 
 @dataclass(frozen=True)
 class DetectorResult:
-    """Hasil satu penilaian detektor eksternal.
+    """ai_probability SUDAH dibalik: Winston mengembalikan skor MANUSIA (0 = AI, 100 = manusia).
 
-    ai_probability sudah DIBALIK dari skor mentah penyedia. Winston
-    mengembalikan "human score" yang arahnya berlawanan: 0 berarti hampir pasti
-    AI, 100 berarti hampir pasti manusia. Pembalikannya dikerjakan satu kali di
-    sini supaya sisa sistem tidak perlu mengingat arah mana yang berlaku untuk
-    penyedia mana. Salah arah di lapisan ini akan membuat mahasiswa yang menulis
-    sendiri mendapat skor tertinggi, dan angkanya akan terlihat masuk akal
-    sehingga kesalahannya bisa berjalan lama tanpa ketahuan.
+    Pembalikan terjadi tepat sekali di detect(). Terlewat atau ganda, mahasiswa jujur dapat skor AI
+    tertinggi dan angkanya tetap tampak wajar.
     """
 
     ai_probability: float
@@ -113,13 +58,7 @@ class DetectorResult:
 
 
 def score_to_band(ai_score: int) -> str:
-    """Petakan skor 0..100 hasil detektor ke band.
-
-    Fungsi terpisah dari ai_score.score_to_band walaupun isinya sekarang
-    kebetulan sama. Keduanya harus bisa bergerak sendiri sendiri begitu
-    kalibrasi memberi angka, dan menyatukannya sekarang berarti menggeser satu
-    ambang akan diam diam menggeser ambang yang lain.
-    """
+    """Band skor detektor; sengaja terpisah dari ai_score.score_to_band agar ambangnya bergerak sendiri."""
     if ai_score < MID_THRESHOLD:
         return AiBand.LOW
     if ai_score < HIGH_THRESHOLD:
@@ -128,17 +67,7 @@ def score_to_band(ai_score: int) -> str:
 
 
 def _attack_kinds(payload: dict) -> tuple[str, ...]:
-    """Penanda pengelabuan yang dilaporkan Winston.
-
-    Zero width space dan homoglyph adalah teknik menyisipkan karakter tak
-    terlihat atau huruf mirip untuk mengacaukan detektor. Berbeda dari sinyal
-    gaya bahasa, keduanya tidak punya penjelasan polos: tidak ada mahasiswa yang
-    tanpa sengaja menempelkan karakter lebar nol ke dalam esainya.
-
-    Tetap dilaporkan sebagai bukti tertulis, bukan sebagai tambahan diam diam
-    ke angka. Menaikkan skor tanpa mengatakan alasannya persis yang produk ini
-    tolak.
-    """
+    """Zero-width space / homoglyph yang dilaporkan Winston, ditulis sebagai bukti (tidak menambah skor)."""
     attack = payload.get("attack_detected")
     if not isinstance(attack, dict):
         return ()
@@ -149,21 +78,12 @@ def _attack_kinds(payload: dict) -> tuple[str, ...]:
     return tuple(label for key, label in labels.items() if attack.get(key))
 
 
-# Sisa kredit yang membuat peringatan mulai dicetak. Satu kredit terpakai per
-# kata, jadi angka ini kira kira lima esai mahasiswa: cukup untuk menyadari dan
-# mengisi saldo, belum terlambat.
+# Kredit dipakai per kata; ±2.000 kata = beberapa esai lagi.
 LOW_CREDIT_WARNING = 2_000
 
 
 def _warn_if_credits_low(payload: dict) -> None:
-    """Peringatkan sebelum kredit habis, bukan sesudahnya.
-
-    Penyedia mengirim sisa kredit di setiap balasan. Tanpa membacanya, satu
-    satunya tanda bahwa saldo habis adalah 402 yang muncul mendadak, dan sejak
-    itu setiap submission diam diam turun ke jalur cadangan tanpa ada yang
-    menyadarinya sampai seseorang kebetulan memeriksa log. Kejadian itu sudah
-    pernah terjadi, dan peringatan ini yang membuatnya tidak berulang diam diam.
-    """
+    """Log peringatan sebelum kredit habis (402 membuat skor diam-diam turun ke heuristik)."""
     remaining = payload.get("credits_remaining")
     if not isinstance(remaining, (int, float)):
         return
@@ -177,20 +97,14 @@ def _warn_if_credits_low(payload: dict) -> None:
 
 
 def detect(text: str) -> DetectorResult | None:
-    """Hasil penilaian detektor, atau None kalau tidak bisa dipakai.
+    """DetectorResult, atau None (tanpa kunci, teks di luar rentang, galat API) = jatuh ke heuristik.
 
-    None berarti satu hal saja bagi pemanggil: jatuh ke lapisan berikutnya.
-    Semua kegagalan diratakan menjadi None dengan sengaja, karena tidak ada satu
-    pun di antaranya yang boleh menggagalkan pengumpulan tugas mahasiswa.
-    Mahasiswa yang jawabannya hilang karena API pihak ketiga sedang mati adalah
-    kerusakan yang jauh lebih besar daripada satu skor yang tidak terisi.
+    Tidak pernah melempar: API pihak ketiga tidak boleh menggagalkan pengumpulan tugas.
     """
     api_key = os.getenv("WINSTON_API_KEY", "").strip()
     if not api_key:
         return None
 
-    # Bukan warning. Fitur mati bukan kegagalan, dan log yang berisik saat
-    # semuanya normal membuat log yang benar benar penting ikut terabaikan.
     if not MIN_CHARS <= len(text) <= MAX_CHARS:
         logger.info(
             "Teks %d karakter di luar rentang %d sampai %d yang diterima %s, "
@@ -208,19 +122,13 @@ def detect(text: str) -> DetectorResult | None:
             headers={"Authorization": f"Bearer {api_key}"},
             json={
                 "text": text,
-                # Skor per kalimat tidak dipakai di mana pun. Mematikannya
-                # memperkecil payload balasan; kalau nanti ritme kalimat mau
-                # memakainya, nyalakan di situ.
-                "sentences": False,
+                "sentences": False,  # skor per kalimat tidak dipakai
                 "language": LANGUAGE,
                 "version": MODEL_VERSION,
             },
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
-        # Kredit habis. Dipisahkan dari galat lain karena inilah kondisi yang
-        # paling mungkin ditemui di lapangan, dan penanganannya berbeda: bukan
-        # bug yang perlu dicari, melainkan saldo yang perlu diisi. Pesannya
-        # harus bisa dikenali sekali baca di log.
+        # Kredit habis: kondisi lapangan paling mungkin, pesannya harus mudah dikenali di log.
         if response.status_code == 402:
             logger.warning(
                 "%s menolak dengan 402: kredit habis. Skor AI memakai jalur "
@@ -243,9 +151,7 @@ def detect(text: str) -> DetectorResult | None:
         logger.warning("%s gagal, memakai jalur cadangan: %s", PROVIDER_NAME, exc)
         return None
 
-    # Kontraknya 0..100. Nilai di luar rentang berarti kontraknya berubah, dan
-    # menjepitnya diam diam akan menyembunyikan perubahan itu sampai ada yang
-    # curiga pada angka di layar dosen. Lebih baik mundur ke jalur cadangan.
+    # Di luar 0..100 berarti kontrak API berubah; mundur, jangan dijepit diam-diam.
     if not 0.0 <= human_score <= 100.0:
         logger.warning(
             "Skor %s di luar rentang 0..100: %r", PROVIDER_NAME, human_score
@@ -253,7 +159,7 @@ def detect(text: str) -> DetectorResult | None:
         return None
 
     return DetectorResult(
-        # Inilah pembalikannya. Lihat docstring DetectorResult.
+        # SATU-SATUNYA pembalikan skor Winston (human -> AI); jangan diulang di tempat lain.
         ai_probability=1.0 - (human_score / 100.0),
         reliable=len(text) >= RELIABLE_MIN_CHARS,
         attack_kinds=_attack_kinds(payload if isinstance(payload, dict) else {}),

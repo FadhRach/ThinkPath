@@ -1,16 +1,6 @@
-"""Jawaban kaya (editor TipTap/ProseMirror): validasi, pembersihan, dan teks polos.
+"""Jawaban kaya TipTap: clean_rich_doc membangun ulang dari simpul/tanda yang diizinkan (tanpa HTML, tanpa XSS).
 
-Klien mengirim dokumen JSON. Server TIDAK pernah mempercayainya apa adanya:
-  1. `clean_rich_doc` membangun ulang dokumen hanya dari simpul dan tanda yang diizinkan,
-     dengan atribut yang disaring. Tidak ada HTML mentah, jadi tidak ada jalur XSS lewat
-     jawaban; peramban merenderkannya kembali lewat skema editor.
-  2. `rich_to_plain` mengambil teks polos DARI dokumen yang sudah bersih. Teks inilah yang
-     dianalisis (detektor AI, level Bloom, jumlah kata proses). Klien tidak boleh mengirim
-     teks polos yang berbeda dari tampilan yang dilihat dosen.
-
-Rumus dan gambar tidak masuk teks polos: bukan prosa, dan rumus LaTeX hanya menambah derau
-pada detektor. Gambar disisipkan sebagai data URI kecil (dikompres klien), jadi ikut terhapus
-bersama jawabannya dan tidak butuh penyimpanan berkas baru.
+rich_to_plain mengambil teks polos yang dianalisis dari dokumen bersih; rumus dan gambar (data URI) tidak ikut.
 """
 from __future__ import annotations
 

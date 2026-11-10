@@ -15,11 +15,7 @@ from common.http import parse_uuid_or_404, request_user_id
 
 
 class TeacherOverviewView(APIView):
-    """GET ringkasan lintas kelas untuk layar depan dosen.
-
-    Satu panggilan untuk tiga grafik: ketiganya membaca submission yang sama,
-    jadi memecahnya membuka peluang angka yang berbeda antar grafik.
-    """
+    """GET ringkasan lintas kelas untuk beranda dosen (satu panggilan agar tiga grafik konsisten)."""
 
     permission_classes = [IsTeacher]
 
@@ -31,11 +27,7 @@ class TeacherOverviewView(APIView):
 
 
 class ReportOverviewView(APIView):
-    """GET laporan agregat per kelas, prodi, dan semester milik dosen.
-
-    Cakupan ditentukan di sini, bukan di reports.py, supaya peran Kaprodi kelak
-    cukup memberi queryset berbeda ke build_report().
-    """
+    """GET laporan agregat per kelas, prodi, dan semester milik dosen (cakupan ditentukan di sini)."""
 
     permission_classes = [IsTeacher]
 
@@ -74,11 +66,7 @@ class StudentCognitiveProfileView(APIView):
 
 
 class StudentOwnProgressView(APIView):
-    """GET perkembangan kognitif mahasiswa atas dirinya sendiri.
-
-    Perhitungannya sama dengan tampilan dosen; bedanya hanya cakupan, dan
-    band AI dibuang karena mahasiswa tidak pernah melihat dugaan sistem.
-    """
+    """GET perkembangan kognitif mahasiswa sendiri; band AI dibuang (mahasiswa tak melihat dugaan sistem)."""
 
     permission_classes = [IsStudent]
 

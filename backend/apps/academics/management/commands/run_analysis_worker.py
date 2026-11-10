@@ -1,15 +1,6 @@
-"""Worker antrean analisis: mengerjakan AnalysisJob di luar request web.
+"""Worker antrean analisis: `run_analysis_worker` (terus) atau `--once` (kuras lalu keluar).
 
-    python manage.py run_analysis_worker            # berjalan terus (container `worker`)
-    python manage.py run_analysis_worker --once     # kuras antrean lalu keluar
-
-Beberapa thread mengklaim job dengan SELECT ... FOR UPDATE SKIP LOCKED, jadi
-aman dijalankan lebih dari satu proses. Thread diberi batas kecil karena
-pekerjaannya menunggu jaringan (Winston, Groq) dan jatah token Groq dibagi
-dengan Cek Paham.
-
-Setiap putaran menyentuh berkas denyut; healthcheck container memeriksa
-umurnya (lihat docker-compose.yml).
+Klaim job lewat SELECT ... FOR UPDATE SKIP LOCKED (aman multi-proses); berkas denyut untuk healthcheck.
 """
 from __future__ import annotations
 

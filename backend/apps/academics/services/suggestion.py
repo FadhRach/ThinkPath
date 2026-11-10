@@ -1,15 +1,7 @@
-"""Saran untuk dosen saat memeriksa satu jawaban: sudah baik, perlu Cek Paham, atau dibandingkan.
+"""Saran untuk dosen per jawaban: sudah baik, perlu Cek Paham, atau dibandingkan; tak pernah menyarankan sanksi.
 
-Dua lapis:
-1. Aturan lokal (selalu ada). Disusun dari bukti yang sudah ada: level Bloom terhadap target,
-   indikasi AI, penanda gaya, kemiripan dengan jawaban lain, dan pola proses. Tidak ada data
-   yang keluar dari server ThinkPath.
-2. Narasi Groq (opsional). Hanya bila mahasiswa mengizinkan analisis di luar negeri, kunci
-   tersedia, dan jawaban tidak memuat kalimat yang menyasar penilai. Merangkum jawaban terhadap
-   instruksi tugas dan menyiapkan draf umpan balik. Tidak pernah mengubah skor atau nilai.
-
-Saran ini bahan pertimbangan. Ia tidak pernah menyarankan sanksi, dan kata kerjanya selalu
-"tanyakan" atau "periksa", bukan "putuskan".
+1) Aturan lokal dari bukti yang ada (Bloom vs target, indikasi AI, gaya, kemiripan, proses).
+2) Narasi Groq opsional: hanya dengan izin luar negeri, kunci ada, dan tanpa pola injeksi.
 """
 from __future__ import annotations
 

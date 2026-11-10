@@ -1,8 +1,4 @@
-"""Endpoint Cek Paham. Tipis: HTTP saja, logika di services/ dan selectors.py.
-
-Endpoint yang memanggil Groq (buat, mulai, caption, finalisasi, proses ulang)
-membalas 503 bila kunci Groq tidak terpasang; membaca hasil tetap berfungsi.
-"""
+"""Endpoint Cek Paham (HTTP saja); yang memanggil Groq membalas 503 tanpa GROQ_API_KEY."""
 from __future__ import annotations
 
 import json

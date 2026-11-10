@@ -1,14 +1,7 @@
-"""Klien Groq untuk mengubah suara menjadi teks (Whisper).
+"""Klien Groq Whisper (suara -> teks); tidak pernah melempar, kegagalan dipetakan ke error_code.
 
-Kontraknya: tidak pernah melempar ke pemanggil. Semua kegagalan dipetakan ke
-error_code supaya service bisa menyimpan audio dan menawarkan proses ulang,
-bukan mengembalikan 500 ke mahasiswa yang baru selesai menjawab.
-
-Whisper mengarang kalimat pada audio hening ("Terima kasih."), dan angka
-kepercayaan per segmen TIDAK menangkapnya: pada klip hening 6 detik yang diuji
-Oktober 2026, no_speech_prob = 0 dan avg_logprob = -0,12. Yang membedakan adalah
-segmennya berakhir di detik 29,98 padahal audio hanya 6 detik. Karena itu
-filter_segments() memeriksa batas waktu dan daftar frasa, bukan hanya angka.
+Whisper mengarang kalimat pada audio hening dengan skor yakin tinggi, jadi filter_segments()
+memeriksa batas waktu segmen dan daftar frasa, bukan hanya no_speech_prob.
 """
 from __future__ import annotations
 
@@ -21,8 +14,7 @@ import requests
 
 STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 STT_MODEL = "whisper-large-v3-turbo"
-# Total waktu untuk satu transkripsi, termasuk percobaan ulang. Finalisasi
-# (STT + penilai) harus tetap di bawah timeout gunicorn 60 detik.
+# Total waktu satu transkripsi (termasuk ulang); finalisasi harus di bawah timeout gunicorn 60 s.
 FINAL_BUDGET_SECONDS = 25
 LIVE_BUDGET_SECONDS = 8
 RETRY_BACKOFF_SECONDS = 1.5

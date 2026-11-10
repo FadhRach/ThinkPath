@@ -1,9 +1,6 @@
-"""Alur pengumpulan jawaban: submit pertama, revisi, dan permintaan analisis ulang.
+"""Submit pertama, revisi, dan analisis ulang: hanya MENYIMPAN jawaban + job antrean (worker menganalisis).
 
-Ketiganya hanya MENYIMPAN jawaban dan memasukkan job ke antrean; analisis
-(bisa ~20 detik: Winston + Groq) dikerjakan worker (lihat analysis_jobs.py).
-Satu fungsi pembangun konteks proses (analysis_jobs.build_process) dipakai
-semua jalur, jadi tidak ada jalur yang diam-diam memakai konteks berbeda.
+Semua jalur memakai analysis_jobs.build_process untuk konteks proses.
 """
 from __future__ import annotations
 
@@ -39,12 +36,7 @@ ALREADY_GRADED = "Jawaban sudah dinilai dosen dan tidak bisa direvisi."
 
 
 def require_student_consent(student_id: UUID, message: str) -> bool:
-    """Persetujuan mahasiswa yang berlaku, atau 403.
-
-    Dibaca dari basis data, bukan dari klaim token: token lama di perangkat
-    lain masih memuat klaim persetujuan setelah ditarik (Pasal 40 UU PDP).
-    Mengembalikan apakah jawaban boleh dikirim ke penyedia di luar negeri.
-    """
+    """Persetujuan berlaku dari DB (bukan token, Pasal 40 UU PDP), atau 403; mengembalikan izin luar negeri."""
     consent = current_consent(student_id)
     if consent is None:
         raise PermissionDenied(message)
@@ -96,11 +88,7 @@ def _answer_text(student_id: UUID, document_id: UUID | None, typed: str) -> str:
 def submit_answer(
     assignment: Assignment, student: Profile, validated: dict
 ) -> tuple[Submission, bool]:
-    """Upsert jawaban mahasiswa. Mengembalikan (submission, is_revision).
-
-    Tenggat dan persetujuan sudah diperiksa view sebelum isian divalidasi.
-    Analisis tidak dijalankan di sini: job masuk antrean (dispatch).
-    """
+    """Upsert jawaban mahasiswa -> (submission, is_revision); analisis lewat antrean, bukan di sini."""
     existing = Submission.objects.filter(
         assignment=assignment, student_profile=student
     ).first()
@@ -112,8 +100,7 @@ def submit_answer(
             raise ValidationError(ALREADY_GRADED)
         submission, job = _revise(existing, assignment, validated)
         revised = True
-    # Setelah transaksi selesai: mode inline menjalankan job di sini, worker
-    # produksi mengambilnya sendiri.
+    # Setelah commit: mode inline menjalankan job di sini, worker produksi mengambilnya sendiri.
     analysis_jobs.dispatch(job)
     submission.refresh_from_db(fields=["analysis_state"])
     return submission, revised
@@ -123,9 +110,7 @@ def _create(
     assignment: Assignment, student: Profile, validated: dict
 ) -> tuple[Submission, AnalysisJob]:
     submitted_at = timezone.now()
-    # Jejak pengerjaan berasal dari draf yang dicatat server. started_at dan
-    # progress kiriman klien (bundel lama) diterima tetapi diabaikan: klien
-    # tidak boleh menentukan bukti yang dipakai untuk menilainya sendiri.
+    # Jejak dari draf server; started_at/progress kiriman klien diabaikan (klien tak boleh menentukan buktinya).
     draft = get_draft(assignment, student)
     if validated.get("document_id") is None and draft is not None and draft.document_id:
         validated = {**validated, "document_id": draft.document_id}
@@ -167,8 +152,7 @@ def _create(
             if draft is not None:
                 draft.delete()
     except IntegrityError as exc:
-        # Dua permintaan pertama tiba bersamaan (klik ganda): constraint
-        # submission_unique_per_student menolak yang kedua.
+        # Klik ganda: constraint submission_unique_per_student menolak permintaan kedua.
         raise ValidationError(
             "Jawaban untuk tugas ini sedang diproses. Muat ulang halaman."
         ) from exc
@@ -178,20 +162,17 @@ def _create(
 def _revise(
     submission: Submission, assignment: Assignment, validated: dict
 ) -> tuple[Submission, AnalysisJob]:
-    # Klien selalu mengirim ulang dokumen yang masih terlampir; tanpa itu dokumen dianggap
-    # dilepas. Teks yang ditulis ulang total kembali dinilai lewat jejak prosesnya.
+    # Klien mengirim ulang dokumen yang masih terlampir; tanpa document_id dokumen dianggap dilepas.
     document_id = _uploaded_id(assignment, validated)
     text_answer = _answer_text(submission.student_profile_id, document_id, validated["text_answer"])
     source_document = verified_source(submission.student_profile_id, document_id, text_answer)
     with transaction.atomic():
-        # Kunci baris dan baca ulang: selama request ini berjalan, dosen bisa
-        # saja sudah menilai, atau revisi lain sudah tersimpan lebih dulu.
+        # Kunci + baca ulang: dosen bisa sudah menilai, atau revisi lain tersimpan lebih dulu.
         locked = Submission.objects.select_for_update().get(pk=submission.pk)
         if locked.status == SubmissionStatus.REVIEWED:
             raise ValidationError(ALREADY_GRADED)
         revised_at = timezone.now()
-        # Kata yang tidak ada di teks sebelumnya. Tanpa ini, jawaban yang diketik
-        # wajar lalu diganti seluruhnya lewat "Simpan Revisi" tetap tampak wajar.
+        # Kata baru vs teks sebelumnya: mengganti seluruh isi lewat revisi tidak boleh tampak wajar.
         inserted_now = new_words(locked.text_answer, text_answer)
         locked.text_answer = text_answer
         locked.rich_answer = validated.get("rich_answer")

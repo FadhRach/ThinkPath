@@ -1,14 +1,7 @@
-"""Sapu data yang tidak punya pemilik atau sudah tidak berguna.
+"""Sapu data yatim/usang (cron harian deploy/maintenance.sh): `purge_stale_data [--dry-run]`.
 
-    python manage.py purge_stale_data [--dry-run]
-
-Dijalankan harian dari cron (deploy/maintenance.sh). Menghapus:
-- berkas di MEDIA_ROOT milik profil yang sudah tidak ada, dan berkas yatim
-  (unggahan yang tidak pernah dikumpulkan, audio tanpa baris) yang lebih tua
-  dari 24 jam; batas itu melindungi unggahan yang baru saja diproses;
-- job analisis selesai/gagal/digantikan > 30 hari, notifikasi > 90 hari,
-  dan sesi login yang sudah dicabut atau kedaluwarsa > 30 hari.
-Audio Cek Paham yang lewat masa simpan 30 hari ditangani purge_cekpaham_audio.
+Berkas tanpa pemilik atau yatim > 24 jam; job > 30 hari, notifikasi > 90 hari, sesi mati > 30 hari.
+Audio Cek Paham lewat masa simpan ditangani purge_cekpaham_audio.
 """
 from __future__ import annotations
 

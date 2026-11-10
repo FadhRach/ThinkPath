@@ -1,27 +1,7 @@
-"""E1: skor indikasi penggunaan AI generatif.
+"""E1: skor indikasi AI heuristik (0-100) dari lima sinyal teks S1-S5.
 
-PERINGATAN KEJUJURAN, WAJIB DIBACA SEBELUM MENGKLAIM ANGKA APA PUN.
-
-Modul ini adalah baseline heuristik yang dapat dijelaskan, BUKAN detektor
-tervalidasi. Bobot di bawah ditetapkan dari penalaran, bukan dari kalibrasi
-terhadap data berlabel. Sampai tim punya gold set jawaban mahasiswa Indonesia yang
-dilabeli manusia, tidak boleh ada klaim akurasi, presisi, atau recall dari
-modul ini.
-
-Yang boleh diklaim: skor ini menghitung beberapa sinyal yang saling bebas, dan
-melaporkan kontribusi tiap sinyal supaya dosen bisa menilai sendiri alasannya.
-Yang tidak boleh diklaim: bahwa skor 78 berarti 78 persen kemungkinan AI.
-
-Ada lima sinyal berbasis teks, ditambah satu sinyal forensik proses bila
-metadata pengerjaan tersedia (lihat process_signals.py). Sinyal proses adalah
-yang paling sulit dipalsukan karena tidak membaca teks sama sekali, sehingga
-parafrase tidak menghapusnya.
-
-Riset yang mendasari kehati hatian ini: detektor teks AI menandai tulisan
-penulis non-native jauh lebih sering daripada penulis native, dan pada korpus
-multibahasa M4GT-Bench performa untuk bahasa Indonesia berada jauh di bawah
-bahasa Inggris. Karena itu keluaran modul ini diposisikan sebagai bahan tinjau
-dosen, bukan vonis.
+skor = round(clamp01(sum(value_i * weight_i)) * 100); band: <42 rendah, <70 sedang, sisanya tinggi.
+Baseline yang bisa dijelaskan, bukan detektor tervalidasi: skor 78 BUKAN "78% kemungkinan AI".
 """
 from __future__ import annotations
 
@@ -73,23 +53,9 @@ class AiScoreResult:
         return [signal.as_dict() for signal in self.breakdown]
 
 
-# Bobot sinyal berbasis teks. Jumlahnya harus 1.0, dijaga oleh test.
-#
-# HASIL UKUR, bukan lagi karangan. Dicari lewat grid search pada split train
-# gold set 999 sampel (ai_experiment/src/tune_weights.py) dan diverifikasi pada
-# split test yang tidak pernah dilihat pencarian: ROC-AUC test naik dari 0,884
-# (bobot lama 0,30/0,25/0,20/0,15/0,10) menjadi 0,912; pada set penuh 0,869
-# menjadi 0,901.
-#
-# impersonality dan flat_certainty dipatok pada lantai 0,05, bukan nol, dan itu
-# disengaja: keduanya diam pada register abstrak akademik gold set, tetapi diam
-# di register yang salah bukan bukti buruk di register esai mahasiswa yang
-# sebenarnya dinilai produk ini. Menolkan bobot berdasarkan register yang salah
-# berarti membuang sinyal yang belum pernah diuji.
-#
-# Mengubah bobot WAJIB menurunkan ulang MID_THRESHOLD di bawah: ambang diukur
-# untuk sebaran skor yang dihasilkan bobot ini, bukan properti yang bertahan
-# sendiri.
+# Bobot S1-S5, jumlah 1.0 (dijaga tes). Hasil grid search ai_experiment/src/tune_weights.py
+# (ROC-AUC test 0,884 -> 0,912). S3/S4 dipatok lantai 0,05: diam di gold set beregister abstrak.
+# Mengubah bobot WAJIB menurunkan ulang MID_THRESHOLD.
 TEXT_WEIGHTS = {
     "uniformity": 0.40,
     "formulaic_phrasing": 0.25,
@@ -98,22 +64,8 @@ TEXT_WEIGHTS = {
     "lexical_uniformity": 0.25,
 }
 
-# Porsi sinyal forensik proses dalam skor AI: NOL, dan itu keputusan, bukan
-# kelalaian. Sebelumnya 0,25 (menyusutkan bobot teks menjadi ×0,75). Tiga alasan
-# melepasnya dari skor:
-#
-# 1. MID_THRESHOLD 42 dan FPR 0,044 diukur pada bobot teks murni di gold set.
-#    Menyusutkan bobot teks dan menambah sinyal proses membuat sebaran skor
-#    produksi berbeda dari yang diukur, sehingga ambang itu tidak berlaku lagi.
-# 2. Tidak ada satu pun data berlabel untuk proses; 0,25 tidak punya dasar ukur.
-# 3. Lonjakan yang sama dihasilkan penyalin dan mahasiswa jujur yang menulis di
-#    Word lalu menempel. Dengan bobot 0,25 yang kedua bisa naik +25 poin dan
-#    melewati ambang (0,75×25 + 0,25×100 = 43,75 ≥ 42).
-#
-# Sinyal proses tetap dihitung dan tampil di panel sebagai baris berbobot nol,
-# plus kartu "pola pengerjaan" tersendiri (process_signals.assess_process).
-# Naikkan hanya bila ada data berlabel yang membuktikan nilainya, dan turunkan
-# ulang MID_THRESHOLD bersamanya.
+# Sinyal proses tidak masuk skor: ambang 42 diukur pada bobot teks murni, tidak ada data
+# berlabel untuk proses, dan menulis di Word lalu menempel memberi lonjakan yang sama dengan menyalin.
 PROCESS_WEIGHT = 0.0
 
 
@@ -122,7 +74,7 @@ def _clamp01(value: float) -> float:
 
 
 def _signal_uniformity(features: TextFeatures) -> SignalScore:
-    """Keseragaman panjang kalimat. Burstiness rendah berarti seragam."""
+    """S1 keseragaman kalimat: value = clamp01(1 - burstiness / 0.6); netral 0.5 bila < 3 kalimat."""
     if features.sentence_count < 3:
         value = 0.5
         evidence = "Jumlah kalimat terlalu sedikit untuk menilai variasi panjang"
@@ -147,7 +99,7 @@ def _signal_uniformity(features: TextFeatures) -> SignalScore:
 
 
 def _signal_formulaic_phrasing(features: TextFeatures) -> SignalScore:
-    """Kepadatan frasa transisi formulaik yang khas keluaran LLM."""
+    """S2 frasa formulaik: value = clamp01(jenis LLM_PHRASES yang muncul / 4)."""
     value = _clamp01(features.llm_phrase_count / 4.0)
     if features.llm_phrase_count == 0:
         evidence = "Tidak ditemukan frasa transisi formulaik"
@@ -165,7 +117,7 @@ def _signal_formulaic_phrasing(features: TextFeatures) -> SignalScore:
 
 
 def _signal_impersonality(features: TextFeatures) -> SignalScore:
-    """Ketiadaan suara orang pertama dan contoh dari pengalaman sendiri."""
+    """S3 ketiadaan suara personal: value = clamp01(1 - (personal + evidence) / 3)."""
     voice = features.personal_count + features.evidence_count
     value = _clamp01(1.0 - (voice / 3.0))
     if voice == 0:
@@ -182,21 +134,7 @@ def _signal_impersonality(features: TextFeatures) -> SignalScore:
 
 
 def _signal_flat_certainty(features: TextFeatures) -> SignalScore:
-    """Ketiadaan keraguan dan kualifikasi.
-
-    Menggantikan sinyal "kerapian mekanis" yang lama. Sinyal lama menghitung
-    ragam informal seperti "gak" dan "banget". Mahasiswa yang menulis esai
-    akademik tidak pernah memakainya, sehingga nilainya konstan 1.0 untuk
-    seluruh populasi: ia menyumbang bobot ke setiap orang tanpa membedakan
-    siapa pun, dan itu ikut menaikkan skor mahasiswa jujur.
-
-    Penggantinya mengukur apakah penulis pernah ragu, memberi syarat, atau
-    mengakui batas argumennya. Ragam informal tetap dihitung sebagai bukti
-    tambahan bila kebetulan muncul.
-
-    Hipotesis ini belum diuji terhadap data berlabel. Bobotnya dijaga rendah
-    sampai ai_experiment memberi angka.
-    """
+    """S4 ketiadaan keraguan: value = clamp01(1 - (hedging + informal) / 3)."""
     voice = features.hedging_count + features.informal_count
     value = _clamp01(1.0 - (voice / 3.0))
     if voice == 0:
@@ -212,24 +150,14 @@ def _signal_flat_certainty(features: TextFeatures) -> SignalScore:
     )
 
 
-# Panjang minimum teks di gold set (ai_experiment/src/config.py, MIN_WORDS).
-# Titik tengah 0,62 dan rentang 0,25 di bawah hanya pernah diuji pada teks
-# sepanjang ini ke atas.
+# Panjang minimum gold set (ai_experiment/src/config.py MIN_WORDS); titik tengah 0,62 hanya teruji di atasnya.
 LEXICAL_MIN_WORDS = 120
 
 
 def _signal_lexical_uniformity(features: TextFeatures) -> SignalScore:
-    """Keragaman kosakata di luar rentang wajar tulisan mahasiswa.
+    """S5 keragaman kosakata: value = clamp01(|TTR - 0.62| / 0.25).
 
-    Nilai ekstrem di kedua arah sama sama mencurigakan, jadi jarak dari titik
-    tengah wajar yang dipakai, bukan nilai mentahnya.
-
-    Di bawah LEXICAL_MIN_WORDS sinyal ini netral. Rasio kata unik pada teks
-    pendek selalu tinggi secara alami: jawaban 60 kata jarang mengulang kata,
-    sehingga rasionya sekitar 0,85 dan nilainya mentok 1,0. Dulu itu menyumbang
-    sampai +24 poin ke setiap jawaban pendek, cukup untuk mendorong jawaban
-    jujur bersuara orang pertama ke band sedang, sementara jawaban jujur 190
-    kata hanya mendapat +7.
+    Netral 0.5 bila < 120 kata: teks pendek selalu ber-TTR tinggi tanpa berarti apa-apa.
     """
     if features.word_count < LEXICAL_MIN_WORDS:
         value = 0.5
@@ -253,32 +181,9 @@ def _signal_lexical_uniformity(features: TextFeatures) -> SignalScore:
     )
 
 
-# Ambang band heuristik. Yang bawah HASIL UKUR, yang atas belum.
-#
-# MID 42 diturunkan BERSAMA bobot terukur di atas (keduanya satu paket): itulah
-# ambang terendah yang menjaga false positive rate di bawah 5 persen pada gold
-# set 999 sampel dengan bobot baru - terukur 0,044, yaitu 22 dari 500 tulisan
-# manusia, dengan recall 0,607 dan presisi 0,932. Riwayat angkanya: 35 asli
-# ditulis dari penalaran (FPR terukur 0,838); 56 adalah ambang terukur untuk
-# bobot LAMA; begitu bobotnya berubah, 56 kehilangan dasar ukurnya dan harus
-# diturunkan ulang. Reproduksi: ai_experiment/src/tune_weights.py.
-#
-# Kenapa angka dari gold set beregister salah tetap dipakai. Gold setnya berisi
-# abstrak akademik sedangkan produk ini menilai esai mahasiswa, dan itu memang
-# ketidakcocokan yang nyata. Tetapi ARAH biasnya bisa diketahui: abstrak
-# akademik menurut konvensinya lebih formal, lebih impersonal, dan lebih seragam
-# daripada esai mahasiswa, sehingga tulisan manusia di gold set mendapat skor
-# LEBIH TINGGI daripada tulisan manusia yang sebenarnya dinilai produk ini.
-# Ambang yang menahan FPR pada korpus yang lebih sulit itu akan lebih longgar,
-# bukan lebih ketat, ketika dipakai pada esai mahasiswa. Kesalahannya jatuh ke
-# arah tidak menuduh, dan itu arah yang benar untuk produk yang berpegang pada
-# "bukti, bukan vonis".
-#
-# HIGH 70 SENGAJA TIDAK DIGESER dan masih belum terukur. Dengan bobot baru pun
-# tidak ada satu pun sampel gold set yang mencapainya (skor maksimum 68), jadi
-# tetap tidak ada data untuk menempatkannya. Band tinggi praktis tidak pernah
-# aktif, dan itu lebih baik daripada band tinggi yang aktif berdasarkan angka
-# karangan.
+# Ambang band heuristik 42/70 (beda dari Winston 35/70). MID 42 terukur bersama TEXT_WEIGHTS:
+# ambang terendah dengan FPR < 5% di gold set 999 sampel (FPR 0,044, recall 0,607, presisi 0,932).
+# HIGH 70 belum terukur: skor gold set maksimum 68, jadi band tinggi praktis tidak pernah aktif.
 MID_THRESHOLD = 42
 HIGH_THRESHOLD = 70
 
@@ -292,11 +197,7 @@ def score_to_band(ai_score: int) -> str:
 
 
 def text_signal_scores(features: TextFeatures) -> list[SignalScore]:
-    """Kelima sinyal teks heuristik, tanpa penciutan bobot apa pun.
-
-    Dipakai dua tempat: score_ai_probability (menyumbang skor), dan panel
-    pembanding di llm.py ketika skor datang dari Groq/detektor (bobot nol).
-    """
+    """S1-S5 berbobot penuh; juga dipakai pipeline sebagai baris pembanding berbobot nol."""
     return [
         _signal_uniformity(features),
         _signal_formulaic_phrasing(features),
@@ -306,8 +207,8 @@ def text_signal_scores(features: TextFeatures) -> list[SignalScore]:
     ]
 
 
-def build_process_signal(context: ProcessContext) -> SignalScore:  # noqa: D401
-    """Forensik proses pengerjaan (berbobot nol di skor, lihat PROCESS_WEIGHT)."""
+def build_process_signal(context: ProcessContext) -> SignalScore:
+    """Sinyal forensik proses sebagai baris breakdown berbobot PROCESS_WEIGHT (0)."""
     value, evidence = evaluate_process(context)
     return SignalScore(
         key="process_forensics",
@@ -321,15 +222,9 @@ def build_process_signal(context: ProcessContext) -> SignalScore:  # noqa: D401
 def score_ai_probability(
     features: TextFeatures, process: ProcessContext | None = None
 ) -> AiScoreResult:
-    """Hitung skor indikasi AI dari fitur teks dan, bila ada, metadata proses.
+    """Skor AI = round(clamp01(sum(value * weight)) * 100) atas S1-S5 (+ baris proses berbobot 0).
 
-    Tidak membaca level Bloom maupun target dosen. Ini yang menjamin E1 dan E2
-    tetap saling bebas.
-
-    Ketika metadata proses tersedia, bobot sinyal teks diciutkan proporsional
-    supaya total bobot tetap 1.0. Tanpa penciutan itu, skor submission yang
-    punya metadata akan otomatis lebih tinggi daripada yang tidak, hanya karena
-    jumlah sinyalnya lebih banyak.
+    Tidak membaca level Bloom maupun target dosen (E1 dan E2 saling bebas).
     """
     text_signals = text_signal_scores(features)
 

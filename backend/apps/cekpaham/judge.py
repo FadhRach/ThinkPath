@@ -1,16 +1,7 @@
-"""Penilai saran untuk jawaban lisan (LLM lewat Groq).
+"""Penilai SARAN jawaban lisan (Groq); tidak mengimpor mesin analisis (dijaga tes AST).
 
-Hanya MENYARANKAN: skor ini tidak mengubah nilai tugas, skor E1, atau level
-Bloom, dan modul ini sengaja tidak mengimpor mesin analisis (dijaga tes AST).
-
-Keandalan, semuanya diuji:
-- Transkrip dan jawaban adalah DATA. Dibungkus delimiter, dan delimiter di
-  dalam isinya dibuang agar tidak bisa menutup pembungkus lebih awal.
-- Penilai hanya memberi level; skor dihitung di rubric.py.
-- Kutipan bukti harus berupa potongan transkrip; yang bukan dibuang dan diberi
-  flag, level tidak diubah diam-diam.
-- Dua kali jalan dengan urutan rubrik dibalik (mengurangi bias posisi).
-- Bukti kurang -> skor kosong, bukan angka rendah.
+Transkrip = DATA berpembungkus; penilai hanya memberi level, skor dihitung di rubric.py; kutipan
+harus potongan transkrip; dua jalan dengan urutan rubrik dibalik; bukti kurang -> skor kosong.
 """
 from __future__ import annotations
 
@@ -29,9 +20,7 @@ from apps.cekpaham import rubric
 MIN_WORDS = 15
 REQUEST_TIMEOUT_SECONDS = 10
 ATTEMPTS_PER_RUN = 2
-# Jatah token per menit Groq (8.000 untuk gpt-oss-120b, Oktober 2026) dipakai
-# bersama analisis submission, dan satu jalan menghabiskan ~2.000. 429 biasanya
-# minta tunggu sebentar; menunggu lebih lama dari ini tidak sepadan dengan request.
+# Jatah token Groq dibagi dengan analisis submission; menunggu 429 lebih lama dari ini tak sepadan.
 MAX_RATE_LIMIT_WAIT_SECONDS = 10
 RETRY_AFTER_PATTERN = re.compile(r"try again in ([\d.]+)\s*(ms|s)\b")
 MAX_SUMMARY_WORDS = 80

@@ -1,10 +1,6 @@
-"""Klien Groq (OpenAI-compatible) untuk penilaian LLM: level Bloom saja.
+"""Klien Groq (OpenAI-compatible) untuk level Bloom saja; Groq tidak memberi skor AI.
 
-Skor AI tidak diminta dari Groq. Pada uji E1 (ai_experiment notebook 12) Groq
-hampir setara tebakan (AUC 0,60, salah tuduh 60%), sedangkan heuristik AUC 0,88.
-
-Pindah penyedia LLM (mis. ke Claude) cukup mengganti isi modul ini;
-pipeline hanya memanggil is_configured() dan call().
+Uji E1 (notebook 12): Groq AUC 0,60 dengan salah tuduh 60%, heuristik AUC 0,88.
 """
 from __future__ import annotations
 
@@ -15,20 +11,14 @@ import re
 import requests
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-# llama-3.3-70b-versatile dipensiunkan Groq (404 model_not_found, Oktober 2026).
+# llama-3.3-70b-versatile sudah pensiun (404 model_not_found).
 DEFAULT_MODEL = "openai/gpt-oss-120b"
-# Sengaja jauh di bawah timeout gunicorn (60 detik). Kalau keduanya sama,
-# gunicorn bisa membunuh worker tepat saat Groq hendak menjawab, dan request
-# mahasiswa hilang tanpa jejak. Jalur heuristik sudah ada sebagai cadangan,
-# jadi menyerah lebih cepat lebih baik daripada menahan worker lama lama.
+# Jauh di bawah timeout gunicorn 60 s; heuristik sudah jadi cadangan.
 REQUEST_TIMEOUT_SECONDS = 12
 
-# Batas teks yang dikirim. Jatah token Groq (8.000/menit) dibagi dengan Cek
-# Paham; esai 20.000 karakter (±6.000 token) menghabiskannya sendirian dan
-# memicu 429. Bagian tengah dibuang, awal dan akhir cukup untuk menilai gaya.
+# Jatah 8.000 token/menit dibagi dengan Cek Paham; bagian tengah teks panjang dibuang.
 MAX_TEXT_CHARS = 9_000
-# Pembungkus data; penanda sejenis di dalam jawaban dibuang agar tidak bisa
-# menutup pembungkus lebih awal (pola yang sama dengan cekpaham/judge.py).
+# Penanda pembungkus di dalam jawaban dibuang agar tidak bisa menutup pembungkus lebih awal.
 DELIMITER = re.compile(r"\[\[/?[A-Z_]+\]\]")
 
 SYSTEM_PROMPT = """Kamu adalah ThinkPath, sistem analisis integritas akademik untuk pendidikan tinggi Indonesia.
@@ -77,14 +67,7 @@ def _prepare_text(text: str) -> str:
 
 
 def _build_user_message(text: str, education_level: str) -> str:
-    """Konteks yang dikirim ke model.
-
-    Target Bloom dosen sengaja TIDAK dikirim. Menyebutkan target di prompt
-    membuat model ter-anchor dan cenderung menjawab di sekitar angka itu,
-    sehingga hasilnya memantulkan harapan dosen alih alih mengukur jawaban.
-    Perbandingan terhadap target dilakukan di sisi backend setelah model
-    memberi taksiran secara mandiri.
-    """
+    """Target Bloom dosen sengaja tidak dikirim agar model tidak ter-anchor ke angka itu."""
     return (
         f"Jenjang studi: {education_level}\n\n"
         f"[[JAWABAN_MAHASISWA]]\n{_prepare_text(text)}\n[[/JAWABAN_MAHASISWA]]"
@@ -111,9 +94,7 @@ def call(text: str, education_level: str) -> dict:
                 },
             ],
             "response_format": {"type": "json_object"},
-            # 0: analisis ulang atas teks yang sama harus memberi hasil yang
-            # sama; dulu 0,2 membuat tombol "Analisis Ulang" bisa mengubah skor.
-            "temperature": 0,
+            "temperature": 0,  # Analisis Ulang atas teks sama harus memberi hasil sama
         },
         timeout=REQUEST_TIMEOUT_SECONDS,
     )

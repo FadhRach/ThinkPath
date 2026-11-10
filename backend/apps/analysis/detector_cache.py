@@ -1,18 +1,4 @@
-"""Lapisan cache di depan detektor eksternal.
-
-Alasan modul ini terpisah dari providers/winston.py, bukan digabung ke dalamnya:
-winston.py adalah klien penyedia yang murni, dan docstring-nya menjanjikan
-bahwa pindah penyedia cukup dengan mengganti isi berkas itu. Kalau logika cache
-ikut tinggal di sana, setiap pergantian penyedia harus menulis ulang cache-nya
-juga, padahal cache-nya sama sekali tidak bergantung pada penyedia mana pun.
-Pemisahan ini juga membuat detector.detect() tetap bisa diuji tanpa basis data.
-
-Yang di-cache hanya keberhasilan. Kegagalan seperti 402 kredit habis, 429 batas
-laju, dan timeout semuanya bersifat sementara. Menyimpan "tidak ada hasil" akan
-membekukan submission itu di jalur cadangan selamanya, bahkan setelah saldo
-diisi, dan tidak akan ada yang menyadarinya karena sistem memang dirancang
-tenang saat detektor gagal.
-"""
+"""Cache skor detektor di DB. Hanya keberhasilan yang disimpan: 402/429/timeout itu sementara."""
 from __future__ import annotations
 
 import hashlib
@@ -65,13 +51,7 @@ def _store(key: str, result: detector.DetectorResult) -> None:
 
 
 def detect_cached(text: str) -> detector.DetectorResult | None:
-    """detector.detect() dengan cache, dan cache yang tidak pernah menggagalkan apa pun.
-
-    Galat basis data diperlakukan sama seperti seluruh kegagalan lain di jalur
-    ini: dicatat lalu dilewati. Tabel cache yang bermasalah boleh membuat sistem
-    membayar dua kali, dan tidak boleh membuat mahasiswa gagal mengumpulkan
-    tugas. Itu pertukaran yang jelas arahnya.
-    """
+    """detector.detect() dengan cache; galat DB dicatat lalu dilewati (bayar dua kali > gagal kumpul)."""
     key = text_key(text)
 
     try:
@@ -90,8 +70,7 @@ def detect_cached(text: str) -> detector.DetectorResult | None:
     try:
         _store(key, result)
     except DatabaseError as exc:
-        # Skornya tetap dipakai. Yang hilang cuma penghematan pada panggilan
-        # berikutnya, bukan hasil yang sudah terlanjur dibayar.
+        # Skor tetap dipakai; yang hilang hanya penghematan berikutnya.
         logger.warning("Skor detektor gagal disimpan ke cache: %s", exc)
 
     return result

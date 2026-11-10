@@ -1,40 +1,17 @@
-"""Orkestrator analisis jalur heuristik.
+"""Jalur heuristik: teks -> TextFeatures sekali, lalu E1 (ai_score) dan E2 (bloom) terpisah.
 
-Alur: teks mentah dibaca sekali menjadi TextFeatures, lalu E1 (ai_score.py) dan
-E2 (bloom.py) menghitung hasilnya masing masing dari fitur yang sama. Keduanya
-tidak saling melihat hasil.
-
-Peran expected_bloom_level di modul ini hanya satu: membandingkan level yang
-DITAKSIR terhadap target dosen untuk menyusun kalimat rekomendasi. Ia tidak
-pernah menjadi masukan bagi taksiran itu sendiri.
-
-Sebelumnya modul ini menurunkan bloom_level dari ai_band lewat fungsi
-band_to_bloom(). Fungsi itu sudah dihapus. Alasannya ada di docstring bloom.py.
+expected_bloom_level hanya dipakai untuk kalimat rekomendasi, tidak pernah untuk menaksir level.
 """
 from __future__ import annotations
 
-from apps.analysis.engines.ai_score import score_ai_probability, score_to_band
+from apps.analysis.engines.ai_score import score_ai_probability
 from apps.analysis.engines.bloom import BLOOM_LABELS, estimate_bloom_level
 from apps.analysis.choices import AiBand, AnalysisSource, Confidence
 from apps.analysis.engines.process_signals import ProcessContext
 from apps.analysis.engines.text_features import extract_features
 
-__all__ = [
-    "analyze_text",
-    "score_to_band",
-    "band_to_recommendation",
-    "build_recommendation",
-    "build_summary",
-    "overall_confidence",
-]
-
-
 def band_to_recommendation(band: str) -> str:
-    """Tindak lanjut berdasarkan band AI saja.
-
-    Dipertahankan karena modul lain memakainya. Untuk rekomendasi yang juga
-    memperhitungkan kesenjangan kognitif, pakai build_recommendation().
-    """
+    """Tindak lanjut berdasarkan band AI saja."""
     if band == AiBand.LOW:
         return "Tidak ada indikasi yang perlu ditindaklanjuti. Lanjutkan penilaian seperti biasa."
     if band == AiBand.MID:
@@ -46,13 +23,7 @@ _GAP_WORDS = {2: "dua", 3: "tiga", 4: "empat", 5: "lima"}
 
 
 def build_recommendation(band: str, bloom_level: int, expected_bloom_level: int) -> str:
-    """Rekomendasi yang menggabungkan dua dimensi yang kini terpisah.
-
-    Karena bloom_level tidak lagi diturunkan dari band, kombinasi keduanya
-    membawa informasi nyata. Jawaban dengan indikasi AI rendah tetapi level
-    kognitif di bawah target adalah kasus yang paling berguna bagi dosen, dan
-    dulu mustahil muncul.
-    """
+    """Rekomendasi = tindak lanjut band AI + selisih level Bloom terhadap target dosen."""
     gap = bloom_level - expected_bloom_level
     integrity = band_to_recommendation(band)
 
@@ -105,16 +76,7 @@ def build_summary(band: str, bloom_level: int, bloom_confidence: str) -> str:
 
 
 def overall_confidence(word_count: int) -> str:
-    """Keyakinan terhadap skor AI untuk jalur yang tidak melaporkan keyakinannya.
-
-    Jalur heuristik tidak pernah mencapai keyakinan tinggi: sinyalnya terlalu
-    dangkal, dan menaikkannya ke high akan menyesatkan dosen.
-
-    Dipakai juga oleh jalur detektor eksternal di pipeline.py, yang punya alasan
-    berbeda dengan kesimpulan sama. Detektor memang tidak mengembalikan
-    keyakinan sama sekali, dan ketepatannya pada teks berbahasa Indonesia baru
-    diukur pada sampel kecil.
-    """
+    """low bila < 80 kata, selainnya medium; heuristik dan detektor tidak pernah "high"."""
     return Confidence.LOW if word_count < 80 else Confidence.MEDIUM
 
 
@@ -123,16 +85,7 @@ def analyze_text(
     expected_bloom_level: int,
     process: ProcessContext | None = None,
 ) -> dict:
-    """Hasil analisis heuristik untuk satu jawaban mahasiswa.
-
-    Jalur Groq hanya menimpa field Bloom pada dict ini, dan bentuknya
-    langsung bisa dipakai sebagai kwargs AnalysisResult.
-
-    process bersifat opsional supaya modul ini tetap bisa diuji tanpa database.
-    Bila tersedia, sinyal forensik proses ikut masuk ke skor E1. Ia tidak pernah
-    menyentuh taksiran Bloom, karena kecepatan mengetik tidak mengubah level
-    kognitif yang ditunjukkan sebuah jawaban.
-    """
+    """Dict siap pakai sebagai kwargs AnalysisResult; Groq hanya menimpa field Bloom-nya."""
     features = extract_features(text)
     ai = score_ai_probability(features, process)
     bloom = estimate_bloom_level(features)

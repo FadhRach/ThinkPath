@@ -1,18 +1,6 @@
-"""E4: profil kognitif mahasiswa dari tren level Bloom lintas waktu.
+"""E4: profil kognitif = rata-rata bergerak eksponensial level Bloom per kelas, terurut waktu.
 
-Ini penerapan "level optimal mahasiswa" pada blueprint. Bukan model baru, bukan
-Bayesian Knowledge Tracing, melainkan matematika sederhana di atas keluaran E2:
-rata rata bergerak dari level Bloom yang teramati, per kelas, terurut waktu.
-
-Kejujuran yang harus dijaga saat membaca angka di sini:
-
-**Profil ini setipis E2 yang mendasarinya.** E2 belum tervalidasi sama sekali,
-jadi tren ini mewarisi seluruh ketidakpastiannya. Kalau E2 meleset satu tingkat
-secara acak, tren yang terlihat bisa jadi derau belaka.
-
-**Tren butuh cukup titik.** Dua submission tidak membentuk tren, hanya garis
-antara dua titik. Modul ini menolak menyebut arah kalau titiknya kurang dari
-tiga, dan mengembalikan "belum cukup data" alih alih menebak.
+Mewarisi ketidakpastian E2; arah tren tidak disebut bila titik kurang dari tiga.
 """
 from __future__ import annotations
 
@@ -22,12 +10,10 @@ from django.db.models import QuerySet
 
 from apps.academics.models import Submission
 
-# Bobot pemulusan eksponensial. Semakin besar, semakin berat bobot tugas
-# terbaru. 0,5 berarti tugas terakhir menyumbang separuh nilai akhir.
+# Bobot EMA: 0,5 = tugas terakhir menyumbang separuh nilai.
 SMOOTHING = 0.5
 
-# Di bawah ini arah tren tidak disebut. Dua titik hanya membentuk garis, bukan
-# kecenderungan.
+# Di bawah ini arah tren tidak disebut.
 MIN_POINTS_FOR_TREND = 3
 
 # Selisih rata rata paruh akhir terhadap paruh awal yang dianggap berarti.
@@ -46,12 +32,7 @@ class TrendSummary:
 
 
 def smoothed_level(levels: list[int]) -> float | None:
-    """Rata rata bergerak eksponensial, terurut dari terlama ke terbaru.
-
-    Dipakai daripada rata rata biasa karena yang ingin dijawab adalah "di level
-    mana mahasiswa ini sekarang", bukan "berapa rata rata sepanjang semester".
-    Mahasiswa yang naik dari L1 ke L4 tidak sedang berada di L2.
-    """
+    """EMA dari terlama ke terbaru: menjawab "di level mana sekarang", bukan rata-rata semester."""
     if not levels:
         return None
     value = float(levels[0])
@@ -61,12 +42,7 @@ def smoothed_level(levels: list[int]) -> float | None:
 
 
 def trend_direction(levels: list[int]) -> str:
-    """Bandingkan paruh akhir terhadap paruh awal.
-
-    Sengaja tidak memakai regresi. Dengan lima titik, kemiringan garis regresi
-    sangat sensitif terhadap satu pencilan, sedangkan perbandingan paruh lebih
-    tahan dan lebih mudah dijelaskan ke dosen.
-    """
+    """Rata-rata paruh akhir vs paruh awal (lebih tahan pencilan daripada regresi pada sedikit titik)."""
     if len(levels) < MIN_POINTS_FOR_TREND:
         return "belum_cukup_data"
 
@@ -91,16 +67,11 @@ def summarise(levels: list[int]) -> TrendSummary:
 
 
 def build_profile(submissions: QuerySet[Submission]) -> list[dict]:
-    """Kelompokkan submission teranalisis menjadi satu deret per kelas.
-
-    Pemanggil yang menentukan cakupan: dosen melihat mahasiswa di kelasnya,
-    mahasiswa melihat dirinya sendiri. Perhitungannya sama persis.
-    """
+    """Satu deret per kelas; cakupan (dosen/mahasiswa) ditentukan pemanggil."""
     analysed = (
         submissions.filter(analysis__isnull=False)
         .select_related("analysis", "assignment", "assignment__class_ref")
-        # Profil kognitif hanya membaca angka kecil; esai dan kolom teks
-        # analisis tidak perlu ikut terangkut dari database remote.
+        # Hanya angka kecil yang dibaca; kolom teks besar tidak diangkut.
         .defer(
             "text_answer",
             "teacher_feedback",
@@ -147,8 +118,7 @@ def build_profile(submissions: QuerySet[Submission]) -> list[dict]:
                 "current_level": summary.current_level,
                 "direction": summary.direction,
                 "point_count": summary.points,
-                # Target rata rata dipakai frontend untuk menggambar garis
-                # acuan pada grafik.
+                # Garis acuan grafik di frontend.
                 "average_target": round(sum(expected) / len(expected), 2)
                 if expected
                 else None,

@@ -1,12 +1,6 @@
-"""Ekstraksi fitur teks jawaban mahasiswa.
+"""Ekstraksi fitur teks: hanya mengukur, tidak memutuskan apa pun.
 
-Modul ini sengaja dibuat murni deskriptif: ia hanya mengukur properti teks,
-tidak memutuskan apa pun soal AI maupun level Bloom. Kebijakan skor ada di
-ai_score.py (E1) dan bloom.py (E2), yang keduanya membaca fitur dari sini.
-
-Pemisahan ini penting karena satu alasan: E1 dan E2 harus bisa dibuktikan
-saling bebas. Selama keduanya hanya membaca TextFeatures dan tidak saling
-membaca hasil, tidak mungkin ada ketergantungan melingkar di antara mereka.
+E1 (ai_score.py) dan E2 (bloom.py) sama-sama membaca TextFeatures dan tidak saling membaca hasil.
 """
 from __future__ import annotations
 
@@ -14,19 +8,7 @@ import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-# Frasa yang khas dipakai LLM saat menulis esai formal Indonesia.
-#
-# Daftar ini DIPANGKAS saat fokus produk pindah ke mahasiswa. Sebelumnya ia
-# memuat "dengan demikian", "hal ini menunjukkan bahwa", "berbagai faktor",
-# "secara signifikan", "sebagai kesimpulan", dan "korelasi signifikan". Semua
-# itu bahasa Indonesia akademik yang benar dan dipakai penulis manusia setiap
-# hari. Menghitungnya sebagai jejak AI berarti menghukum mahasiswa karena
-# menulis dengan baik, dan uji jalan memang menunjukkan esai akademik tulisan
-# manusia ikut tertuduh karenanya.
-#
-# Yang tersisa adalah klise yang jarang muncul di tulisan akademik sungguhan.
-# Daftar ini tetap indikatif, bukan bukti, dan wajib diuji ulang lewat
-# ai_experiment sebelum bobotnya dipercaya.
+# Klise khas LLM pada esai Indonesia (S2). Frasa akademik wajar ("dengan demikian") sengaja tidak dimasukkan.
 LLM_PHRASES = (
     "perlu dicatat",
     "penting untuk dicatat",
@@ -62,15 +44,7 @@ PERSONAL_MARKERS = (
     "waktu itu",
 )
 
-# Ragam informal. Dipertahankan karena kalau muncul memang bukti kuat tulisan
-# manusia, tetapi TIDAK lagi diandalkan sebagai sinyal utama: mahasiswa yang
-# menulis esai formal tidak akan memakainya sama sekali, sehingga nilainya
-# konstan untuk seluruh populasi dan tidak membedakan siapa pun.
-# Dicocokkan sebagai KATA UTUH, bukan potongan. Sebelumnya daftar ini memakai
-# spasi di belakang seperti "sih " dan "aja " sebagai pengganti batas kata, tapi
-# itu hanya menjaga sisi kanan. Akibatnya "sih " cocok di dalam "masih" dan
-# "aja " cocok di dalam "saja", dua kata yang ada di hampir setiap teks formal,
-# sehingga teks akademik murni tercatat punya ragam informal.
+# Ragam informal, dicocokkan sebagai kata utuh ("sih" tidak cocok di "masih", "aja" di "saja").
 INFORMAL_MARKERS = (
     "gak",
     "nggak",
@@ -86,13 +60,7 @@ INFORMAL_MARKERS = (
     "tdk",
 )
 
-# Penanda keraguan dan kualifikasi. Inilah pengganti utama INFORMAL_MARKERS
-# untuk register akademik.
-#
-# Hipotesisnya: manusia yang benar benar memikirkan sesuatu akan ragu, memberi
-# syarat, dan mengakui batas argumennya. LLM cenderung menulis dengan kepastian
-# rata dan selalu seimbang. Hipotesis ini BELUM diuji terhadap data berlabel,
-# dan itulah yang dikerjakan notebook diagnostik di ai_experiment.
+# Penanda keraguan/kualifikasi (S4). Hipotesis: LLM menulis dengan kepastian datar; belum diuji data berlabel.
 HEDGING_MARKERS = (
     "tampaknya",
     "kemungkinan",
@@ -114,10 +82,7 @@ HEDGING_MARKERS = (
 # Konektor sebab akibat. Penanda utama penalaran analitis.
 CAUSAL_MARKERS = (
     "karena",
-    # Dua bentuk berimbuhan di kiri ditulis eksplisit. Pencocokan potongan
-    # dulu menangkapnya lewat "karena" dan "sebab"; pencocokan dari tepi kata
-    # tidak, jadi tanpa dua baris ini keduanya diam diam hilang.
-    "dikarenakan",
+    "dikarenakan",  # berimbuhan kiri: pencocokan dari tepi kata tidak menangkapnya lewat "karena"
     "penyebab",
     "sebab",
     "akibatnya",
@@ -196,8 +161,7 @@ EVIDENCE_MARKERS = (
     "hasilnya",
 )
 
-# Penanda penerapan sesungguhnya: ada prosedur yang dijalankan, bukan sekadar
-# daftar yang diurutkan.
+# Penanda prosedur yang dijalankan (bukan sekadar daftar).
 PROCEDURAL_MARKERS = (
     "langkah",
     "caranya",
@@ -210,9 +174,7 @@ PROCEDURAL_MARKERS = (
     "prosedur",
 )
 
-# Penanda urutan. Sengaja dipisah dari PROCEDURAL_MARKERS karena ambigu:
-# "pertama, kedua, ketiga" bisa berarti menjalankan prosedur, bisa juga sekadar
-# mendaftar isi catatan. Sendirian, penanda ini bukan bukti penerapan.
+# Penanda urutan, dipisah dari PROCEDURAL karena ambigu: bisa prosedur, bisa sekadar daftar.
 ORDINAL_MARKERS = (
     "pertama",
     "kedua",
@@ -236,10 +198,7 @@ EXPLANATORY_MARKERS = (
     "bertujuan untuk",
 )
 
-# Kata kerja operasional per level Bloom revisi (Anderson dan Krathwohl).
-# Pembagian level mengikuti proses kognitif Krathwohl (2002): membandingkan dan
-# mengklasifikasikan termasuk Memahami, memeriksa (checking) termasuk Mengevaluasi.
-# Dipakai bloom.py sebagai salah satu sumber bukti, bukan satu-satunya.
+# Kata kerja operasional Bloom revisi per level (pembagian proses kognitif Krathwohl 2002).
 BLOOM_VERBS: dict[int, tuple[str, ...]] = {
     1: ("menyebutkan", "menuliskan", "menyatakan", "mengingat", "mendaftar",
         "menamai", "menunjukkan", "melabeli", "definisi", "pengertian"),
@@ -282,13 +241,12 @@ class TextFeatures:
     ordinal_count: int
     explanatory_count: int
     bloom_verb_hits: dict[int, int] = field(default_factory=dict)
-    # Porsi kata fungsi bahasa Indonesia. Penanda bloom/E1 hanya berbahasa
-    # Indonesia, jadi teks lain tidak bisa dinilai olehnya.
+    # Porsi kata fungsi bahasa Indonesia; penanda E1/E2 hanya mengenal bahasa Indonesia.
     indonesian_ratio: float = 1.0
 
     @property
     def marker_density(self) -> float:
-        """Penanda penalaran per kata. Esai wajar jauh di bawah 0,25; daftar kata kunci jauh di atasnya."""
+        """Penanda penalaran per kata. Esai wajar jauh di bawah 0,25; daftar kata kunci di atasnya."""
         markers = (
             self.causal_count + self.contrast_count + self.evaluative_count
             + self.creative_count + self.procedural_count + self.ordinal_count
@@ -323,11 +281,7 @@ def _split_words(text: str) -> list[str]:
 
 
 def _burstiness(sentences: list[str]) -> float:
-    """Rasio simpangan baku panjang kalimat terhadap rataannya.
-
-    Nilai rendah berarti panjang kalimat seragam. Teks LLM cenderung seragam,
-    tulisan manusia cenderung bervariasi. Dinormalisasi ke rentang 0 sampai 1.
-    """
+    """Burstiness = min(1, stdev / mean) panjang kalimat (kata). Rendah = seragam."""
     if len(sentences) < 2:
         return 0.0
     lengths = [len(sentence.split()) for sentence in sentences]
@@ -339,12 +293,7 @@ def _burstiness(sentences: list[str]) -> float:
 
 
 def _type_token_ratio(words: list[str]) -> float:
-    """Keragaman kosakata. Dihitung pada 200 kata pertama supaya adil.
-
-    Tanpa pembatasan panjang, TTR selalu turun seiring teks memanjang, sehingga
-    teks panjang otomatis terlihat miskin kosakata. Pembatasan jendela membuat
-    nilainya bisa dibandingkan antar jawaban dengan panjang berbeda.
-    """
+    """TTR = kata unik / jumlah kata pada 200 kata pertama (agar adil antar panjang teks)."""
     if not words:
         return 0.0
     window = words[:200]
@@ -358,17 +307,7 @@ def _marker_pattern(markers: tuple[str, ...]) -> re.Pattern[str]:
 
 
 def _count_markers(text_lower: str, markers: tuple[str, ...]) -> int:
-    """Hitung kemunculan penanda; setiap potongan teks dipakai satu penanda saja.
-
-    Pencocokan potongan dulu menghitung ganda: "menyebabkan" terhitung dua kali
-    karena memuat "sebab", begitu juga "disebabkan", "oleh karena itu" (memuat
-    "karena"), dan "sebagai akibatnya" (memuat "akibatnya"). Satu kalimat sebab
-    akibat bisa tercatat sebagai dua konektor dan mendongkrak level Bloom.
-
-    Penanda kini dicocokkan dari tepi kiri kata, yang terpanjang lebih dulu.
-    Akhiran tetap diterima ("karenanya", "sebabnya") karena imbuhan di kanan
-    tidak mengubah fungsi konektornya.
-    """
+    """Jumlah kemunculan penanda, dicocokkan dari tepi kiri kata, terpanjang dulu (tanpa hitung ganda)."""
     return len(_marker_pattern(markers).findall(text_lower))
 
 
@@ -377,15 +316,7 @@ def _count_distinct_markers(text_lower: str, markers: tuple[str, ...]) -> int:
 
 
 def _count_distinct_words(text_lower: str, markers: tuple[str, ...]) -> int:
-    """Sama seperti _count_distinct_markers, tetapi menuntut batas kata.
-
-    Dipakai untuk penanda yang berupa kata lepas, di mana pencocokan potongan
-    menghasilkan positif palsu yang serius: "sih" di dalam "masih", "aja" di
-    dalam "saja", "kami" di dalam "kamis", "saya" di dalam "sayang".
-
-    Frasa berspasi seperti "menurut saya" tetap bekerja karena \\b hanya
-    memeriksa tepi kiri dan kanan seluruh pola.
-    """
+    """Jumlah penanda berbeda yang muncul sebagai kata utuh ("saya" tidak cocok di "sayang")."""
     return sum(
         1
         for marker in markers

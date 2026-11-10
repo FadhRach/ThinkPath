@@ -26,11 +26,7 @@ def record_analysis(
     process: ProcessContext | None = None,
     requested_by=None,
 ) -> AnalysisResult:
-    """Tulis hasil terkini (ditimpa) dan satu baris riwayat (selalu baru).
-
-    Dipanggil di dalam transaksi pemanggil bila ada, supaya hasil terkini dan
-    riwayatnya tidak pernah berbeda.
-    """
+    """Tulis hasil terkini (ditimpa) dan satu baris riwayat (selalu baru) dalam transaksi pemanggil."""
     result, _ = AnalysisResult.objects.update_or_create(
         submission=submission, defaults=analysis
     )

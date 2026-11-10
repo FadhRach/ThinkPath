@@ -1,8 +1,4 @@
-"""Model profil pengguna ThinkPath.
-
-Identitas dikelola sendiri oleh backend (email + password ter-hash).
-Password selalu di-set lewat set_password, tidak pernah disimpan mentah.
-"""
+"""Profil pengguna ThinkPath: identitas homegrown (email + password ter-hash lewat set_password)."""
 from __future__ import annotations
 
 import uuid
@@ -19,15 +15,7 @@ class Role(models.TextChoices):
 
 
 class EducationLevel(models.TextChoices):
-    """Jenjang studi mahasiswa.
-
-    Sebelumnya berisi SD, SMP, dan SMA-SMK. Fokus produk dipindahkan ke
-    mahasiswa, sehingga populasi yang dianalisis seragam dan kalibrasi model
-    tidak perlu berbeda per jenjang sekolah.
-
-    Nama kelas dipertahankan agar impor di academics dan serializers tidak
-    berubah. Hanya pilihannya yang diganti.
-    """
+    """Jenjang studi mahasiswa (nama kelas dipertahankan agar impor lain tidak berubah)."""
 
     D3 = "D3", "D3"
     S1 = "S1", "S1"
@@ -48,8 +36,7 @@ class Profile(models.Model):
     display_name = models.CharField(max_length=120, blank=True, default="")
     # Tanpa default: peran harus dipilih eksplisit saat mendaftar.
     role = models.CharField(max_length=16, choices=Role.choices)
-    # Jenjang yang diisi pengguna di halaman Pengaturan. Analisis memakai
-    # jenjang milik kelas (Class.education_level), bukan kolom ini.
+    # Preferensi di Pengaturan; analisis memakai Class.education_level, bukan kolom ini.
     education_level = models.CharField(
         max_length=16,
         choices=EducationLevel.choices,
@@ -91,15 +78,7 @@ class ConsentAction(models.TextChoices):
 
 
 class ConsentRecord(models.Model):
-    """Bukti persetujuan pemrosesan data pribadi, satu baris per peristiwa.
-
-    UU No. 27 Tahun 2022 mewajibkan persetujuan tertulis atau terekam
-    (Pasal 22 ayat (1)) dan mewajibkan pengendali menunjukkan buktinya
-    (Pasal 24). Karena itu baris di sini tidak pernah diubah atau ditimpa:
-    memberi, mengubah pilihan, dan menarik persetujuan masing-masing menjadi
-    baris baru, sehingga riwayatnya utuh dan bisa ditunjukkan kepada pemiliknya.
-    Keadaan yang berlaku adalah baris terbaru; lihat apps.accounts.privacy.
-    """
+    """Bukti persetujuan (Pasal 22 ayat (1), Pasal 24 UU PDP): append-only, baris terbaru = keadaan berlaku."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     profile = models.ForeignKey(
@@ -108,16 +87,13 @@ class ConsentRecord(models.Model):
         related_name="consents",
     )
     action = models.CharField(max_length=16, choices=ConsentAction.choices)
-    # Versi kebijakan yang dibaca saat keputusan diambil. Persetujuan untuk
-    # versi lama tidak berlaku lagi setelah kebijakannya berubah.
+    # Persetujuan untuk versi lama tidak berlaku lagi setelah kebijakan berubah.
     policy_version = models.CharField(max_length=20)
     # Kunci butir yang disetujui, lihat apps.accounts.privacy. Kosong saat ditarik.
     items = models.JSONField(default=list, blank=True)
-    # Asal persetujuan (register, reaccept, withdraw, seed): bukti bagaimana
-    # persetujuan diperoleh. Tidak menyimpan IP; lihat kebijakan privasi.
+    # Asal persetujuan (register, reaccept, withdraw, seed); tidak menyimpan IP.
     source = models.CharField(max_length=16, blank=True, default="")
-    # Bukan auto_now_add: apps.accounts.privacy.record_consent menjamin waktunya selalu
-    # naik per pengguna, karena keadaan yang berlaku dibaca dari baris terbaru.
+    # Bukan auto_now_add: record_consent menjamin waktu selalu naik per pengguna (baris terbaru dibaca).
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
     class Meta:
@@ -128,13 +104,9 @@ class ConsentRecord(models.Model):
 
 
 class AuthSession(models.Model):
-    """Satu sesi login. Token memuat `sid` ini; mencabut baris = mencabut token.
+    """Satu sesi login; token memuat `sid`, mencabut baris = mencabut token.
 
-    Sebelumnya logout hanya menghapus cookie, dan token yang dicuri tetap sah
-    sampai kedaluwarsa (7 hari). Kini setiap permintaan memeriksa sesinya
-    (satu query by primary key, di-cache sebentar di memori proses).
-    Tidak menyimpan IP atau user-agent: kebijakan privasi menjanjikan IP tidak
-    disimpan di basis data.
+    Tidak menyimpan IP/user-agent: kebijakan privasi menjanjikan IP tidak disimpan di DB.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -165,14 +137,7 @@ class PasswordResetToken(models.Model):
 
 
 class AccountDeletion(models.Model):
-    """Bukti bahwa sebuah akun sudah dihapus, tanpa data pribadi apa pun.
-
-    Hak penghapusan (UU PDP) menuntut data benar-benar hilang, termasuk bukti
-    persetujuan di ConsentRecord yang ikut terhapus bersama akun. Yang tersisa
-    hanya catatan anonim ini: id acak (bukan id profil), peran, kapan, dan
-    berapa berkas yang dihapus, cukup untuk menunjukkan bahwa permintaan
-    penghapusan dilayani tanpa menyimpan siapa orangnya.
-    """
+    """Bukti anonim bahwa akun sudah dihapus (hak penghapusan UU PDP): id acak, peran, waktu, jumlah berkas."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.CharField(max_length=16, choices=Role.choices)

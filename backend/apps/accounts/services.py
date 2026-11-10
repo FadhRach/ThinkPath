@@ -1,8 +1,4 @@
-"""Layanan akun: daftar, login, dan profil pemanggil.
-
-Diisolasi dari views agar logika akun bisa dipakai ulang
-(mis. di management command seeder).
-"""
+"""Layanan akun: daftar, login, dan profil pemanggil (dipakai ulang oleh seeder)."""
 from __future__ import annotations
 
 from functools import cache
@@ -34,8 +30,7 @@ def register_profile(
         education_level=education_level,
     )
     profile.set_password(password)
-    # Pemeriksaan email di serializer bisa kalah balapan dengan pendaftaran
-    # serentak; constraint unik di DB yang jadi penentu akhirnya.
+    # Cek email di serializer bisa kalah balapan; constraint unik DB penentu akhirnya.
     try:
         with transaction.atomic():
             profile.save()
@@ -60,8 +55,7 @@ def _dummy_hash() -> str:
 def authenticate_credentials(email: str, password: str) -> Profile | None:
     profile = Profile.objects.filter(email=normalize_email(email)).first()
     if profile is None:
-        # Tanpa ini, email yang tidak terdaftar dijawab ±12 ms sedangkan yang
-        # terdaftar ±138 ms (diukur), sehingga waktu membocorkan keberadaan akun.
+        # Samakan waktu respons: tanpa ini (12 ms vs 138 ms) waktu membocorkan keberadaan akun.
         check_password(password, _dummy_hash())
         return None
     if not profile.check_password(password):

@@ -1,12 +1,4 @@
-"""Agenda mahasiswa: tenggat tugas dan batas waktu Cek Paham, terurut waktu.
-
-Tidak ada tabel jadwal tersendiri. Kedua jenis agenda sudah tersimpan sebagai
-tenggat tugas dan jendela waktu Cek Paham, jadi agenda dirakit dari sana dan
-tidak mungkin berbeda dari yang dilihat dosen.
-
-Cek Paham tampil dengan batas akhir jendelanya dan status "sudah dikerjakan"
-atau belum. Skor, band, dan soalnya tidak ikut: itu bukan urusan mahasiswa.
-"""
+"""Agenda mahasiswa dirakit dari tenggat tugas dan jendela Cek Paham (tanpa tabel jadwal; tanpa skor/soal)."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -18,8 +10,7 @@ from apps.academics.models import Assignment, Submission, SubmissionStatus
 from apps.cekpaham.models import CekPaham, RequestStatus
 from apps.cekpaham.selectors import live_attempt
 
-# Sejauh ini ke depan agenda dibaca. Tenggat yang lebih jauh belum menuntut
-# tindakan apa pun.
+# Horizon agenda ke depan.
 HORIZON = timedelta(days=60)
 
 
@@ -62,12 +53,7 @@ def _deadlines(student_id: UUID, start: datetime, end: datetime) -> list[dict]:
 
 
 def _cekpaham(student_id: UUID, start: datetime, end: datetime, *, include_done: bool) -> list[dict]:
-    """Cek Paham aktif yang jendelanya berakhir dalam rentang.
-
-    Dianggap dikerjakan bila sudah ada sesi yang berlaku (selesai, diproses,
-    atau terputus): mahasiswa tidak punya tindakan lagi sampai dosen memberi
-    kesempatan ulang, dan saat itu sesi lamanya di-void.
-    """
+    """Cek Paham aktif yang jendelanya berakhir dalam rentang; dikerjakan = sudah ada sesi berlaku."""
     requests = (
         CekPaham.objects.filter(
             submission__student_profile_id=student_id,
@@ -110,12 +96,7 @@ def build_student_schedule(student_id: UUID, now: datetime | None = None) -> lis
 
 
 def build_student_calendar(student_id: UUID, start: datetime, end: datetime) -> list[dict]:
-    """Seluruh agenda dalam satu rentang kalender, termasuk yang sudah lewat.
-
-    Kalender juga dipakai untuk melihat ke belakang, jadi tenggat yang lewat
-    ikut tampil beserta statusnya. Cek Paham yang sudah dikerjakan tampil
-    sebagai riwayat; yang dibatalkan dosen tidak, karena tidak lagi berlaku.
-    """
+    """Agenda satu rentang kalender, termasuk yang lewat; Cek Paham yang dibatalkan tidak tampil."""
     items = _deadlines(student_id, start, end) + _cekpaham(
         student_id, start, end, include_done=True
     )

@@ -1,8 +1,6 @@
-"""Narasi saran untuk dosen lewat Groq: ringkasan jawaban terhadap instruksi tugas.
+"""Narasi saran untuk dosen lewat Groq: merangkum bukti yang sudah dihitung, TIDAK mengubah skor/level/nilai.
 
-Modul terpisah dari groq.py (penilai level Bloom): saran ini hanya merangkum bukti
-yang sudah dihitung dan TIDAK mengubah skor, level, maupun nilai apa pun. Dipanggil hanya bila
-mahasiswa mengizinkan analisis di luar negeri (lihat services/suggestion.py).
+Hanya dipanggil bila mahasiswa mengizinkan analisis di luar negeri (services/suggestion.py).
 """
 from __future__ import annotations
 

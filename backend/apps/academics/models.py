@@ -19,14 +19,10 @@ from apps.accounts.models import EducationLevel, Profile
 class EventType(models.TextChoices):
     STARTED = "started", "Started"
     REVISION = "revision", "Revision"
-    # Tidak pernah ditulis: menempel kutipan wajar dalam menulis akademik.
-    # Tetap ada karena tipe frontend (lib/types.ts) masih mengenalnya.
+    # Tidak pernah ditulis; tetap ada karena tipe frontend (lib/types.ts) masih mengenalnya.
     PASTE = "paste", "Paste"
     SUBMITTED = "submitted", "Submitted"
-    # Cuplikan jumlah kata berkala selama mahasiswa mengerjakan. Inilah satu
-    # satunya masukan proses yang tidak bisa dikalahkan hanya dengan menunggu:
-    # menempel lalu diam meninggalkan garis datar yang tidak mungkin tertukar
-    # dengan menulis sungguhan.
+    # Cuplikan jumlah kata berkala selama mengerjakan (kurva pertumbuhan kata).
     PROGRESS = "progress", "Progress"
 
 
@@ -47,8 +43,7 @@ class SubmissionStatus(models.TextChoices):
 
 class Class(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # Kosong bila dosen menghapus akunnya: kelas, tugas, dan jawaban mahasiswa
-    # tetap tersimpan sebagai arsip yang hanya bisa dibaca (lihat is_archived).
+    # NULL bila dosen menghapus akunnya: kelas jadi arsip baca-saja (is_archived).
     owner = models.ForeignKey(
         Profile,
         null=True,
@@ -59,21 +54,14 @@ class Class(models.Model):
     owner_left_at = models.DateTimeField(null=True, blank=True)
     name = models.CharField(max_length=120)
     subject = models.CharField(max_length=80)
-    # Jenjang studi. Melekat di kelas, bukan di profil, karena satu mahasiswa
-    # bisa mengambil kelas lintas jenjang dan lintas prodi.
+    # Di kelas, bukan profil: mahasiswa bisa mengambil kelas lintas jenjang/prodi.
     education_level = models.CharField(
         max_length=16,
         choices=EducationLevel.choices,
     )
-    # Program studi penyelenggara. Opsional karena ada kelas lintas prodi dan
-    # mata kuliah umum yang tidak dimiliki satu prodi mana pun.
+    # Opsional: ada kelas lintas prodi dan mata kuliah umum.
     program_studi = models.CharField(max_length=120, blank=True, default="")
-    # Semester penyelenggaraan, bukan semester mahasiswa.
-    #
-    # Ini keputusan yang disengaja. Semester seorang mahasiswa berubah tiap
-    # enam bulan, sehingga kalau disimpan di Profile datanya basi terus dan
-    # harus diperbarui manual. Sebuah kelas sebaliknya permanen berstatus
-    # "semester 3", jadi di sinilah tempatnya.
+    # Semester penyelenggaraan kelas (permanen), bukan semester mahasiswa (berubah tiap enam bulan).
     semester = models.SmallIntegerField(
         null=True,
         blank=True,
@@ -144,14 +132,9 @@ class Assignment(models.Model):
     expected_bloom_level = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(6)],
     )
-    # Dosen memilih: hanya diketik, atau boleh diisi dari berkas (PDF/DOCX/gambar).
-    # Jawaban dari berkas tidak punya jejak mengetik, jadi dinilai dari teksnya saja.
+    # Boleh diisi dari berkas (PDF/DOCX/gambar); jawaban begitu tanpa jejak mengetik.
     allow_file_upload = models.BooleanField(default=False)
-    # education_level sengaja TIDAK ada di sini. Sebelumnya kolom ini
-    # menduplikasi jenjang milik kelas, sehingga sebuah tugas bisa tersimpan
-    # dengan jenjang yang berbeda dari kelas tempatnya berada. Jenjang sekarang
-    # dibaca dari class_ref, dan serializer tetap memaparkannya agar kontrak
-    # API tidak berubah.
+    # education_level sengaja tidak ada: dibaca dari class_ref (serializer tetap memaparkannya).
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -171,13 +154,7 @@ class Assignment(models.Model):
 
 
 class Material(models.Model):
-    """Materi yang dibagikan dosen ke satu kelas: judul, ringkasan, dan tautan.
-
-    Sengaja tautan, bukan unggahan berkas. Dosen umumnya sudah menyimpan slide
-    dan video di Google Drive atau YouTube; yang dibutuhkan kelas adalah satu
-    tempat untuk menemukannya. Unggahan berkas menuntut penyimpanan, backup,
-    dan kuota disk VPS tersendiri, jadi belum dibangun.
-    """
+    """Materi dosen untuk satu kelas: judul, ringkasan, tautan (sengaja tautan, bukan unggahan berkas)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     class_ref = models.ForeignKey(
@@ -186,16 +163,11 @@ class Material(models.Model):
         related_name="materials",
         db_column="class_id",
     )
-    # Topik atau pertemuan tempat materi dikelompokkan, misalnya "Pertemuan 3:
-    # Desain kualitatif". Teks bebas seperti topik di Google Classroom; kosong
-    # berarti materi umum seperti silabus. Tidak dibuat tabel tersendiri karena
-    # gunanya hanya mengelompokkan, dan formulir dosen sudah menyarankan topik
-    # yang pernah ia pakai supaya penulisannya seragam.
+    # Teks bebas pengelompokan ("Pertemuan 3: ..."); kosong = materi umum.
     topic = models.CharField(max_length=80, blank=True, default="")
     title = models.CharField(max_length=160)
     description = models.TextField(blank=True, default="")
-    # Hanya http dan https yang diterima serializer. Skema lain seperti
-    # javascript: akan menjadi tautan berbahaya begitu dirender di layar.
+    # Serializer hanya menerima http/https (javascript: berbahaya saat dirender).
     url = models.URLField(max_length=500, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -210,12 +182,7 @@ class Material(models.Model):
 
 
 class Submission(models.Model):
-    """Jawaban satu mahasiswa untuk satu tugas.
-
-    Satu baris per (tugas, mahasiswa): pengumpulan ulang memperbarui baris yang
-    sama (revision_count += 1), dan constraint unik menjaga itu walau dua
-    permintaan tiba bersamaan.
-    """
+    """Jawaban satu mahasiswa untuk satu tugas; satu baris per (tugas, mahasiswa), revisi = update."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     assignment = models.ForeignKey(
@@ -229,12 +196,9 @@ class Submission(models.Model):
         related_name="submissions",
     )
     text_answer = models.TextField(blank=True, default="")
-    # Dokumen editor kaya (TipTap) yang sudah dibersihkan server; `text_answer` selalu
-    # diturunkan darinya. Null untuk jawaban teks polos (lama atau dari klien lama).
+    # Dokumen TipTap yang sudah dibersihkan; null untuk jawaban teks polos.
     rich_answer = models.JSONField(null=True, blank=True, default=None)
-    # Dokumen unggahan yang menjadi sumber jawaban (documents/<mahasiswa>/<id>.*
-    # di MEDIA_ROOT), hanya bila teks jawaban terbukti berasal darinya. Jawaban
-    # begini tidak punya jejak mengetik, jadi forensik prosesnya dilewati.
+    # Dokumen sumber jawaban (MEDIA_ROOT/documents/...); bila ada, forensik proses dilewati.
     source_document = models.UUIDField(null=True, blank=True, default=None)
     started_at = models.DateTimeField()
     submitted_at = models.DateTimeField(null=True, blank=True)
@@ -258,8 +222,7 @@ class Submission(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     teacher_feedback = models.TextField(blank=True, default="")
-    # Bawaan "done" supaya baris lama dan seed (yang menulis hasil analisis
-    # langsung) tidak tampak menunggu; jalur pengumpulan mengisinya "pending".
+    # Bawaan "done" untuk baris lama dan seed; jalur pengumpulan mengisinya "pending".
     analysis_state = models.CharField(
         max_length=8, choices=AnalysisState.choices, default=AnalysisState.DONE
     )
@@ -315,17 +278,9 @@ class ReasoningEvent(models.Model):
 
 
 class SubmissionDraft(models.Model):
-    """Draf jawaban yang ditulis mahasiswa sebelum dikumpulkan.
+    """Draf sebelum dikumpulkan: sumber kebenaran bukti proses (jam dan jumlah kata dicatat server).
 
-    Inilah sumber kebenaran bukti proses. Dulu `started_at` dan kurva
-    pertumbuhan kata dikirim klien saat submit, sehingga satu request palsu
-    cukup untuk membuat jejak yang mulus. Sekarang server yang mencatat: waktu
-    mulai adalah jam server saat simpan pertama yang berisi teks, dan jumlah
-    kata dihitung dari teks yang dikirim, bukan dari angka kiriman klien.
-
-    Baris dibuat pada penyimpanan pertama yang berisi teks, bukan saat halaman
-    dibuka: bukti proses baru mulai ketika mahasiswa mulai menulis. Draf
-    dihapus dalam transaksi yang sama dengan pengumpulan jawaban.
+    Dibuat pada simpan pertama yang berisi teks, dihapus dalam transaksi pengumpulan.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -340,8 +295,7 @@ class SubmissionDraft(models.Model):
     # Dokumen unggahan yang menjadi sumber teks draf (opsional).
     document_id = models.UUIDField(null=True, blank=True, default=None)
     started_at = models.DateTimeField()
-    # [{"t": detik sejak started_at, "w": jumlah kata}], maksimal 240, dicatat
-    # server paling sering tiap 30 detik.
+    # [{"t": detik sejak started_at, "w": jumlah kata}], maks 240, dicatat server tiap >= 30 detik.
     samples = models.JSONField(default=list, blank=True)
     last_saved_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)

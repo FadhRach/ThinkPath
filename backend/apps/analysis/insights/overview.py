@@ -1,23 +1,6 @@
-"""Agregasi untuk layar Overview dosen.
+"""Overview dosen: sebaran skor AI vs selisih Bloom, distribusi level Bloom, tren rata-rata kelas.
 
-Modul ini menyiapkan tiga bacaan yang berbeda dari data yang sama, karena tiga
-pertanyaan berbeda yang ingin dijawab dosen saat pertama membuka aplikasi:
-
-1. **Sebaran skor AI terhadap selisih Bloom** menjawab "siapa yang perlu saya
-   ajak bicara". Sengaja dua sumbu, bukan satu peringkat skor AI. Peringkat satu
-   sumbu memaksa dosen membaca kelas sebagai daftar tersangka, sedangkan yang
-   paling sering luput justru mahasiswa dengan skor AI rendah yang tertinggal
-   jauh dari target: jujur, dan tidak tertolong.
-
-2. **Distribusi level Bloom** menjawab "kelas ini secara keseluruhan ada di
-   mana", sebelum siapa pun menyelam ke individu.
-
-3. **Tren rata rata kelas** menjawab "apakah pengajaran saya berpengaruh".
-   Kalau seluruh kelas mandek, itu bukan masalah delapan mahasiswa.
-
-Batas kejujuran yang berlaku di sini sama dengan di `cognitive`: seluruh sumbu
-Bloom mewarisi ketidakpastian E2 yang belum tervalidasi, dan skor AI tetap
-dugaan. Tidak ada satu pun angka di modul ini yang boleh dibaca sebagai vonis.
+Dua sumbu, bukan peringkat skor AI, agar mahasiswa jujur yang tertinggal target juga terlihat. Bukan vonis.
 """
 from __future__ import annotations
 
@@ -28,19 +11,12 @@ from django.db.models import QuerySet
 from apps.analysis.insights.cognitive import smoothed_level, trend_direction
 from apps.academics.models import Submission
 
-# Di bawah selisih ini mahasiswa dianggap tertinggal dari tuntutan tugas.
-# Satu tingkat penuh, bukan pecahan, supaya pembulatan E2 tidak sendirian
-# memindahkan seseorang ke daftar "perlu perhatian".
+# Satu tingkat penuh agar pembulatan E2 tidak sendirian memindahkan orang ke "perlu perhatian".
 GAP_THRESHOLD = -1.0
 
 
 def _student_points(submissions: QuerySet[Submission]) -> dict:
-    """Kelompokkan submission teranalisis per (kelas, mahasiswa).
-
-    Dikelompokkan dari sisi Submission, bukan lewat anotasi berjenjang di atas
-    Class. Anotasi berjenjang menggandakan hitungan begitu ada lebih dari satu
-    relasi ke banyak, dan angkanya menggelembung tanpa peringatan.
-    """
+    """Kelompokkan per (kelas, mahasiswa) dari sisi Submission (anotasi berjenjang menggandakan hitungan)."""
     grouped: dict[tuple[str, str], dict] = {}
     for submission in submissions:
         klass = submission.assignment.class_ref
@@ -82,9 +58,7 @@ def _build_students(entries: list[dict]) -> list[dict]:
             {
                 "student_id": entry["student_id"],
                 "display_name": entry["display_name"],
-                # Rata rata, bukan nilai tertinggi. Satu submission bernilai
-                # tinggi tidak mendefinisikan seorang mahasiswa, dan memakai
-                # maksimum akan mendorong setiap titik ke kanan.
+                # Rata-rata, bukan maksimum: satu jawaban bagus tidak mendefinisikan mahasiswa.
                 "ai_mean": round(sum(scores) / len(scores), 1) if scores else 0.0,
                 "high_count": entry["high_count"],
                 "current_level": current,
@@ -99,13 +73,7 @@ def _build_students(entries: list[dict]) -> list[dict]:
 
 
 def _bloom_distribution(entries: list[dict]) -> list[dict]:
-    """Jumlah submission per level, beserta berapa yang di bawah target TUGASNYA.
-
-    below_target dihitung per submission terhadap target tugasnya sendiri,
-    bukan terhadap rata rata target kelas. Membandingkan satu batang dengan
-    rata rata akan salah warna: jawaban L4 untuk tugas bertarget L4 sudah
-    memenuhi tuntutan, walaupun rata rata target kelasnya L4.33.
-    """
+    """Jumlah submission per level; below_target dibanding target tugasnya sendiri, bukan rata-rata kelas."""
     counts: dict[int, int] = defaultdict(int)
     below: dict[int, int] = defaultdict(int)
     for entry in entries:
@@ -124,12 +92,7 @@ def _bloom_distribution(entries: list[dict]) -> list[dict]:
 
 
 def _cohort_trend(submissions: list[Submission]) -> list[dict]:
-    """Rata rata level kelas per tugas, terurut waktu tugas.
-
-    Dikunci pada tugas, bukan pada tanggal pengumpulan, supaya seluruh kelas
-    dibandingkan pada titik yang sama. Mahasiswa yang mengumpulkan terlambat
-    tidak boleh menggeser sumbu waktu kelasnya.
-    """
+    """Rata-rata level kelas per tugas (dikunci pada tugas, bukan tanggal pengumpulan)."""
     by_assignment: dict[str, dict] = {}
     for submission in submissions:
         assignment = submission.assignment
@@ -160,12 +123,7 @@ def _cohort_trend(submissions: list[Submission]) -> list[dict]:
 
 
 def _class_average_target(trend: list[dict]) -> float | None:
-    """Target kelas dirata ratakan dari tugasnya, bukan dari mahasiswanya.
-
-    Merata ratakan lewat mahasiswa memberi angka yang berbeda begitu ada yang
-    melewatkan satu tugas, dan garis acuan pada grafik akan bergeser mengikuti
-    siapa yang kebetulan berada di urutan pertama.
-    """
+    """Target kelas = rata-rata target tugas, bukan lewat mahasiswa."""
     if not trend:
         return None
     return round(sum(point["expected"] for point in trend) / len(trend), 2)
@@ -174,21 +132,13 @@ def _class_average_target(trend: list[dict]) -> float | None:
 def build_teacher_overview(
     classes: QuerySet, submissions: QuerySet[Submission]
 ) -> list[dict]:
-    """Rakit satu blok ringkasan per kelas.
-
-    Kelas tanpa submission teranalisis tetap dikembalikan dengan deret kosong,
-    supaya kelas yang baru dibuat tidak menghilang dari layar dan dosen tahu
-    bedanya antara "belum ada data" dan "tidak punya kelas".
-    """
+    """Satu blok per kelas; kelas tanpa data tetap dikembalikan dengan deret kosong."""
     analysed = list(
         submissions.filter(analysis__isnull=False)
         .select_related(
             "analysis", "assignment", "assignment__class_ref", "student_profile"
         )
-        # Layar overview hanya membaca beberapa angka kecil; tanpa defer,
-        # seluruh esai kelas plus empat kolom teks analisis ikut terangkut
-        # dari database remote hanya untuk dirata-ratakan. defer (bukan only)
-        # supaya kolom kecil baru tidak diam-diam memicu query susulan.
+        # defer kolom teks besar; defer (bukan only) agar kolom kecil baru tak memicu query susulan.
         .defer(
             "text_answer",
             "teacher_feedback",
@@ -228,8 +178,7 @@ def build_teacher_overview(
                 "subject": klass.subject,
                 "students": students,
                 "below_target_count": len(below),
-                # Dihitung terpisah dari below_target_count supaya frontend bisa
-                # menunjukkan bahwa keduanya sering tidak beririsan.
+                # Terpisah dari below_target_count: keduanya sering tidak beririsan.
                 "high_band_count": sum(
                     1 for student in students if student["high_count"] > 0
                 ),

@@ -1,11 +1,6 @@
-"""Peristiwa akademik yang layak diketahui seseorang, dan kalimatnya.
+"""Satu fungsi per peristiwa akademik, dipanggil view SETELAH aksi tersimpan.
 
-Satu fungsi per peristiwa, dipanggil view SETELAH aksi utamanya tersimpan.
-Kalimat untuk mahasiswa memakai "kamu" dan untuk dosen memakai "Anda",
-mengikuti design system.
-
-Batas yang dijaga: notifikasi ke mahasiswa tidak pernah menyebut skor AI,
-indikasi AI, atau alasan Cek Paham diminta.
+Notifikasi ke mahasiswa tidak pernah menyebut skor/indikasi AI atau alasan Cek Paham diminta.
 """
 from __future__ import annotations
 
@@ -142,12 +137,7 @@ def _cekpaham_reminders(student_id: UUID, now: datetime) -> int:
 
 
 def ensure_deadline_reminders(student_id: UUID, now: datetime | None = None) -> int:
-    """Buat pengingat untuk tenggat dalam 24 jam yang jawabannya belum ada.
-
-    Dipanggil saat mahasiswa membuka lonceng, bukan oleh penjadwal. Backend
-    tidak punya cron, dan pengingat baru berguna ketika mahasiswa memang
-    sedang membuka aplikasi. Setiap tugas hanya diingatkan sekali.
-    """
+    """Pengingat sekali per tugas untuk tenggat < 24 jam tanpa jawaban; dipicu saat lonceng dibuka (tanpa cron)."""
     now = now or timezone.now()
     due = (
         Assignment.objects.filter(

@@ -1,10 +1,4 @@
-"""Query baca untuk app academics.
-
-Kepemilikan objek diperiksa di sini dengan satu query `select_related` lalu
-dicek di memori, supaya permission dan view tidak mem-fetch objek yang sama
-dua kali. Objek milik orang lain dibalas 404, bukan 403, agar keberadaannya
-tidak bocor.
-"""
+"""Query baca academics; kepemilikan dicek di sini (satu select_related), milik orang lain -> 404, bukan 403."""
 from __future__ import annotations
 
 from uuid import UUID
@@ -73,8 +67,7 @@ def require_member_assignment(request, assignment_id: str) -> Assignment:
         student_profile_id=request_user_id(request),
     ).exists()
     if not is_member:
-        # 404, bukan 403, seperti objek milik orang lain di tempat lain: id
-        # tugas kelas lain tidak boleh bisa dibedakan dari id yang tidak ada.
+        # 404, bukan 403: id tugas kelas lain tak boleh bisa dibedakan dari id yang tidak ada.
         raise NotFound()
     return assignment
 
@@ -85,8 +78,7 @@ def require_owned_submission(request, submission_id: str) -> Submission:
         Submission.objects.select_related(
             "assignment__class_ref", "student_profile", "analysis"
         )
-        # Sudah terurut di sini; serializer cukup memakai .all(). Memanggil
-        # .order_by() lagi di serializer membuang hasil prefetch.
+        # Sudah terurut; .order_by() lagi di serializer membuang prefetch.
         .prefetch_related(
             Prefetch(
                 "reasoning_events",
@@ -150,11 +142,7 @@ def assignment_summary(assignment_id: UUID) -> Assignment:
 def student_submissions_by_assignment(
     student_id: UUID, assignment_ids: list, *, include_text: bool = True
 ) -> dict:
-    """Map assignment_id -> submission mahasiswa (maksimal satu per tugas).
-
-    include_text=False untuk listing: esai tidak tampil di daftar, jadi tidak
-    perlu ikut terangkut dari database.
-    """
+    """Map assignment_id -> submission mahasiswa; include_text=False untuk listing."""
     submissions = Submission.objects.filter(
         student_profile_id=student_id, assignment_id__in=assignment_ids
     )
@@ -164,11 +152,7 @@ def student_submissions_by_assignment(
 
 
 def stored_progress(submission: Submission) -> tuple[ProgressSample, ...]:
-    """Jejak pertumbuhan kata yang tersimpan, untuk revisi dan analisis ulang.
-
-    Tanpa ini, siasat tempel-lalu-tunggu yang tertangkap saat submit pertama
-    kembali terbaca wajar begitu jawaban direvisi atau dianalisis ulang.
-    """
+    """Jejak kata tersimpan untuk revisi/analisis ulang (agar tempel-lalu-tunggu tetap terbaca)."""
     started = submission.started_at
     samples: list[ProgressSample] = []
     for event in submission.reasoning_events.all():

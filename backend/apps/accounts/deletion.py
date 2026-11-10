@@ -1,20 +1,7 @@
-"""Penghapusan akun: baris basis data DAN berkas di disk, sampai tuntas.
+"""Hapus akun: baris DB dan berkas MEDIA_ROOT (dokumen, audio Cek Paham); sisa disapu purge_stale_data.
 
-`ON DELETE CASCADE` hanya menghapus baris. Dokumen unggahan
-(`documents/<mahasiswa>/...`) dan audio Cek Paham (`cekpaham/<mahasiswa>/...`)
-ada di MEDIA_ROOT dan tidak ikut terhapus oleh basis data, jadi daftar
-jalurnya dikumpulkan SEBELUM baris dihapus, lalu berkasnya dihapus setelah
-transaksi selesai. Berkas yang gagal terhapus tidak tertaut ke baris mana pun,
-dan `manage.py purge_stale_data` menyapunya.
-
-Dosen yang menghapus akun TIDAK menghapus kelasnya. Kelas, tugas, materi,
-forum (termasuk pengumuman), dan jawaban mahasiswa tetap tersimpan sebagai arsip (`Class.owner`
-menjadi kosong, `owner_left_at` terisi) dan mahasiswa melihat peringatannya.
-Data itu milik mahasiswa juga, dan menghapusnya diam-diam merusak riwayat
-mereka. Hitungannya tersedia lebih dulu lewat `deletion_impact`.
-
-Impor model lintas aplikasi sengaja di dalam fungsi: accounts adalah lapisan
-paling bawah dan tidak boleh bergantung pada academics saat dimuat.
+Kelas dosen yang menghapus akun TIDAK dihapus: Class.owner -> NULL, jadi arsip baca-saja.
+Impor lintas app di dalam fungsi: accounts lapisan terbawah.
 """
 from __future__ import annotations
 
@@ -73,10 +60,7 @@ def deletion_impact(profile: Profile) -> dict:
 
 
 def _purge_forum_content(profile: Profile) -> None:
-    """Tulisan forum mahasiswa adalah data pribadinya dan ikut dihapus.
-
-    Tulisan dosen justru dipertahankan (penulis dikosongkan): itu bagian dari arsip kelas.
-    """
+    """Tulisan forum mahasiswa ikut dihapus; tulisan dosen dipertahankan (penulis dikosongkan) sebagai arsip kelas."""
     from apps.forum.models import ForumPost, ForumReply
 
     ForumReply.objects.filter(author=profile).delete()

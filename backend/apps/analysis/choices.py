@@ -1,8 +1,4 @@
-"""Enum hasil analisis.
-
-Dipisah dari models.py supaya mesin skor (engines/, providers/) bisa diimpor
-tanpa memuat model Django. ai_experiment memakai mesin yang sama persis.
-"""
+"""Enum hasil analisis; terpisah dari models.py agar engines/ bisa diimpor tanpa model Django."""
 from __future__ import annotations
 
 from django.db import models
@@ -21,16 +17,7 @@ class Confidence(models.TextChoices):
 
 
 class AnalysisSource(models.TextChoices):
-    """Mesin yang menghasilkan SKOR AI pada satu baris AnalysisResult.
-
-    Cakupannya asal skor AI saja, bukan seluruh baris: skor AI bisa datang dari
-    detektor sementara level Bloom tetap dari LLM atau heuristik. Keyakinan
-    Bloom punya kolomnya sendiri (bloom_confidence).
-
-    DETECTOR sengaja tidak menyebut nama penyedia. Penyedia sudah pernah gugur
-    (Sapling, English-only), dan nama penyedia + versi model sudah tercatat per
-    baris di signal_breakdown, jadi pergantian penyedia tidak menuntut migrasi.
-    """
+    """Asal SKOR AI saja (Bloom bisa dari sumber lain). "llm" hanya ada di baris lama."""
 
     LLM = "llm", "LLM"
     HEURISTIC = "heuristic", "Heuristic"

@@ -11,7 +11,7 @@
 
 **Sistem Verifikasi Pemahaman Berbasis Proses untuk Integritas Akademik Mahasiswa.**
 
-Detektor AI biasa memberi satu angka: "AI atau bukan". Angka itu bisa salah, dan mahasiswa jujur bisa tertuduh. ThinkPath bekerja beda. Ia merekam **proses** mengerjakan, mengukur **level berpikir** jawaban, lalu menyajikan keduanya sebagai **bukti** yang bisa ditinjau dosen. Bukan vonis. Keputusan tetap di tangan dosen.
+ThinkPath merekam **proses** mengerjakan, mengukur **level berpikir** jawaban, lalu menyajikan keduanya sebagai **bukti** yang ditinjau dosen. Bukan vonis "AI atau bukan"; keputusan tetap di tangan dosen.
 
 **Lomba:** GEMASTIK XIX 2026, Pengembangan Perangkat Lunak
 **Tim:** DataDigger, Universitas Bina Nusantara
@@ -50,9 +50,7 @@ ThinkPath membantu dosen melihat beda itu:
 - **Level berpikir:** jawaban cuma menghafal, atau sudah menganalisis dan menilai?
 - **Saran tindak lanjut:** perlu ditanya langsung? Perlu dibandingkan dengan jawaban lain?
 
-Hasilnya: dosen tahu **siapa yang paling layak diajak bicara lebih dulu**. Bukan siapa yang paling mungkin curang.
-
-> **Prinsipnya.** Tidak ada satu skor pun yang jadi vonis. Setiap penanda disertai bukti yang bisa dijelaskan dan dibantah. ThinkPath tidak memberi nilai dan tidak menjatuhkan sanksi.
+Hasilnya: dosen tahu **siapa yang paling layak diajak bicara lebih dulu**, bukan siapa yang paling mungkin curang. Setiap penanda disertai bukti yang bisa dijelaskan dan dibantah; ThinkPath tidak memberi nilai dan tidak menjatuhkan sanksi.
 
 ---
 
@@ -152,7 +150,7 @@ Dua mesin, **saling bebas**. Level Bloom tidak pernah memengaruhi skor AI, dan i
   <img src="assets/analysis-layers.svg" alt="Dua mesin analisis: E1 indikasi AI (Winston bila menjawab, selain itu heuristik lokal; Groq tidak memberi skor AI) dan E2 level Bloom" width="100%">
 </p>
 
-**Skor indikasi AI (0-100)** disusun dari dua lapis, diurutkan menurut salah tuduh terendah pada uji E1 ([laporan](ai_experiment/results/laporan_uji.md)). Layanan luar yang gagal atau kuncinya kosong dilewati. Pengumpulan tugas tidak pernah terblokir.
+**Skor indikasi AI (0-100)** disusun dari dua lapis, diurutkan menurut salah tuduh terendah pada uji E1 ([laporan](ai_experiment/results/laporan_uji.md)). Layanan luar yang gagal dilewati; pengumpulan tidak pernah terblokir. Rumus lengkap dengan rujukan baris kode: [backend/apps/analysis/README.md](backend/apps/analysis/README.md).
 
 1. **Winston AI**, detektor eksternal. Salah tuduh 2 dari 18 tulisan manusia (sampel kecil). Ia memberi skor "manusia", jadi ThinkPath membaliknya tepat satu kali.
 2. **Heuristik lokal**, lima sinyal teks yang dihitung di server sendiri. Menjadi skor bila Winston tidak menjawab (F1 0,74, salah tuduh 11 dari 45); bila Winston menjawab, tetap tampil sebagai **pembanding** berbobot 0.
@@ -183,7 +181,7 @@ Hanya dosen yang melihatnya. Pola pengerjaan **berbobot 0** di skor ini dan dila
 | Tanpa suara personal | Tidak ada sudut pandang pribadi atau contoh konkret. |
 | Kepastian datar | Semua kalimat yakin, tanpa keraguan atau kualifikasi yang wajar. |
 
-Bobotnya **dicari dari data**, bukan ditebak: grid search di data latih, diuji di data uji yang tidak pernah dilihat. Ambang sedang turun dari 56 ke **42**.
+Skor = Σ (nilai sinyal 0-1 × bobot) × 100. Bobot 0,40 / 0,25 / 0,25 / 0,05 / 0,05 **dicari dari data** (grid search di data latih, diuji di data uji); ambang sedang **42**.
 
 </details>
 
@@ -220,7 +218,7 @@ Jawaban dari dokumen juga bisa diperiksa: dokumen asli dibuka dosen, teks hasil 
 
 ### 5. Cek Paham: tes lisan singkat
 
-Skor dan sinyal hanya menghasilkan dugaan. **Cek Paham** memberi mahasiswa kesempatan menjelaskan jawabannya sendiri.
+Skor hanya dugaan; **Cek Paham** memberi mahasiswa kesempatan menjelaskan jawabannya sendiri.
 
 <p align="center">
   <img src="assets/cekpaham.svg" alt="Alur Cek Paham: dosen minta, mahasiswa jawab dengan suara, server membuat transkrip, penilai memberi level, dosen menerima saran skor" width="100%">
@@ -250,15 +248,13 @@ Skor dan sinyal hanya menghasilkan dugaan. **Cek Paham** memberi mahasiswa kesem
 
 ### Seberapa akurat?
 
-Jujur apa adanya:
-
 | Aspek | Status |
 |---|---|
 | Bobot sinyal teks dan ambang sedang 42 | **Terukur.** ROC-AUC uji 0,884 naik ke 0,912 pada gold set 999 sampel. FPR di bawah 5%. |
 | Urutan lapis skor AI (uji E1, 70 teks Indonesia) | **Terukur, sampel kecil.** Winston salah tuduh 11% (18 teks manusia), heuristik 24% (45), Groq 60%, jadi Groq dicabut dari skor AI. Ambang tinggi 70 belum terukur. |
 | Level Bloom | **Terukur kasar.** Groq tepat 31% dan meleset maksimal satu level 74% pada 58 jawaban terkontrol, tepat 57% pada 240 soal berlabel (Yahya dkk.). Belum divalidasi pada jawaban mahasiswa berlabel dosen. |
 | Cek Paham | Transkripsi terukur: WER 7,1% pada 687 rekaman FLEURS (whisper-large-v3-turbo). Rubrik dan ambang penilai **belum dikalibrasi**, UI selalu memberi label itu. |
-| Uji otomatis | 559 tes backend dan 96 tes ai_experiment, semuanya lolos. |
+| Uji otomatis | 560 tes backend dan 96 tes ai_experiment, semuanya lolos. |
 
 > Gold set berisi **abstrak akademik**, bukan esai mahasiswa. Angka sah untuk membandingkan sinyal, tapi **bukan klaim akurasi pada jawaban tugas**. Seluruh eksperimen ada di [`ai_experiment/notebooks`](./ai_experiment/notebooks), disajikan bertahap dari gold set sampai evaluasi.
 

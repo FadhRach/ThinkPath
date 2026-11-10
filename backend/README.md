@@ -1,23 +1,16 @@
 # ThinkPath — Backend
 
-Django 5.2 LTS + Django REST Framework. **Satu-satunya API** untuk seluruh data ThinkPath (profil, kelas, tugas, submission, analisis). Frontend (Next.js di Vercel) tidak pernah menyentuh database langsung.
-
-> Panduan menyeluruh proyek: [README utama](../README.md) · ERD dan kamus data: [diagram/08](../diagram/08-erd-basis-data.md)
-
----
-
-## Gambaran singkat
+Django 5.2 LTS + DRF. **Satu-satunya API** untuk seluruh data; frontend (Next.js di Vercel) tidak pernah menyentuh database.
+Rumus skor AI dan Bloom: [apps/analysis/README.md](apps/analysis/README.md). ERD: [diagram/08](../diagram/08-erd-basis-data.md).
 
 | | **Lokal** | **Produksi (VPS)** |
 |---|---|---|
-| Server | `manage.py runserver` (auto-reload) | gunicorn di belakang Caddy (HTTPS) |
-| Database | PostgreSQL yang terpasang di laptop | PostgreSQL 17 di container `db` |
+| Server | `manage.py runserver` | gunicorn di belakang Caddy (HTTPS) |
+| Database | PostgreSQL di laptop | PostgreSQL 17 di container `db` |
 | Templat `.env` | `.env.example` | `.env.production.example` |
 | URL API | `http://127.0.0.1:7860` | `https://api.thinkpath.id` |
 
-Tiap mesin hanya punya **satu** `backend/.env`, disalin dari templat yang sesuai. Selain itu semuanya ditulis langsung di `config/settings/`.
-
-Di produksi, backend berjalan sebagai empat container Docker di satu VPS (IDCloudHost, Jakarta):
+Produksi = empat container di satu VPS (IDCloudHost, Jakarta):
 
 ```
 Internet ──HTTPS──> caddy ──HTTP──> api (gunicorn + Django) ──> db (PostgreSQL 17)
@@ -25,12 +18,10 @@ Internet ──HTTPS──> caddy ──HTTP──> api (gunicorn + Django) ─�
                                     worker (run_analysis_worker) ──┘
 ```
 
-| Komponen | Untuk apa |
-|---|---|
-| **gunicorn** | Server aplikasi produksi yang menjalankan Django. `runserver` hanya untuk dev. Konfigurasinya 1 worker × 8 thread. Analisis tidak berjalan di sini, jadi submit tidak pernah menunggu Groq + Winston |
-| **worker** | `manage.py run_analysis_worker` (3 thread): mengerjakan antrean `analysis_jobs` dan memanggil Winston dan heuristik untuk skor AI, Groq untuk Bloom. Lihat [Analisis di worker](#analisis-di-worker) |
-| **Caddy** | Pintu depan dari internet: sertifikat HTTPS otomatis (Let's Encrypt), redirect HTTP→HTTPS, kompresi, lalu meneruskan ke gunicorn |
-| **PostgreSQL** | Datanya di Docker volume `thinkpath_pgdata`, tetap ada walau container dibuat ulang. Hanya `docker compose down -v` yang menghapusnya |
+- **api**: gunicorn 1 worker × 8 thread; submit hanya menyimpan, tidak menunggu Groq/Winston.
+- **worker**: `manage.py run_analysis_worker` (3 thread) mengerjakan antrean `analysis_jobs`.
+- **caddy**: HTTPS otomatis (Let's Encrypt), redirect, kompresi.
+- **db**: volume `thinkpath_pgdata`; hanya `docker compose down -v` yang menghapusnya.
 
 ---
 
@@ -38,81 +29,51 @@ Internet ──HTTPS──> caddy ──HTTP──> api (gunicorn + Django) ─�
 
 Prasyarat: **Python 3.12+** dan **PostgreSQL 15+**.
 
-**1. Pasang dan nyalakan PostgreSQL, lalu buat database `thinkpath`**
-
-| OS | Perintah |
+| OS | Siapkan database `thinkpath` |
 |---|---|
 | macOS | `brew install postgresql@18 && brew services start postgresql@18 && createdb thinkpath` |
 | Linux (Ubuntu) | `sudo apt install postgresql && sudo -u postgres createuser -s $USER && createdb thinkpath` |
-| Windows | Pasang dari [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) (catat password user `postgres`), lalu di PowerShell: `createdb -U postgres thinkpath` |
-
-**2. Pasang backend**
-
-macOS / Linux:
+| Windows | Pasang dari [postgresql.org](https://www.postgresql.org/download/windows/), lalu `createdb -U postgres thinkpath` |
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv venv && source venv/bin/activate   # Windows: py -m venv venv; venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env                               # Windows: copy; isi POSTGRES_USER=postgres + password
 python manage.py migrate
-python manage.py seed_demo_data      # akun + data demo, aman diulang
-python manage.py runserver 127.0.0.1:7860
+python manage.py seed_demo_data                    # akun + data demo, aman diulang
+python manage.py runserver 127.0.0.1:7860          # atau: make dev (migrate + runserver)
 ```
 
-Windows (PowerShell):
+Di macOS/Linux `POSTGRES_USER`/`POSTGRES_PASSWORD` boleh kosong (user OS). Cek: `http://127.0.0.1:7860/health` → `{"status":"ok"}`.
+Frontend: `frontend/` dengan `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860`. DB lewat GUI: `127.0.0.1:5432`, database `thinkpath`.
 
-```powershell
-cd backend
-py -m venv venv
-venv\Scripts\Activate.ps1            # jika diblokir: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-pip install -r requirements.txt
-copy .env.example .env
-# di .env: POSTGRES_USER=postgres dan POSTGRES_PASSWORD=<password instalasi>
-python manage.py migrate
-python manage.py seed_demo_data
-python manage.py runserver 127.0.0.1:7860
-```
-
-Di macOS/Linux, `POSTGRES_USER` dan `POSTGRES_PASSWORD` boleh kosong: user yang dipakai adalah user sistem operasi, tanpa password. Nama variabelnya sama dengan di produksi.
-
-Cek: `http://127.0.0.1:7860/health` membalas `{"status":"ok"}`. Di macOS/Linux, `make dev` menjalankan migrate + runserver sekaligus.
-
-Frontend dijalankan terpisah di `frontend/` (`npm install` lalu `npm run dev`), dengan `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:7860` di `frontend/.env.local`.
-
-**Akun demo** (password `thinkpath123`): `dosen@thinkpath.local` (3 kelas) · `dosen2@thinkpath.local` (Business Creation) · `mhs01@thinkpath.local` s.d. `mhs20@thinkpath.local`. Isinya 4 kelas di pekan sesi ke-10: 12 materi dan 12 tugas per kelas, jawaban berkode, bertautan, dan PDF unggahan; katalognya di `apps/academics/demo/`.
-
-Membuka database: `psql thinkpath` di terminal, atau GUI (TablePlus, DBeaver, pgAdmin) dengan host `127.0.0.1`, port `5432`, database `thinkpath`.
+**Akun demo** (password `thinkpath123`): `dosen@thinkpath.local` (3 kelas), `dosen2@thinkpath.local` (Business Creation), `mhs01`…`mhs20@thinkpath.local`. Katalog di `apps/academics/demo/`.
 
 ### Tes
 
 ```bash
-python manage.py test                                    # semua tes (= make test)
+make test                                                # semua tes
 python manage.py test apps.analysis.tests.test_detector  # satu modul
 ```
 
-Aplikasi selalu memakai PostgreSQL; hanya tes yang berbeda. `manage.py test` **selalu** memakai SQLite in-memory dan mengabaikan `POSTGRES_*` di `.env`, jadi tidak pernah menyentuh database sungguhan. Dulu tes ikut memakai database dari `.env` dan nyaris menghapus database di server produksi; `common/tests.py` menjaga agar itu tidak terulang.
+`manage.py test` **selalu** memakai `config.settings.test` (SQLite in-memory) dan mengabaikan `POSTGRES_*`; dijaga `common/tests.py`.
 
 ### Mencoba stack produksi di Mac (OrbStack / Docker Desktop)
 
-Menjalankan susunan yang sama persis dengan VPS (Postgres + gunicorn + Caddy) sebelum deploy. `.env` tetap untuk runserver; Docker di Mac membaca `.env.docker`.
+`.env` tetap untuk runserver; Docker di Mac membaca `.env.docker`.
 
 ```bash
 cd backend
 cp .env.production.example .env.docker
-# di .env.docker isi: DJANGO_SECRET_KEY, POSTGRES_PASSWORD (perintahnya ada di komentar), lalu
-#   API_DOMAIN=http://localhost
+# isi DJANGO_SECRET_KEY, POSTGRES_PASSWORD, lalu:
+#   API_DOMAIN=http://localhost        (HTTP biasa: sertifikat lokal Caddy tidak dipercaya Node.js)
 #   CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-make up        # build + start; Makefile otomatis memakai .env.docker bila ada
-make ps        # db & api "healthy"
-make seed      # akun demo
+make up && make ps && make seed
 curl http://localhost/health
 ```
 
-Frontend ke API Docker: `NEXT_PUBLIC_BACKEND_URL=http://localhost npm run dev` di `frontend/`. Database container: `make psql`, atau GUI ke `127.0.0.1:5433` user/db `thinkpath` dengan password dari `.env.docker`. Selesai: `make down` (data tetap), atau `docker compose --env-file .env.docker down -v` untuk menghapus datanya juga.
-
-`API_DOMAIN=http://localhost` membuat Caddy melayani HTTP biasa, karena sertifikat lokal buatan Caddy tidak dipercaya Node.js. Di VPS isi dengan nama domain saja (tanpa `http://`) supaya Caddy mengambil sertifikat HTTPS.
+Frontend: `NEXT_PUBLIC_BACKEND_URL=http://localhost npm run dev`. DB: `make psql` atau GUI `127.0.0.1:5433`. Selesai: `make down` (data tetap) atau `docker compose --env-file .env.docker down -v`.
 
 ---
 
@@ -202,64 +163,27 @@ Hal yang perlu diingat:
 
 ---
 
-## Struktur Proyek
+## Struktur dan arsitektur
 
 ```
 backend/
-├── config/                   # bukan app: settings, urls, wsgi, gunicorn
-│   ├── settings/
-│   │   ├── base.py           # bersama
-│   │   ├── development.py    # lokal, bawaan manage.py
-│   │   ├── production.py     # container Docker (DJANGO_SETTINGS_MODULE)
-│   │   └── test.py           # dipaksa untuk `manage.py test`
-│   └── gunicorn.conf.py
+├── config/            settings/{base,development,production,test}.py, urls, wsgi, gunicorn.conf.py
 ├── apps/
-│   ├── accounts/             # Profile, ConsentRecord, JWT, privasi (UU PDP)
-│   ├── academics/            # kelas, tugas, materi, pengumuman, submission
-│   │   ├── views/            # satu modul per domain (classes, assignments, submissions, ...)
-│   │   ├── selectors.py      # query baca + pemeriksaan kepemilikan
-│   │   ├── services/         # alur tulis: submit/revisi/analisis ulang, join code
-│   │   └── management/commands/seed_demo_data.py
-│   ├── analysis/             # AnalysisResult, DetectorScore
-│   │   ├── engines/          # mesin skor murni: ai_score, bloom, text_features, process_signals, heuristic
-│   │   ├── providers/        # klien API luar: groq.py, winston.py
-│   │   ├── insights/         # agregat dosen: overview, reports, cognitive
-│   │   ├── pipeline.py       # run_analysis(): satu-satunya pintu analisis
-│   │   └── detector_cache.py
-│   └── notifications/
-├── common/                   # helper lintas app: http, HealthView
-├── requirements.txt
-├── deploy/                   # Caddyfile, entrypoint.sh, backup.sh
-├── Dockerfile  docker-compose.yml  Makefile
+│   ├── accounts/      Profile, ConsentRecord, JWT, privasi (UU PDP)
+│   ├── academics/     kelas, tugas, materi, submission; views/ (HTTP saja), selectors.py (baca), services/ (tulis)
+│   ├── analysis/      engines/ (skor murni), providers/ (groq, winston), insights/, pipeline.py, detector_cache.py
+│   ├── cekpaham/      tes lisan
+│   └── forum/ todos/ notifications/
+├── common/            helper http, HealthView, throttling
+├── deploy/            Caddyfile, entrypoint.sh, backup.sh, maintenance.sh
+└── Dockerfile  docker-compose.yml  Makefile  requirements.txt
 ```
 
-Aturan sederhananya: **view tipis** (HTTP saja) → baca lewat `selectors.py`, tulis lewat `services/`. Logika skor tidak pernah ada di view.
+- **Identitas sendiri**: tabel `profiles` dengan password ter-hash (tanpa `django.contrib.auth`). Login menerbitkan **JWT HS256** (`DJANGO_SECRET_KEY`) berisi `sub`, `email`, `role`, `consent`, `sid`.
+- **Analisis** di worker lewat `apps.analysis.pipeline.run_analysis`. Skor AI: Winston → heuristik (Groq tidak memberi skor AI). Bloom: Groq → heuristik. Ambang band: heuristik 42/70, Winston 35/70. API gagal/kunci kosong = jatuh ke lapis berikutnya. **Bloom tidak pernah menyentuh detektor** (uji AST).
+- Jebakan yang dikunci tes: **Winston mengembalikan _human score_** (0 = AI), dibalik **tepat sekali** di `providers/winston.py`; **detektor ditagih per kata**, skornya di-cache di `detector_scores` dengan kunci memuat versi model.
 
----
-
-## Arsitektur
-
-**Identitas dikelola sendiri.** Bukan `django.contrib.auth.User`, melainkan tabel `profiles` (`apps.accounts.models.Profile`) dengan password ter-hash. Login menerbitkan **JWT HS256** yang ditandatangani `DJANGO_SECRET_KEY`, berisi klaim `sub` (UUID profil), `email`, dan `role`. Verifikasi token murni di memori — nol query database per request. App bawaan `django.contrib.auth`/`contenttypes` tidak dipasang, jadi tidak ada tabel `auth_*`.
-
-**Analisis dikerjakan worker**, bukan di dalam request submit (lihat [Analisis di worker](#analisis-di-worker)). Worker memanggil `apps.analysis.pipeline.run_analysis`:
-
-```
-Skor AI     : Winston (providers/winston.py) bila menjawab, kalau tidak heuristik (engines/ai_score.py); Groq tidak memberi skor AI
-Level Bloom : Groq -> heuristik (engines/bloom.py); Winston tidak pernah menyentuhnya
-```
-
-Jalur dasar jalan lebih dulu: skor AI heuristik, level Bloom dari Groq bila kuncinya ada dan teks tidak memuat pola injeksi (selain itu heuristik). Winston (lewat `detector_cache`) menyusul dan hanya menimpa skor AI bila ia menjawab. Saat skor datang dari Winston, kelima sinyal heuristik tetap ditulis sebagai baris pembanding berbobot 0. Ambang band per sumber: heuristik 42/70, Winston 35/70 (salah tuduh 2/18 pada uji E1, sampel kecil). Kunci yang kosong atau API yang gagal cukup menjatuhkan ke lapisan berikutnya — tidak pernah menggagalkan pengumpulan tugas. **Level Bloom tidak pernah menyentuh detektor**, dan itu dijaga uji AST, bukan sekadar konvensi. Panggilan API terjadi di worker, di luar transaksi pengumpulan, jadi tidak ada baris yang terkunci selama menunggu Groq + Winston (12 + 8 detik kasus terburuk).
-
-Dua jebakan yang dikunci tes:
-
-- **Winston mengembalikan _human score_** (0 = AI, 100 = manusia). Pembalikannya dikerjakan **tepat sekali** di `providers/winston.py`. Kalau hilang atau terjadi dua kali, mahasiswa yang menulis sendiri justru mendapat skor AI tertinggi — dan angkanya tetap terlihat masuk akal.
-- **Detektor berbayar per kata**, jadi skornya disimpan di tabel `detector_scores` (`detector_cache.py`). Kunci cache memuat versi model, sehingga menaikkan versi otomatis membatalkan skor lama.
-
----
-
-## Model Data
-
-Diagram relasi, constraint, index, dan alasan normalisasi ada di [diagram/08-erd-basis-data.md](../diagram/08-erd-basis-data.md). Ringkasnya:
+### Model data
 
 | App | Model → tabel |
 |---|---|
@@ -270,9 +194,7 @@ Diagram relasi, constraint, index, dan alasan normalisasi ada di [diagram/08-erd
 | `todos` | `StudentTodo` → `student_todos` |
 | `notifications` | `Notification` → `notifications` |
 
-Aturan penting dijaga **di basis data**, bukan hanya di serializer: satu submission per mahasiswa per tugas, email unik tanpa peduli huruf besar, rentang nilai/Bloom/semester, dan satu Cek Paham aktif per submission. Jenjang, program studi, dan semester **melekat di kelas**, bukan di profil atau tugas.
-
-Riwayat migrasi direset ke `0001_initial` per app saat pindah ke VPS (Oktober 2026, mulai dari DB bersih). Mulai sekarang migrasi ditambahkan seperti biasa (`makemigrations`), dan **tidak pernah** menyunting migrasi yang sudah diterapkan di produksi.
+Dijaga **di basis data**: satu submission per mahasiswa per tugas, email unik tanpa peduli huruf besar, rentang nilai/Bloom/semester, satu Cek Paham aktif per submission. Jenjang, prodi, semester melekat di **kelas**. Migrasi direset ke `0001_initial` per app (Oktober 2026); sejak itu tambah migrasi biasa dan **jangan pernah** menyunting migrasi yang sudah diterapkan.
 
 ---
 
@@ -286,7 +208,7 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 | POST | `/api/auth/register` | publik | daftar (wajib `accept_policy: true` + `policy_version` berlaku; persetujuan dicatat di transaksi yang sama), balikan token + profil |
 | POST | `/api/auth/login` | publik | login (throttle per IP dan per email), balikan token + profil |
 | POST | `/api/auth/logout` | login | cabut sesi ini di server; token langsung tidak berlaku |
-| POST | `/api/auth/upload-ticket` | login | tiket 10 menit untuk unggah/ambil berkas besar langsung ke API (lihat "Sesi dan token") |
+| POST | `/api/auth/upload-ticket` | login | tiket 10 menit untuk unggah/ambil berkas besar langsung ke API (lihat "Sesi, token, dan akses") |
 | POST | `/api/auth/password-reset` | publik | minta tautan atur ulang sandi (`email`); selalu 202, ada atau tidaknya akun tidak terlihat; 10/jam per IP, jeda 60 detik per akun |
 | POST | `/api/auth/password-reset/confirm` | publik | pasang sandi baru (`token`, `new_password`); tautan sekali pakai, berlaku 30 menit, mencabut semua sesi |
 | POST | `/api/me/password` | login | ganti kata sandi (`current_password`, `new_password`); sesi lain dicabut |
@@ -344,59 +266,37 @@ Semua di bawah `/api` dan butuh `Authorization: Bearer <token>`, kecuali yang di
 
 ### Draf, submit, dan revisi
 
-Bukti proses **dicatat server**, bukan dikirim klien:
-
-1. Mahasiswa mengetik; form menyimpan otomatis lewat `PUT /api/assignments/<id>/draft`. Draf (`submission_drafts`) dibuat pada simpan pertama yang **berisi teks**, dan `started_at` adalah jam server saat itu. Membuka halaman tugas tidak memulai apa pun. Jumlah kata dihitung server dari teks, dan satu cuplikan dicatat paling sering tiap 30 detik (maks 240, sekitar dua jam).
-2. `POST /api/assignments/<id>/submissions` adalah **upsert per mahasiswa**. Body `rich_answer` (dokumen editor TipTap; server membersihkannya lewat daftar putih di `services/rich_text.py` dan **menurunkan sendiri** `text_answer` darinya, sehingga klien tidak bisa mengirim teks polos yang berbeda) atau `text_answer` saja (klien lama), minimal 5 kata (+ `document_id` bila dari unggahan). Gambar disisipkan sebagai data URI kecil (PNG/JPEG/WebP/GIF) di dalam dokumen, maksimal 6 gambar dan 2,5 MB. `started_at` dan `progress` dari bundel lama **diterima tetapi diabaikan**. Pengumpulan pertama memakai draf (dihapus di transaksi yang sama); tanpa draf, durasi terukur 0 dan teks dianggap tiba sekaligus.
-3. Pengumpulan berikutnya, selama tenggat belum lewat dan belum dinilai, memperbarui jawaban yang sama: `revision_count += 1`, `ReasoningEvent(revision)` yang memuat `inserted_words` (kata baru yang tidak ada di teks sebelumnya, supaya mengganti seluruh isi saat revisi tetap terbaca).
-4. Setelah tenggat lewat atau setelah dinilai dosen, ditolak dengan `400`. Status "sudah dinilai" diperiksa ulang di dalam transaksi (`SELECT ... FOR UPDATE`).
-5. Klik ganda pada pengumpulan pertama: constraint `submission_unique_per_student` menolak baris kedua, dibalas `400`, bukan `500`.
-
-Residu yang tidak bisa ditutup tanpa merekam ketikan: skrip yang mengirim draf bertahap selama berjam-jam bisa meniru kurva wajar. Biayanya waktu nyata, bukan satu request.
+- Bukti proses **dicatat server**: `PUT /api/assignments/<id>/draft` membuat draf pada simpan pertama yang berisi teks (`started_at` = jam server), lalu satu cuplikan jumlah kata paling sering tiap 30 detik (maks 240). `started_at`/`progress` kiriman klien diabaikan.
+- `POST /api/assignments/<id>/submissions` = **upsert per mahasiswa**: `rich_answer` (TipTap, dibersihkan `services/rich_text.py`, server menurunkan `text_answer`) atau `text_answer`, minimal 5 kata. Gambar data URI maks 6 / 2,5 MB. Tanpa draf: durasi 0, teks dianggap tiba sekaligus.
+- Pengumpulan berikutnya sebelum tenggat dan belum dinilai: `revision_count += 1`, `ReasoningEvent(revision)` dengan `inserted_words`. Setelah tenggat/dinilai: `400` (dicek ulang dengan `SELECT ... FOR UPDATE`). Klik ganda pertama: constraint unik → `400`, bukan `500`.
+- Residu: skrip yang mengirim draf bertahap berjam-jam bisa meniru kurva wajar (biayanya waktu nyata).
 
 ### Analisis di worker
 
-Submit/revisi hanya menyimpan jawaban dan satu `AnalysisJob` (antrean di Postgres, tanpa Redis); respons kembali dalam milidetik. Container `worker` (`manage.py run_analysis_worker`, 3 thread, `SELECT ... FOR UPDATE SKIP LOCKED`) mengerjakan job: membaca persetujuan dan jejak proses dari basis data **saat job berjalan**, menjalankan `run_analysis`, menulis `AnalysisResult` (keadaan terkini) dan `AnalysisRun` (riwayat, tidak pernah ditimpa). Galat tak terduga diulang 2× dengan jeda; setelah itu hasil heuristik dipakai supaya pengumpulan selalu punya hasil. Job `running` yang macet > 90 detik diambil ulang; hasil job yang teksnya sudah direvisi lagi dibuang.
+- Submit/revisi menyimpan jawaban + satu `AnalysisJob` (antrean Postgres, tanpa Redis). Worker (`SKIP LOCKED`) membaca persetujuan dan jejak proses saat job berjalan, menulis `AnalysisResult` (terkini) dan `AnalysisRun` (riwayat).
+- Galat diulang 2×, lalu hasil heuristik dipakai. Job `running` macet > 90 detik diambil ulang; hasil job yang teksnya sudah direvisi dibuang.
+- `Submission.analysis_state` (`pending`/`running`/`done`/`failed`); frontend memuat ulang tiap 3 detik. Lokal/tes: `ANALYSIS_INLINE = True` (tanpa proses ketiga).
+- `ai_score` dari **teks saja**; `process_band` (`normal`/`partial`/`attention`/`unrecorded`, kosong untuk jawaban diimpor) dilaporkan terpisah, `PROCESS_WEIGHT = 0`. Teks berisi perintah untuk penilai ("abaikan instruksi…") tidak dikirim ke Groq (`apps/analysis/injection.py`).
 
-`Submission.analysis_state` (`pending`/`running`/`done`/`failed`) ikut di daftar dan detail dosen; frontend memuat ulang tiap 3 detik selama belum `done`. Di lokal (`ANALYSIS_INLINE = True` di `development.py` dan `test.py`) job dikerjakan seketika di request, jadi `make dev` tidak butuh proses ketiga. Produksi: `ANALYSIS_INLINE = False`. Anggaran memori diukur: api ±110 MB, worker ±90 MB, db ±35 MB (idle); koneksi DB: 8 (gunicorn) + 3 (worker) di bawah `max_connections=30`. Hanya `api` yang menjalankan `migrate`; worker menunggu api sehat.
+### Sesi, token, dan akses
 
-### Skor: teks dan pola pengerjaan dipisah
-
-`ai_score`/`ai_band` dihitung **dari teks saja** (heuristik, ditimpa Winston bila menjawab; Groq hanya menaksir Bloom karena pada uji E1 skor AI-nya hampir setara tebakan; bobot proses `PROCESS_WEIGHT = 0`). Pola pengerjaan (`process_band`: `normal`, `partial`, `attention`, `unrecorded`; kosong untuk jawaban diimpor) adalah bukti tersendiri dan tidak menjumlah ke skor. Alasan: ambang skor diukur pada bobot teks murni, tidak ada data berlabel untuk bobot proses, dan mahasiswa yang menempel dari Word menghasilkan lonjakan yang sama dengan penyalin. Lonjakan = ≥ 60 kata dengan laju ≥ 80 kata/menit antar cuplikan; porsi < 35% wajar, ≥ 60% perlu dilihat. Setiap analisis tersimpan di `analysis_runs` bersama masukan prosesnya (bahan kalibrasi kelak). Teks yang memuat kalimat untuk penilai otomatis ("abaikan instruksi…") tidak dikirim ke Groq (`apps/analysis/injection.py`).
-
-### Sesi dan token
-
-Token JWT memuat `sid` yang menunjuk baris `auth_sessions`; tiap request memeriksa sesinya (di-cache 15 detik di memori). `exp`, `iat`, `sub`, `sid`, `iss`, `aud` wajib; kunci tanda tangan diturunkan dari `DJANGO_SECRET_KEY` (minimal 32 karakter di produksi). Logout dan ganti sandi mencabut sesi. Frontend menaruh token di cookie **HttpOnly** lewat jembatan `/bff` (Next.js), jadi JavaScript tidak memegangnya. Unggahan besar (dokumen 10 MB, audio 5 MB) melampaui batas badan fungsi Vercel (4,5 MB), sehingga memakai **tiket unggah**: token 10 menit yang hanya diterima view bertanda `accepts_upload_ticket`. Sandi: minimal 10 karakter, bukan sandi umum, bukan angka semua, tidak mirip email/nama. Login dibatasi per IP (20/menit) dan per email (10/menit).
+- JWT memuat `sid` → baris `auth_sessions` (cache 15 detik); logout dan ganti sandi mencabut sesi. Token di cookie **HttpOnly** lewat `/bff` frontend.
+- Unggahan > 4,5 MB (dokumen 10 MB, audio 5 MB) memakai **tiket unggah** 10 menit, hanya diterima view `accepts_upload_ticket`.
+- Sandi minimal 10 karakter, bukan sandi umum. Login dibatasi 20/menit per IP dan 10/menit per email.
+- **Skor AI dan sinyal tidak pernah dikirim ke mahasiswa** (`StudentSubmissionStatusSerializer`); daftar tugas mahasiswa tidak memuat `text_answer`.
 
 ### Penghapusan data
 
-`DELETE /api/me` (UI: Pengaturan, kartu "Hapus akun") menghapus profil (cascade ke jawaban, analisis, notifikasi, persetujuan, sesi) **dan berkasnya** (`documents/<id>/`, `cekpaham/<id>/`). Daftar jalur dikumpulkan sebelum baris dihapus, berkas dihapus setelah commit. Yang tersisa hanya `account_deletions`: id acak, peran, versi kebijakan, jumlah. **Dosen yang menghapus akun tidak menghapus kelasnya**: `Class.owner` menjadi kosong dan `owner_left_at` terisi, sehingga kelas, tugas, dan jawaban mahasiswa tetap ada sebagai arsip baca-saja. Mahasiswa melihat peringatan di kelas itu (`is_archived` pada `/api/student/classes` dan detail tugas), sedangkan draf, pengumpulan, dan gabung kelas ditolak (`reject_if_archived`). `CekPaham.created_by` juga dikosongkan, bukan dihapus. Berkas mahasiswa di kelas arsip tidak ikut dihapus; mahasiswa menghapusnya dengan menghapus akunnya sendiri (`/api/me/deletion-impact` memberi hitungannya lebih dulu). `manage.py purge_stale_data` (cron harian, `deploy/maintenance.sh`) menyapu berkas yatim > 24 jam, job analisis > 30 hari, notifikasi > 90 hari, dan sesi lama. Salinan di backup (7 hari) memuat data sebelum penghapusan sampai kedaluwarsa.
-
-**Skor AI dan sinyal tidak pernah diekspos ke mahasiswa** (`StudentSubmissionStatusSerializer`). Daftar tugas mahasiswa juga tidak mengirim `text_answer` demi menekan ukuran respons — teks lengkap hanya ada di endpoint detail.
+`DELETE /api/me` menghapus profil (cascade) **dan berkasnya** (`documents/<id>/`, `cekpaham/<id>/`, setelah commit); tersisa hanya `account_deletions` (id acak, peran, versi, jumlah). Dosen yang menghapus akun **tidak** menghapus kelasnya: `Class.owner` = NULL, kelas jadi arsip baca-saja (`is_archived`, `reject_if_archived`). `purge_stale_data` (cron `deploy/maintenance.sh`) menyapu berkas yatim > 24 jam, job > 30 hari, notifikasi > 90 hari, sesi lama. Backup (7 hari) masih memuat data sampai kedaluwarsa.
 
 ### Unggah dokumen (OCR)
 
-Dosen memilih per tugas lewat `Assignment.allow_file_upload` (bawaan `false`, wajib diketik): bila mati, endpoint unggah dibalas `403` dan `document_id` diabaikan. Bila hidup, mahasiswa bisa mengisi jawaban dari berkas. Alurnya dua langkah, dan unggahan **tidak pernah mengumpulkan jawaban sendiri**:
-
-1. `POST /api/assignments/<id>/documents` (multipart, field `file`, maks 10 MB, tenggat dan persetujuan privasi diperiksa seperti submit) membalas `{document_id, text, page_count, method, warnings}`. Teks ini tidak dimasukkan ke editor.
-2. Submit biasa dengan tambahan `document_id`. Server **menggabungkan** tulisan mahasiswa di kotak jawaban (nama, NIM, catatan; boleh kosong) dengan teks dokumen yang tersimpan: `text_answer` = ketikan + teks dokumen, dan inilah yang dianalisis. `rich_answer` hanya berisi ketikannya. Klien harus mengirim ulang `document_id` pada revisi; tanpa itu dokumen dianggap dilepas. Bila ketikan lebih dari separuh gabungan, jawaban tidak lagi dianggap diimpor dan forensik proses berlaku.
-
-Cara baca (`apps/academics/services/documents.py`): jenis berkas ditentukan dari isinya (bukan nama atau content-type). DOCX dan PDF berlapis teks dibaca di server. Halaman gambar (scan, foto, PNG/JPG) dibaca model visual Groq (`providers/groq_vision.py`, `GROQ_VISION_MODEL`, bawaan `qwen/qwen3.8-27b`), **hanya bila mahasiswa mengizinkan analisis di luar negeri**; selain itu ditolak dengan pesan yang jelas. Batas: 20 halaman, 6 halaman gambar (dibaca paralel agar di bawah timeout gunicorn 60 detik). `.doc` lama tidak didukung.
-
-Penyimpanan: `MEDIA_ROOT = backend/data/media` (di Docker: volume `media`, ikut `make backup`):
-
-```
-documents/<id mahasiswa>/<id dokumen>.<pdf|png|jpg|docx>   # berkas asli
-documents/<id mahasiswa>/<id dokumen>.txt                  # teks hasil baca
-```
-
-Teks `.txt` itu juga bukti: saat submit/revisi, `verified_source()` memeriksa bahwa sedikitnya setengah kata jawaban ada di dokumen milik mahasiswa itu. Hanya bila terbukti, `Submission.source_document` terisi dan forensik proses dilewati (jawaban yang diimpor tiba sekaligus dan akan terbaca sebagai tempelan); dosen melihat lencana "Diimpor dari dokumen" (`is_imported`). Menulis ulang total saat revisi mengembalikan penilaian proses. Caddy membatasi body unggahan 11 MB, endpoint lain tetap 2 MB.
-
-Belum ada: penghapusan otomatis dokumen yatim (diunggah tapi tidak dikumpulkan) dan tampilan berkas asli untuk dosen.
+- Per tugas lewat `Assignment.allow_file_upload` (bawaan `false` → `403`). Unggahan tidak pernah mengumpulkan jawaban sendiri.
+- `POST /api/assignments/<id>/documents` (multipart `file`, maks 10 MB) → `{document_id, text, page_count, method, warnings}`. Lalu submit dengan `document_id`: `text_answer` = ketikan + teks dokumen (dianalisis), `rich_answer` = ketikan saja. Revisi wajib mengirim ulang `document_id`.
+- Jenis berkas dari isi. DOCX/PDF berlapis teks dibaca server; halaman gambar lewat model visual Groq (`GROQ_VISION_MODEL`, bawaan `qwen/qwen3.8-27b`) **hanya bila mahasiswa mengizinkan analisis di luar negeri**. Batas 20 halaman, 6 halaman gambar. `.doc` tidak didukung.
+- Berkas di `MEDIA_ROOT = backend/data/media/documents/<mahasiswa>/<dokumen>.{pdf,png,jpg,docx,txt}` (Docker: volume `media`). `verified_source()` memastikan ≥ separuh kata jawaban ada di dokumen; bila terbukti, `source_document` terisi dan forensik proses dilewati, kecuali ketikan > separuh gabungan. Caddy: body unggahan 11 MB, lainnya 2 MB.
 
 ### Cek Paham (tes lisan)
-
-Dosen menulis satu soal atas satu jawaban; mahasiswa menjawab **hanya dengan suara** dalam 15–300 detik; sistem membuat transkrip dan skor **saran** beserta kutipan bukti. Nilai tugas, skor E1, dan level Bloom tidak pernah diubah olehnya (modulnya `apps/cekpaham` sengaja tidak mengimpor mesin analisis; dijaga `tests/test_decoupling.py`).
 
 ```
 browser ── rekaman utuh ───────────────► finalize ─► audio disimpan ─► Groq Whisper (transkrip yang dinilai)
@@ -404,31 +304,24 @@ browser ── rekaman utuh ───────────────► fin
                                                           penilai (Groq chat, GROQ_MODEL, 2 jalan paralel) ─► skor + bukti
 ```
 
-- **Transkrip yang dinilai hanya dari audio utuh di server.** `live_transcript` kiriman klien tidak tepercaya; ia disimpan untuk dibandingkan dosen dan tidak pernah sampai ke penilai.
-- **Tanpa env baru.** Memakai `GROQ_API_KEY` dan `GROQ_MODEL` yang sudah ada; model Whisper (`whisper-large-v3-turbo`), masa simpan audio (30 hari), dan batas ukuran (5 MB, potongan live 1 MB) adalah konstanta di kode. Endpoint yang memanggil Groq (buat, mulai, caption, finalisasi, proses ulang) membalas `503` bila kunci kosong; membaca hasil tetap jalan.
-- **Skor dihitung di kode** (`rubric.py`) dari level 0–3 per dimensi (ketepatan 35%, konsistensi 25%, kedalaman 25%, keakraban dengan isi jawaban 15%; rubrik v2 menganggap menjelaskan ulang isi jawaban tertulis sebagai bukti paham dan menyesuaikan harapan kedalaman dengan soalnya); LLM hanya memberi level dan kutipan. Penilai berjalan dua kali dengan urutan rubrik dibalik (selisih besar diberi flag `judge_disagreement`), kutipan yang bukan potongan transkrip dibuang (`evidence_unverified`), dan bukti kurang (< 15 kata atau tanpa ucapan) memberi skor **kosong**, bukan angka rendah. **Ambang band 70/40 belum dikalibrasi**; UI dosen selalu memberi label itu. Ukuran: ±2.000 token per jalan, dari jatah 8.000 token/menit Groq yang dipakai bersama analisis submission; 429 dihormati (tunggu sesuai permintaan, maks 10 dtk).
-- **Whisper mengarang kalimat pada audio hening** ("Terima kasih.") dengan `no_speech_prob = 0`, jadi angka kepercayaan saja tidak cukup. `filter_segments()` juga membuang segmen yang berakhir melewati durasi audio dan frasa penutup yang dikenal; potongan senyap tidak dikirim klien.
-- **Persetujuan** diperiksa di basis data pada `start`, `live`, dan `finalize`: butir `rekaman_suara_cekpaham` dan `analisis_luar_negeri` harus berlaku bersamaan; keduanya sudah termasuk persetujuan mahasiswa (satu centang saat daftar), jadi pemeriksaan ini hanya menolak bila persetujuan tidak berlaku.
-- **Sesi**: satu attempt aktif per Cek Paham; tenggat dari server (`deadline_at`), `finalize` diterima sampai tenggat + 10 detik, idempoten, dan sesi yang ditinggalkan menjadi `interrupted`. Dosen memutuskan laporan: `dismissed`, atau `grant_retry` (sesi lama `voided`, jendela dijamin sisa ≥ 24 jam).
-- **Retensi**: `python manage.py purge_cekpaham_audio` menghapus audio > 30 hari (transkrip dan hasil tetap). Backend tidak punya penjadwal, jadi pasang di crontab VPS di samping backup, mis. `17 3 * * * cd /opt/thinkpath/backend && docker compose exec -T api python manage.py purge_cekpaham_audio`.
-- **Caddy**: jalur `/api/student/cekpaham/*/finalize` diberi batas body 6 MB (`deploy/Caddyfile`); jalankan `make deploy` (`caddy reload`) setelah `git pull`.
-- Notifikasi mahasiswa bersifat netral (tanpa kata AI, indikasi, atau curiga; dijaga tes); pengingat 24 jam dibuat saat lonceng dibuka.
+- Jawaban **hanya suara**, 15–300 detik. Transkrip yang dinilai hanya dari audio utuh di server; `live_transcript` klien tidak pernah sampai ke penilai.
+- Tanpa env baru: `GROQ_API_KEY` + `GROQ_MODEL`; endpoint yang memanggil Groq membalas `503` bila kunci kosong.
+- **Skor dihitung di kode** (`rubric.py`) dari level 0–3 per dimensi: ketepatan 35%, konsistensi 25%, kedalaman 25%, keakraban 15%. Penilai jalan dua kali (urutan rubrik dibalik, selisih besar → `judge_disagreement`); kutipan bukan potongan transkrip dibuang; bukti kurang (< 15 kata) → skor kosong. **Ambang 70/40 belum dikalibrasi**. Tidak pernah mengubah nilai, skor E1, atau Bloom (`tests/test_decoupling.py`).
+- Whisper mengarang kalimat pada audio hening; `filter_segments()` membuang segmen di luar durasi dan frasa penutup yang dikenal.
+- Persetujuan `rekaman_suara_cekpaham` + `analisis_luar_negeri` diperiksa di DB pada `start`, `live`, `finalize`. Satu attempt aktif; `finalize` diterima sampai tenggat + 10 detik, idempoten. Laporan: `dismissed` atau `grant_retry` (sisa jendela ≥ 24 jam).
+- Retensi audio 30 hari: crontab VPS `17 3 * * * cd /opt/thinkpath/backend && docker compose exec -T api python manage.py purge_cekpaham_audio`. Caddy: body `finalize` 6 MB (`make deploy` setelah `git pull`).
 
-### Materi dan jadwal
+### Materi, jadwal, notifikasi
 
-`topic` adalah teks bebas seperti topik Google Classroom, misalnya "Pertemuan 3: Desain kualitatif". Spasi berlebih dirapikan supaya satu topik tidak terpecah menjadi dua kelompok. Pengurutan dan pengelompokan dilakukan frontend (materi umum dulu, lalu urutan alami: Pertemuan 2 sebelum Pertemuan 10).
-
-`GET /api/student/schedule?start=<ISO>&end=<ISO>` dipakai kalender. Kedua waktu wajib berzona, rentangnya paling panjang 62 hari (satu tampilan bulan paling banyak enam pekan). Batas hari dihitung frontend pada zona tampilan, jadi backend tetap tidak perlu tahu zona kampus. Rentang ini ikut memuat tenggat yang sudah lewat dan sesi yang sudah berlangsung (`status: "done"`, tanpa kesimpulannya); sesi yang dibatalkan tidak dimuat. Tiap agenda membawa `class_id` untuk saringan per kelas.
+- `topic` materi = teks bebas ("Pertemuan 3: ..."); pengelompokan di frontend.
+- `GET /api/student/schedule?start=&end=`: waktu berzona, rentang maks 62 hari, termasuk tenggat lewat.
+- Notifikasi dikirim setelah aksi tersimpan, gagalnya tidak menggagalkan aksi (`notifications.services.safe`). Pengingat tenggat 24 jam dibuat saat lonceng dibuka (unik `notif_deadline_once`). Notifikasi mahasiswa tidak pernah menyebut indikasi AI.
 
 ### Persetujuan data pribadi
 
-Versi kebijakan yang berlaku ada di `apps/accounts/privacy.py` (`PRIVACY_POLICY_VERSION`) dan wajib sama dengan `frontend/lib/privacy.ts`; tes memeriksa keduanya. Frontend dan backend di-deploy terpisah, jadi setelah versi dinaikkan ada jeda sampai keduanya selesai deploy. Selama jeda itu, dan di tab yang dibuka sebelum deploy, form daftar dan layar persetujuan mengirim versi lama dan ditolak `400` dengan pesan untuk memuat ulang halaman. Muat ulang setelah kedua deploy berstatus Ready. Pengguna menyetujui satu kali dengan satu centang di form daftar (`accept_policy`), dan server mencatat butir per tujuan (Pasal 22 ayat (4) UU PDP): mahasiswa `data_perkuliahan`, `analisis_proses`, `usia_atau_izin_wali`, `analisis_luar_negeri`, `rekaman_suara_cekpaham`; dosen `data_perkuliahan` dan `tanggung_jawab_dosen`. Tiap catatan `ConsentRecord` memuat versi, butir, waktu, dan `source` (`register`, `reaccept`, `withdraw`, `seed`); tidak menyimpan IP. Akun lama atau versi baru menyetujui ulang lewat `POST /api/me/consent`. `seed_demo_data` mencatat persetujuan untuk semua akun demo.
-
-Token memuat klaim `consent` berisi versi yang disetujui, dibaca layout frontend untuk gerbang tampilan. Pemrosesan baru tidak memercayai klaim itu: pengumpulan jawaban dan Analisis Ulang memeriksa `ConsentRecord` terbaru di basis data dan menolak dengan `403` bila persetujuan tidak berlaku, sehingga penarikan berlaku seketika meski token lama masih beredar. Tanpa butir `analisis_luar_negeri`, `run_analysis(allow_external=False)` melewati Groq, detektor, dan cache detektor (Pasal 56 ayat (4)). Pemetaan pasal lengkapnya ada di `diagram/07-privasi-dan-persetujuan.md`.
-
-### Notifikasi
-
-Dikirim setelah aksi utamanya tersimpan, dan kegagalannya tidak pernah menggagalkan aksi itu (`notifications.services.safe`). Pengumpulan untuk tugas yang sama digabung selama belum dibaca. Pengingat tenggat 24 jam dibuat saat mahasiswa membuka lonceng, bukan oleh penjadwal, karena backend tidak punya cron; tiap tugas hanya diingatkan sekali, dan constraint unik `notif_deadline_once` menjaganya walau dua permintaan lonceng tiba bersamaan. Notifikasi ke mahasiswa tidak pernah menyebut indikasi AI, termasuk permintaan Cek Paham. Notifikasi materi baru menaut langsung ke materinya (`/student/materi/<kelas>#materi-<id>`).
+- `PRIVACY_POLICY_VERSION` di `apps/accounts/privacy.py` wajib sama dengan `frontend/lib/privacy.ts` (dicek tes). Setelah versi naik, deploy frontend dan backend berdekatan; versi lama ditolak `400`.
+- Satu centang saat daftar (`accept_policy`); server mencatat butir per tujuan (Pasal 22 ayat (4) UU PDP): mahasiswa `data_perkuliahan`, `analisis_proses`, `usia_atau_izin_wali`, `analisis_luar_negeri`, `rekaman_suara_cekpaham`; dosen `data_perkuliahan`, `tanggung_jawab_dosen`. `ConsentRecord` menyimpan versi, butir, waktu, `source`; tidak menyimpan IP.
+- Pengumpulan dan Analisis Ulang memeriksa `ConsentRecord` di DB (`403` bila tidak berlaku), bukan klaim token. Tanpa `analisis_luar_negeri`: `run_analysis(allow_external=False)` (Pasal 56 ayat (4)). Pemetaan pasal: `diagram/07-privasi-dan-persetujuan.md`.
 
 ---
 

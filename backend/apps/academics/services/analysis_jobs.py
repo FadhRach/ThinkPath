@@ -1,17 +1,7 @@
-"""Antrean analisis: menyimpan job, mengklaimnya, dan menjalankannya.
+"""Antrean analisis (tabel analysis_jobs): simpan, klaim, jalankan job; worker = run_analysis_worker.
 
-Pengumpulan jawaban tidak lagi menunggu Winston dan Groq (sampai ~20 detik).
-Ia hanya menyimpan jawaban dan satu AnalysisJob; worker terpisah
-(`manage.py run_analysis_worker`) mengerjakannya. Dengan begitu 8 thread
-gunicorn tidak bisa dipenuhi oleh lonjakan pengumpulan menjelang tenggat.
-
-Mode inline (settings.ANALYSIS_INLINE, dipakai tes dan runserver lokal)
-menjalankan job seketika setelah disimpan, seperti perilaku lama, sehingga
-`make dev` tidak butuh proses ketiga.
-
-Konteks proses dan persetujuan dibaca dari basis data SAAT job berjalan, bukan
-dibawa dari request. Persetujuan yang ditarik di antara pengumpulan dan
-analisis dihormati: analisis jatuh ke heuristik di server sendiri.
+ANALYSIS_INLINE menjalankan job seketika (tes, make dev). Konteks proses dan persetujuan dibaca
+SAAT job berjalan, jadi persetujuan yang ditarik di antaranya dihormati (jatuh ke heuristik).
 """
 from __future__ import annotations
 
@@ -37,8 +27,7 @@ logger = logging.getLogger(__name__)
 MAX_ATTEMPTS = 3
 # Jeda sebelum percobaan ke-2 dan ke-3 setelah galat tak terduga.
 RETRY_DELAYS = (timedelta(seconds=5), timedelta(seconds=20))
-# Job berstatus running yang tidak selesai selama ini dianggap ditinggal
-# worker yang mati dan diambil ulang. Di atas batas terburuk analisis (~20 dtk).
+# Job running lebih lama dari ini dianggap ditinggal worker mati dan diambil ulang (di atas ~20 s).
 STALE_AFTER = timedelta(seconds=90)
 
 
@@ -160,8 +149,7 @@ def run_job(job: AnalysisJob) -> None:
         )
         return
 
-    # Percobaan habis: hasil heuristik di server sendiri lebih baik daripada
-    # pengumpulan tanpa hasil. Sumbernya tercatat "heuristic", jadi dosen tahu.
+    # Percobaan habis: hasil heuristik (sumber tercatat) lebih baik daripada tanpa hasil.
     try:
         analysis, process = _analyse(submission, allow_external=False)
         _store(job, submission, analysis, process, note=f"cadangan heuristik: {error}")

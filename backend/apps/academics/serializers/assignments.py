@@ -10,8 +10,7 @@ from apps.academics.services.rich_text import clean_rich_doc, rich_to_plain
 
 class AssignmentListSerializer(serializers.ModelSerializer):
     class_id = serializers.UUIDField(source="class_ref_id", read_only=True)
-    # Jenjang tidak lagi disimpan di Assignment. Dipaparkan dari kelasnya supaya
-    # kontrak API tidak berubah. Queryset pemanggil wajib select_related.
+    # Dipaparkan dari kelas (kontrak API tetap); queryset pemanggil wajib select_related.
     education_level = serializers.CharField(source="class_ref.education_level", read_only=True)
     submission_count = serializers.IntegerField(read_only=True)
     high_band_count = serializers.IntegerField(read_only=True)
@@ -36,12 +35,7 @@ class AssignmentListSerializer(serializers.ModelSerializer):
 
 
 class TeacherAssignmentRowSerializer(AssignmentListSerializer):
-    """Baris daftar tugas lintas kelas.
-
-    Sama seperti daftar per kelas, ditambah nama kelas karena di halaman ini
-    tugas dari beberapa kelas bercampur dan judul saja tidak cukup untuk
-    membedakannya.
-    """
+    """Baris daftar tugas lintas kelas: seperti daftar per kelas, ditambah nama kelas."""
 
     class_name = serializers.CharField(source="class_ref.name", read_only=True)
     subject = serializers.CharField(source="class_ref.subject", read_only=True)
@@ -59,20 +53,14 @@ class AssignmentDetailSerializer(AssignmentListSerializer):
 
 
 class AssignmentCreateSerializer(serializers.ModelSerializer):
-    """Jenjang sengaja tidak diterima di sini.
-
-    Tugas mewarisi jenjang dari kelas tempatnya dibuat. Menerimanya sebagai
-    masukan membuka kemungkinan tugas tersimpan dengan jenjang berbeda dari
-    kelasnya, yang tidak punya arti apa pun.
-    """
+    """Jenjang sengaja tidak diterima: tugas mewarisinya dari kelas."""
 
     expected_bloom_level = serializers.IntegerField(min_value=1, max_value=6)
     deadline = serializers.DateTimeField(required=True)
     instructions_rich = serializers.JSONField(required=False, allow_null=True)
 
     def validate(self, attrs):
-        # Teks polos selalu diturunkan server dari dokumen; klien tidak bisa mengirim keduanya
-        # dengan isi berbeda. Hanya `instructions` (klien lama) berarti instruksi polos.
+        # Teks polos selalu diturunkan server dari dokumen; hanya `instructions` (klien lama) = instruksi polos.
         rich = attrs.get("instructions_rich")
         if rich is not None:
             cleaned = clean_rich_doc(rich)

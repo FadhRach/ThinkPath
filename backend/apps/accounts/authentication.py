@@ -1,20 +1,6 @@
-"""Autentikasi JWT yang diterbitkan backend sendiri, dengan sesi yang bisa dicabut.
+"""JWT HS256 buatan backend yang memuat `sid` AuthSession; logout/ganti sandi mencabut sesi.
 
-Alur:
-1. Login sukses -> backend membuat AuthSession dan menerbitkan JWT HS256 yang
-   memuat `sid` sesi itu.
-2. Setiap request membawa header Authorization: Bearer <jwt>. Tanda tangan,
-   `exp`, `iat`, `sub`, `sid`, `iss`, dan `aud` wajib benar, lalu sesinya harus
-   masih berlaku (tidak dicabut, belum kedaluwarsa).
-3. Logout dan ganti sandi mencabut sesi, jadi token yang sudah bocor tidak
-   hidup sampai kedaluwarsa.
-4. Klaim dibungkus dataclass AuthenticatedUser (bukan django.contrib.auth.User
-   karena identitas dikelola tabel profiles).
-
-Tiket unggah (`typ: "upload"`) adalah token pendek untuk satu hal saja:
-mengunggah/mengambil berkas langsung ke API, melewati batas badan permintaan
-fungsi Vercel. Ia ditolak di semua view yang tidak menyatakan
-`accepts_upload_ticket = True`.
+Tiket unggah (`typ: "upload"`) hanya diterima view dengan `accepts_upload_ticket = True`.
 """
 from __future__ import annotations
 
@@ -38,8 +24,7 @@ from apps.accounts.privacy import current_consent
 JWT_ALGORITHM = "HS256"
 TOKEN_ACCESS = "access"
 TOKEN_UPLOAD = "upload"
-# Hasil pemeriksaan sesi disimpan sebentar supaya tidak ada query tiap request.
-# Logout/ganti sandi menghapus cache-nya di proses ini (1 worker gunicorn).
+# Cache hasil cek sesi di memori proses (1 worker gunicorn); logout/ganti sandi menghapusnya.
 SESSION_CACHE_SECONDS = 15
 
 
@@ -52,9 +37,7 @@ class AuthenticatedUser:
     role: Optional[str] = None
     sid: str = ""
     token_type: str = TOKEN_ACCESS
-    # Klaim "consent" sengaja tidak dibawa ke sini. Server tidak boleh
-    # memakainya untuk memutuskan apa pun: setelah persetujuan ditarik, token
-    # lama di perangkat lain masih memuatnya. Lihat apps.accounts.privacy.
+    # Klaim "consent" sengaja tidak dibawa: token lama masih memuatnya setelah persetujuan ditarik.
 
     @property
     def is_authenticated(self) -> bool:
@@ -62,11 +45,7 @@ class AuthenticatedUser:
 
 
 def signing_key() -> bytes:
-    """Kunci tanda tangan JWT, diturunkan dari SECRET_KEY dengan label sendiri.
-
-    Kunci Django (CSRF, dsb.) dan kunci token jadi tidak identik. Dihitung saat
-    dipakai, bukan saat import, karena development/test mengganti SECRET_KEY.
-    """
+    """Kunci JWT diturunkan dari SECRET_KEY dengan label sendiri; dihitung saat dipakai (test mengganti SECRET_KEY)."""
     return hmac.new(settings.SECRET_KEY.encode(), b"thinkpath/jwt/v1", hashlib.sha256).digest()
 
 
@@ -117,9 +96,7 @@ def _claims(profile: Profile, sid: str, *, token_type: str, lifetime: timedelta)
         claims.update(
             email=profile.email,
             role=profile.role,
-            # Dibaca layout frontend untuk memutuskan perlu tidaknya layar
-            # persetujuan tanpa panggilan jaringan. Hanya untuk tampilan:
-            # pemrosesan data baru tetap memeriksa basis data.
+            # Hanya untuk tampilan layout frontend; pemrosesan data tetap memeriksa basis data.
             consent=consent.policy_version if consent else None,
         )
     else:
@@ -152,8 +129,7 @@ def _extract_bearer_token(request) -> Optional[str]:
 
 def _decode_token(token: str) -> dict:
     try:
-        # exp, iat, sub, dan sid wajib ada: token tanpa kedaluwarsa atau tanpa
-        # sesi tidak boleh lolos hanya karena penandatangannya benar.
+        # Token tanpa kedaluwarsa atau sesi tidak boleh lolos walau tanda tangannya benar.
         return jwt.decode(
             token,
             signing_key(),

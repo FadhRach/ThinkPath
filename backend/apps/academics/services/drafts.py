@@ -1,13 +1,6 @@
-"""Draf jawaban dengan jejak pengerjaan yang dicatat server.
+"""Draf jawaban: server mencatat waktu mulai dan menghitung kata sendiri (klien hanya mengirim teks).
 
-Klien hanya mengirim teks. Server menentukan kapan pengerjaan dimulai dan
-menghitung kata dari teks itu sendiri, sehingga mahasiswa tidak bisa
-mengarang `started_at` atau kurva pertumbuhan.
-
-Yang TIDAK bisa dicegah tanpa merekam ketikan (dan itu berlebihan terhadap
-privasi): skrip yang mengirim teks bertahap selama berjam-jam bisa meniru
-kurva yang wajar. Biayanya waktu nyata, bukan satu request, dan lonjakan antar
-cuplikan tetap terbaca.
+Batas yang diterima: skrip yang mengirim teks bertahap berjam-jam tetap bisa meniru kurva wajar.
 """
 from __future__ import annotations
 
@@ -19,9 +12,7 @@ from apps.academics.models import Assignment, SubmissionDraft
 from apps.accounts.models import Profile
 from apps.analysis.engines.process_signals import ProgressSample
 
-# Cuplikan dicatat paling sering tiap ini. Penyimpanan otomatis boleh lebih
-# sering (teks selalu tersimpan), tetapi kurva tidak dipadati cuplikan rapat
-# yang membuat laju antar cuplikan tak terbaca.
+# Jarak minimum cuplikan: simpan otomatis boleh lebih sering, kurva jangan dipadati.
 SAMPLE_INTERVAL_SECONDS = 30
 MAX_SAMPLES = 240
 
@@ -44,11 +35,7 @@ def save_draft(
     document_id: UUID | None = None,
     rich_answer: dict | None = None,
 ) -> SubmissionDraft | None:
-    """Simpan teks dan, bila sudah waktunya, satu cuplikan. None bila belum mulai menulis.
-
-    Teks kosong tidak memulai apa pun: pengerjaan dihitung dari ketikan
-    pertama, bukan dari saat halaman tugas dibuka.
-    """
+    """Simpan teks + cuplikan bila sudah waktunya; None bila teks kosong (mulai = ketikan pertama)."""
     now = timezone.now()
     words = count_words(text)
     for _ in range(2):
@@ -99,12 +86,9 @@ def save_draft(
 
 
 def trail_from(draft: SubmissionDraft | None, submitted_at, final_words: int) -> tuple:
-    """(started_at, duration_seconds, cuplikan) untuk analisis dan penyimpanan.
+    """(started_at, duration_seconds, cuplikan).
 
-    Tanpa draf, server tidak pernah melihat teks ini ditulis: mulai = kumpul,
-    durasi 0 (terukur), dan satu-satunya cuplikan adalah teks utuh saat
-    dikumpulkan. Dengan draf, cuplikan akhir ditambahkan agar tambahan setelah
-    penyimpanan terakhir ikut terbaca.
+    Tanpa draf: mulai = kumpul, durasi 0 terukur, satu cuplikan teks utuh. Dengan draf: cuplikan akhir ditambahkan.
     """
     started_at = draft.started_at if draft else submitted_at
     duration = max(0, int((submitted_at - started_at).total_seconds()))

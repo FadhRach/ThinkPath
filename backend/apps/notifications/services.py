@@ -1,16 +1,6 @@
-"""Operasi generik atas notifikasi, tanpa tahu apa pun soal kelas atau tugas.
+"""Kirim notifikasi: notify (per penerima), notify_grouped (digabung selama belum dibaca), notify_once.
 
-Tiga cara mengirim, karena tiga kebutuhan yang berbeda:
-
-- notify: satu notifikasi per penerima, misalnya "Tugas baru".
-- notify_grouped: digabung selama belum dibaca, supaya dosen dengan empat puluh
-  mahasiswa menerima "40 pengumpulan baru", bukan empat puluh baris.
-- notify_once: dikirim sekali seumur hidup, untuk pengingat tenggat yang tidak
-  boleh muncul lagi setelah dibaca.
-
-Kegagalan menulis notifikasi tidak boleh menggagalkan aksi utamanya. Mahasiswa
-yang mengumpulkan jawaban tidak peduli apakah lonceng dosennya berbunyi, jadi
-seluruh pemanggil membungkus panggilan ini dengan safe().
+Pemanggil membungkusnya dengan safe(): notifikasi gagal tidak boleh menggagalkan aksi utama.
 """
 from __future__ import annotations
 
@@ -26,18 +16,12 @@ from apps.notifications.models import Notification
 
 logger = logging.getLogger(__name__)
 
-# Jumlah notifikasi yang dikirim ke lonceng. Yang lebih lama tetap tersimpan,
-# tetapi daftar sepanjang itu tidak pernah dibaca siapa pun.
+# Batas daftar lonceng; yang lebih lama tetap tersimpan.
 LIST_LIMIT = 30
 
 
 def safe(action: Callable[[], object]) -> None:
-    """Jalankan pengiriman notifikasi tanpa pernah menggagalkan pemanggilnya.
-
-    Dibungkus savepoint sendiri. Tanpa itu, galat basis data di dalam
-    transaksi pemanggil membuat seluruh transaksinya tidak bisa dipakai lagi,
-    walaupun galatnya sudah ditangkap di sini.
-    """
+    """Jalankan pengiriman tanpa menggagalkan pemanggil; savepoint sendiri agar transaksi pemanggil tetap sehat."""
     try:
         with transaction.atomic():
             action()
@@ -78,12 +62,7 @@ def notify_grouped(
     build: Callable[[int], tuple[str, str]],
     link: str = "",
 ) -> Notification:
-    """Gabungkan dengan notifikasi berkunci sama yang belum dibaca.
-
-    build menerima jumlah kejadian dan mengembalikan (judul, isi), sehingga
-    kalimatnya selalu sesuai angkanya. Notifikasi yang digabung naik ke atas
-    daftar dan kembali belum dibaca.
-    """
+    """Gabung dengan notifikasi berkunci sama yang belum dibaca; build(jumlah) -> (judul, isi)."""
     with transaction.atomic():
         existing = (
             Notification.objects.select_for_update()
@@ -129,8 +108,7 @@ def notify_once(
     if exists:
         return False
     try:
-        # Savepoint sendiri, supaya pelanggaran unik tidak merusak transaksi
-        # pemanggil yang masih akan membaca daftar notifikasi.
+        # Savepoint sendiri agar pelanggaran unik tidak merusak transaksi pemanggil.
         with transaction.atomic():
             Notification.objects.create(
                 recipient_id=recipient_id,
